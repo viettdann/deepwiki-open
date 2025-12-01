@@ -671,6 +671,37 @@ async def handle_webhook(provider: str, request: Request):
             payload = json.loads(body.decode())
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid payload")
+        def _env_bool(name: str, default: bool = False) -> bool:
+            v = os.environ.get(name)
+            if v is None:
+                return default
+            v = v.strip().lower()
+            return v in ("1", "true", "t", "yes", "y")
+        raw_allowed = os.environ.get("AZURE_DEVOPS_ACCEPT_EVENT_TYPES", "git.push,git.pullrequest.created,git.pullrequest.updated")
+        allowed = {s.strip() for s in raw_allowed.split(",") if s.strip()}
+        def _validate(payload_obj: dict, allowed_types: set[str]) -> bool:
+            et = payload_obj.get("eventType")
+            if et and allowed_types and et not in allowed_types:
+                return False
+            resource = payload_obj.get("resource")
+            if not isinstance(resource, dict):
+                return False
+            repo_obj = resource.get("repository") or {}
+            if not isinstance(repo_obj, dict):
+                return False
+            remote_url = repo_obj.get("remoteUrl") or repo_obj.get("url")
+            if not isinstance(remote_url, str) or not remote_url:
+                return False
+            if et == "git.push":
+                if not (resource.get("commits") or resource.get("refUpdates")):
+                    return False
+            if et and et.startswith("git.pullrequest"):
+                if not resource.get("pullRequestId"):
+                    return False
+            return True
+        if _env_bool("AZURE_DEVOPS_VALIDATE_STRUCTURE", True):
+            if not _validate(payload, allowed):
+                raise HTTPException(status_code=400, detail="Invalid Azure DevOps webhook payload")
         remote_url = (
             payload.get("resource", {})
             .get("repository", {})
