@@ -17,6 +17,7 @@ class WikiUpdateScheduler:
         self.max_concurrent_updates = 5
         self.current_updates = 0
         self.update_history: Dict[str, list[Dict]] = {}
+        self._state_path = os.path.join(os.path.expanduser(os.path.join("~", ".adalflow")), "auto_update_state.json")
 
     def schedule_repo_update(self, repo_id: str, repo_url: str, local_path: str,
                              access_token: str = None, repo_type: str = None,
@@ -47,6 +48,7 @@ class WikiUpdateScheduler:
         logger.info(f"Removed auto-update schedule for {repo_id}")
 
     async def start_scheduler(self):
+        self._load_state()
         self.running = True
         logger.info("Starting wiki update scheduler")
         while self.running:
@@ -59,6 +61,7 @@ class WikiUpdateScheduler:
 
     def stop_scheduler(self):
         self.running = False
+        self._save_state()
         logger.info("Stopped wiki update scheduler")
 
     async def _run_due_updates(self):
@@ -140,6 +143,8 @@ class WikiUpdateScheduler:
             self.unschedule_repo_update(rid)
             logger.info(f"Cleaned up old repo schedule: {rid}")
 
+        self._save_state()
+
     def _record_history(self, repo_id: str, entry: Dict):
         history = self.update_history.setdefault(repo_id, [])
         history.insert(0, entry)
@@ -148,6 +153,46 @@ class WikiUpdateScheduler:
 
     def get_update_history(self, repo_id: str, limit: int = 10) -> list[Dict]:
         return (self.update_history.get(repo_id, [])[:limit])
+
+    def _load_state(self):
+        try:
+            if os.path.exists(self._state_path):
+                with open(self._state_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self.update_intervals = data.get("update_intervals", {})
+                self.repo_info = {}
+                for rid, info in data.get("repo_info", {}).items():
+                    # Rehydrate datetime fields
+                    if info.get("last_update"):
+                        try:
+                            info["last_update"] = datetime.fromisoformat(info["last_update"])
+                        except Exception:
+                            info["last_update"] = None
+                    self.repo_info[rid] = info
+                self.active_repos = set(data.get("active_repos", []))
+                logger.info("Loaded auto-update scheduler state")
+        except Exception as e:
+            logger.warning(f"Failed to load scheduler state: {e}")
+
+    def _save_state(self):
+        try:
+            os.makedirs(os.path.dirname(self._state_path), exist_ok=True)
+            serializable_repo_info = {}
+            for rid, info in self.repo_info.items():
+                s = dict(info)
+                if isinstance(s.get("last_update"), datetime):
+                    s["last_update"] = s["last_update"].isoformat()
+                serializable_repo_info[rid] = s
+            payload = {
+                "update_intervals": self.update_intervals,
+                "repo_info": serializable_repo_info,
+                "active_repos": list(self.active_repos),
+            }
+            with open(self._state_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f)
+            logger.info("Saved auto-update scheduler state")
+        except Exception as e:
+            logger.warning(f"Failed to save scheduler state: {e}")
 
     def _parse_owner_repo(self, repo_id: str) -> tuple[str, str]:
         try:
