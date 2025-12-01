@@ -9,6 +9,9 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import google.generativeai as genai
 import asyncio
+import hmac
+import hashlib
+from api.scheduler import scheduler
 
 # Configure logging
 from api.logging_config import setup_logging
@@ -56,6 +59,9 @@ class ProcessedProjectEntry(BaseModel):
     repo_type: str # Renamed from type to repo_type for clarity with existing models
     submittedAt: int # Timestamp
     language: str # Extracted from filename
+    autoUpdateEnabled: Optional[bool] = None
+    autoUpdateInterval: Optional[int] = None
+    autoUpdateStatus: Optional[Dict[str, Any]] = None
 
 class RepoInfo(BaseModel):
     owner: str
@@ -573,6 +579,166 @@ async def root():
         "endpoints": endpoints
     }
 
+@app.on_event("startup")
+async def start_auto_update_scheduler():
+    asyncio.create_task(scheduler.start_scheduler())
+
+@app.on_event("shutdown")
+def stop_auto_update_scheduler():
+    scheduler.stop_scheduler()
+
+class AutoUpdateRequest(BaseModel):
+    repo_id: str
+    repo_url: str
+    local_path: str
+    access_token: str | None = None
+    repo_type: str | None = None
+    interval_hours: int = 24
+    enabled: bool = True
+    require_changes: bool = True
+
+@app.post("/api/wiki/auto-update/schedule")
+async def schedule_auto_update(request: AutoUpdateRequest):
+    try:
+        scheduler.schedule_repo_update(
+            repo_id=request.repo_id,
+            repo_url=request.repo_url,
+            local_path=request.local_path,
+            access_token=request.access_token,
+            repo_type=request.repo_type,
+            interval_hours=request.interval_hours,
+            enabled=request.enabled,
+            require_changes=request.require_changes,
+        )
+        return {"status": "success", "message": "Auto-update scheduled"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/wiki/auto-update/unschedule")
+async def unschedule_auto_update(request: AutoUpdateRequest):
+    scheduler.unschedule_repo_update(request.repo_id)
+    return {"status": "success", "message": "Auto-update unscheduled"}
+
+@app.get("/api/wiki/auto-update/status/{repo_id}")
+async def get_auto_update_status(repo_id: str):
+    status = scheduler.get_repo_status(repo_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="Repository not scheduled for auto-update")
+    return status
+
+@app.get("/api/wiki/auto-update/status")
+async def get_all_auto_update_status():
+    return scheduler.get_all_repos_status()
+
+@app.post("/api/wiki/auto-update/trigger/{repo_id}")
+async def trigger_manual_update(repo_id: str):
+    scheduler._perform_repo_update(repo_id)
+    return {"status": "success", "message": "Manual update triggered"}
+
+@app.get("/api/wiki/auto-update/history/{repo_id}")
+async def get_update_history(repo_id: str, limit: int = 10):
+    return scheduler.get_update_history(repo_id, limit)
+
+@app.post("/api/wiki/webhook/{provider}")
+async def handle_webhook(provider: str, request: Request):
+    if provider == "github":
+        secret = os.environ.get("GITHUB_WEBHOOK_SECRET")
+        if not secret:
+            raise HTTPException(status_code=400, detail="Webhook secret not configured")
+        signature = request.headers.get("X-Hub-Signature-256", "")
+        body = await request.body()
+        computed = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, computed):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        try:
+            payload = json.loads(body.decode())
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid payload")
+        if payload.get("zen"):
+            return {"status": "ok"}
+        repo_full_name = payload.get("repository", {}).get("full_name")
+        if repo_full_name:
+            repo_id = f"github/{repo_full_name}"
+            asyncio.create_task(asyncio.to_thread(scheduler._perform_repo_update, repo_id))
+        return {"status": "received"}
+    if provider == "azure":
+        token = os.environ.get("AZURE_DEVOPS_WEBHOOK_TOKEN")
+        header_token = request.headers.get("X-Azure-DevOps-Token")
+        if not token or not header_token or token != header_token:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        body = await request.body()
+        try:
+            payload = json.loads(body.decode())
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid payload")
+        def _env_bool(name: str, default: bool = False) -> bool:
+            v = os.environ.get(name)
+            if v is None:
+                return default
+            v = v.strip().lower()
+            return v in ("1", "true", "t", "yes", "y")
+        raw_allowed = os.environ.get("AZURE_DEVOPS_ACCEPT_EVENT_TYPES", "git.push,git.pullrequest.created,git.pullrequest.updated")
+        allowed = {s.strip() for s in raw_allowed.split(",") if s.strip()}
+        def _validate(payload_obj: dict, allowed_types: set[str]) -> bool:
+            et = payload_obj.get("eventType")
+            if et and allowed_types and et not in allowed_types:
+                return False
+            resource = payload_obj.get("resource")
+            if not isinstance(resource, dict):
+                return False
+            repo_obj = resource.get("repository") or {}
+            if not isinstance(repo_obj, dict):
+                return False
+            remote_url = repo_obj.get("remoteUrl") or repo_obj.get("url")
+            if not isinstance(remote_url, str) or not remote_url:
+                return False
+            if et == "git.push":
+                if not (resource.get("commits") or resource.get("refUpdates")):
+                    return False
+            if et and et.startswith("git.pullrequest"):
+                if not resource.get("pullRequestId"):
+                    return False
+            return True
+        if _env_bool("AZURE_DEVOPS_VALIDATE_STRUCTURE", True):
+            if not _validate(payload, allowed):
+                raise HTTPException(status_code=400, detail="Invalid Azure DevOps webhook payload")
+        remote_url = (
+            payload.get("resource", {})
+            .get("repository", {})
+            .get("remoteUrl")
+        ) or (
+            payload.get("resource", {})
+            .get("repository", {})
+            .get("url")
+        )
+        org = ""
+        repo = ""
+        if isinstance(remote_url, str):
+            try:
+                from urllib.parse import urlparse
+                p = urlparse(remote_url)
+                parts = [s for s in p.path.split("/") if s]
+                if "_git" in parts:
+                    idx = parts.index("_git")
+                    if idx >= 2 and idx + 1 < len(parts):
+                        org = parts[0]
+                        repo = parts[idx + 1]
+            except Exception:
+                pass
+        project = (
+            payload.get("resource", {})
+            .get("repository", {})
+            .get("project", {})
+            .get("name")
+        ) or payload.get("resource", {}).get("project", {}).get("name")
+        if not org and project:
+            org = project
+        if org and repo:
+            repo_id = f"azure/{org}/{repo}"
+            asyncio.create_task(asyncio.to_thread(scheduler._perform_repo_update, repo_id))
+        return {"status": "received"}
+    return {"status": "received"}
+
 # --- Processed Projects Endpoint --- (New Endpoint)
 @app.get("/api/processed_projects", response_model=List[ProcessedProjectEntry])
 async def get_processed_projects():
@@ -614,8 +780,17 @@ async def get_processed_projects():
                                 repo=repo,
                                 name=f"{owner}/{repo}",
                                 repo_type=repo_type,
-                                submittedAt=int(stats.st_mtime * 1000), # Convert to milliseconds
-                                language=language
+                                submittedAt=int(stats.st_mtime * 1000),
+                                language=language,
+                                autoUpdateEnabled=(scheduler.get_repo_status(f"{repo_type}/{owner}/{repo}") is not None),
+                                autoUpdateInterval=(scheduler.update_intervals.get(f"{repo_type}/{owner}/{repo}") or None),
+                                autoUpdateStatus=(
+                                    lambda s: {
+                                        "lastUpdate": s.get("last_update").isoformat() if s and s.get("last_update") else None,
+                                        "updateCount": s.get("update_count") if s else None,
+                                        "lastError": s.get("last_error") if s else None,
+                                    }
+                                )(scheduler.get_repo_status(f"{repo_type}/{owner}/{repo}"))
                             )
                         )
                     else:

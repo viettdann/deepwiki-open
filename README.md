@@ -428,6 +428,11 @@ cp .env.example .env
 | `SERVER_BASE_URL`    | Base URL for API server                                      | No | `http://localhost:8001` |
 | `DEEPWIKI_AUTH_MODE` | Enable authorization mode (`true` or `1`)                    | No | `false` |
 | `DEEPWIKI_AUTH_CODE` | Authorization code (when auth mode is enabled)               | No | - |
+| `PYTHON_BACKEND_HOST` | Backend base URL used by Next.js route proxies              | No | `http://localhost:8001` |
+| `GITHUB_WEBHOOK_SECRET` | Secret used to validate GitHub webhook signature (`X-Hub-Signature-256`) | No | - |
+| `AZURE_DEVOPS_WEBHOOK_TOKEN` | Token header value for Azure DevOps service hooks    | No | - |
+| `AZURE_DEVOPS_VALIDATE_STRUCTURE` | Enable Azure DevOps webhook payload validation | No | `true` |
+| `AZURE_DEVOPS_ACCEPT_EVENT_TYPES` | Comma-separated allowed Azure DevOps event types | No | - |
 | `LOG_LEVEL`          | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)        | No | `INFO` |
 | `LOG_FILE_PATH`      | Path to log file                                             | No | `api/logs/application.log` |
 

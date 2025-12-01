@@ -13,6 +13,8 @@ from adalflow.core.db import LocalDB
 from api.config import configs, DEFAULT_EXCLUDED_DIRS, DEFAULT_EXCLUDED_FILES
 from api.ollama_patch import OllamaDocumentProcessor
 from urllib.parse import urlparse, urlunparse, quote
+from datetime import datetime
+from typing import Optional
 import requests
 from requests.exceptions import RequestException
 
@@ -148,6 +150,77 @@ def download_repo(repo_url: str, local_path: str, repo_type: str = None, access_
         raise ValueError(f"Error during cloning: {error_msg}")
     except Exception as e:
         raise ValueError(f"An unexpected error occurred: {str(e)}")
+
+def update_repo(local_path: str, access_token: str = None, repo_type: str = None) -> str:
+    try:
+        if not os.path.exists(local_path) or not os.listdir(local_path):
+            return "Repository does not exist or is empty"
+        if not os.path.exists(os.path.join(local_path, ".git")):
+            return "Not a git repository"
+        status_result = subprocess.run(["git", "status", "--porcelain"], cwd=local_path, capture_output=True, text=True)
+        if status_result.stdout.strip():
+            logger.warning(f"Repository has uncommitted changes at {local_path}")
+            return "Repository has uncommitted changes"
+        result_before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=local_path, capture_output=True, text=True)
+        before_hash = result_before.stdout.strip()
+        subprocess.run(["git", "fetch", "origin"], cwd=local_path, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(["git", "pull"], cwd=local_path, capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.error(f"Git pull failed at {local_path}: {result.stderr}")
+            return f"Pull failed: {result.stderr}"
+        result_after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=local_path, capture_output=True, text=True)
+        after_hash = result_after.stdout.strip()
+        if before_hash != after_hash:
+            changes = subprocess.run(["git", "log", "--oneline", f"{before_hash}..{after_hash}"], cwd=local_path, capture_output=True, text=True)
+            commit_count = len([l for l in changes.stdout.split("\n") if l.strip()]) if changes.stdout else 0
+            logger.info(f"Repository updated: {commit_count} commits ({before_hash[:7]} -> {after_hash[:7]})")
+            return f"Updated: {commit_count} new commits"
+        else:
+            logger.info(f"Repository up to date at {local_path}")
+            return "Repository up to date"
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr.decode("utf-8") if isinstance(e.stderr, bytes) else str(e.stderr)
+        if access_token:
+            error_msg = error_msg.replace(access_token, "***TOKEN***")
+            encoded_token = quote(access_token, safe="")
+            error_msg = error_msg.replace(encoded_token, "***TOKEN***")
+        raise ValueError(f"Error updating repository: {error_msg}")
+    except Exception as e:
+        raise ValueError(f"Unexpected error updating repository: {str(e)}")
+
+def detect_repo_changes(local_path: str) -> tuple[bool, str]:
+    try:
+        if not os.path.exists(local_path):
+            return False, "Repository does not exist"
+        result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=local_path, capture_output=True, text=True)
+        if result.returncode != 0:
+            return False, "Not a git repository"
+        current_hash = result.stdout.strip()
+        state_file = os.path.join(local_path, ".deepwiki_last_commit")
+        if os.path.exists(state_file):
+            with open(state_file, "r") as f:
+                last_processed_hash = f.read().strip()
+            has_changes = current_hash != last_processed_hash
+        else:
+            has_changes = True
+        return has_changes, current_hash
+    except Exception:
+        return False, "Error detecting changes"
+
+def mark_repo_processed(local_path: str, commit_hash: str):
+    state_file = os.path.join(local_path, ".deepwiki_last_commit")
+    with open(state_file, "w") as f:
+        f.write(commit_hash)
+
+def get_repo_last_commit_time(local_path: str) -> Optional[datetime]:
+    try:
+        result = subprocess.run(["git", "log", "-1", "--format=%ct"], cwd=local_path, capture_output=True, text=True)
+        if result.returncode == 0 and result.stdout.strip():
+            timestamp = int(result.stdout.strip())
+            return datetime.fromtimestamp(timestamp)
+        return None
+    except Exception:
+        return None
 
 # Alias for backward compatibility
 download_github_repo = download_repo
