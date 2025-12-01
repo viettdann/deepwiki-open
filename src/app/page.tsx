@@ -266,6 +266,9 @@ export default function Home() {
     setIsConfigModalOpen(true);
   };
 
+  // Auto update settings state
+  const [autoUpdateSettings, setAutoUpdateSettings] = useState({ enabled: false, intervalHours: 24, requireChanges: true });
+
   const validateAuthCode = async () => {
     try {
       if(authRequired) {
@@ -389,6 +392,30 @@ export default function Home() {
     // Navigate to the dynamic route
     router.push(`/${owner}/${repo}${queryString}`);
 
+    // Schedule auto update if enabled
+    if (autoUpdateSettings.enabled) {
+      try {
+        const serverBaseUrl = process.env.SERVER_BASE_URL || 'http://localhost:8001';
+        const repoUrlToSend = localPath ? localPath : repositoryInput.trim();
+        const scheduleBody = {
+          repo_id: `${selectedPlatform}/${owner}/${repo}`,
+          repo_url: repoUrlToSend,
+          local_path: localPath || '',
+          access_token: accessToken || '',
+          repo_type: selectedPlatform,
+          interval_hours: autoUpdateSettings.intervalHours,
+          enabled: true
+        };
+        await fetch(`${serverBaseUrl}/api/wiki/auto-update/schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(scheduleBody)
+        });
+      } catch (e) {
+        console.warn('Failed to schedule auto update:', e);
+      }
+    }
+
     // The isSubmitting state will be reset when the component unmounts during navigation
   };
 
@@ -443,9 +470,9 @@ export default function Home() {
           </form>
 
           {/* Configuration Modal */}
-          <ConfigurationModal
-            isOpen={isConfigModalOpen}
-            onClose={() => setIsConfigModalOpen(false)}
+      <ConfigurationModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
             repositoryInput={repositoryInput}
             selectedLanguage={selectedLanguage}
             setSelectedLanguage={setSelectedLanguage}
@@ -456,10 +483,10 @@ export default function Home() {
             setProvider={setProvider}
             model={model}
             setModel={setModel}
-            isCustomModel={isCustomModel}
-            setIsCustomModel={setIsCustomModel}
-            customModel={customModel}
-            setCustomModel={setCustomModel}
+        isCustomModel={isCustomModel}
+        setIsCustomModel={setIsCustomModel}
+        customModel={customModel}
+        setCustomModel={setCustomModel}
             selectedPlatform={selectedPlatform}
             setSelectedPlatform={setSelectedPlatform}
             accessToken={accessToken}
@@ -470,15 +497,17 @@ export default function Home() {
             setExcludedFiles={setExcludedFiles}
             includedDirs={includedDirs}
             setIncludedDirs={setIncludedDirs}
-            includedFiles={includedFiles}
-            setIncludedFiles={setIncludedFiles}
-            onSubmit={handleGenerateWiki}
-            isSubmitting={isSubmitting}
-            authRequired={authRequired}
-            authCode={authCode}
-            setAuthCode={setAuthCode}
-            isAuthLoading={isAuthLoading}
-          />
+        includedFiles={includedFiles}
+        setIncludedFiles={setIncludedFiles}
+        onSubmit={handleGenerateWiki}
+        isSubmitting={isSubmitting}
+        authRequired={authRequired}
+        authCode={authCode}
+        setAuthCode={setAuthCode}
+        isAuthLoading={isAuthLoading}
+        autoUpdateSettings={autoUpdateSettings}
+        setAutoUpdateSettings={setAutoUpdateSettings}
+      />
 
         </div>
       </header>

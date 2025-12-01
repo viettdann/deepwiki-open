@@ -4,6 +4,11 @@ import React, { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import UserSelector from './UserSelector';
 import TokenInput from './TokenInput';
+interface AutoUpdateSettings {
+  enabled: boolean;
+  intervalHours: number;
+  requireChanges: boolean;
+}
 
 interface ConfigurationModalProps {
   isOpen: boolean;
@@ -58,6 +63,8 @@ interface ConfigurationModalProps {
   authCode?: string;
   setAuthCode?: (code: string) => void;
   isAuthLoading?: boolean;
+  autoUpdateSettings?: AutoUpdateSettings;
+  setAutoUpdateSettings?: (value: AutoUpdateSettings) => void;
 }
 
 export default function ConfigurationModal({
@@ -95,6 +102,8 @@ export default function ConfigurationModal({
   authCode,
   setAuthCode,
   isAuthLoading
+  ,autoUpdateSettings
+  ,setAutoUpdateSettings
 }: ConfigurationModalProps) {
   const { messages: t } = useLanguage();
 
@@ -241,6 +250,69 @@ export default function ConfigurationModal({
               onToggleTokenSection={() => setShowTokenSection(!showTokenSection)}
               allowPlatformChange={true}
             />
+
+            {/* Auto Update Settings */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-lg font-semibold mb-3">Auto Update Settings</h3>
+
+              <div className="flex items-center space-x-3 mb-4">
+                <input
+                  type="checkbox"
+                  id="autoUpdateEnabled"
+                  checked={autoUpdateSettings?.enabled ?? false}
+                  onChange={(e) => setAutoUpdateSettings?.({
+                    enabled: e.target.checked,
+                    intervalHours: autoUpdateSettings?.intervalHours ?? 24,
+                    requireChanges: autoUpdateSettings?.requireChanges ?? true,
+                  })}
+                  className="w-4 h-4 text-[var(--accent-primary)] bg-[var(--background)] border-[var(--border-color)] rounded"
+                />
+                <label htmlFor="autoUpdateEnabled" className="text-sm font-medium">
+                  Enable automatic repository updates
+                </label>
+              </div>
+
+              {(autoUpdateSettings?.enabled ?? false) && (
+                <div className="space-y-3 ml-1">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Update Frequency
+                    </label>
+                    <select
+                      value={autoUpdateSettings?.intervalHours ?? 24}
+                      onChange={(e) => setAutoUpdateSettings?.({
+                        enabled: true,
+                        intervalHours: parseInt(e.target.value),
+                        requireChanges: autoUpdateSettings?.requireChanges ?? true,
+                      })}
+                      className="w-full p-2 border border-[var(--border-color)] rounded-md"
+                    >
+                      <option value={6}>Every 6 hours</option>
+                      <option value={12}>Every 12 hours</option>
+                      <option value={24}>Daily</option>
+                      <option value={168}>Weekly</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      id="requireChanges"
+                      checked={autoUpdateSettings?.requireChanges ?? true}
+                      onChange={(e) => setAutoUpdateSettings?.({
+                        enabled: true,
+                        intervalHours: autoUpdateSettings?.intervalHours ?? 24,
+                        requireChanges: e.target.checked,
+                      })}
+                      className="w-4 h-4 text-[var(--accent-primary)] bg-[var(--background)] border-[var(--border-color)] rounded"
+                    />
+                    <label htmlFor="requireChanges" className="text-sm">
+                      Only regenerate wiki if changes detected
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Authorization Code Input */}
             {isAuthLoading && (

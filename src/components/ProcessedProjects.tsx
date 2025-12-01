@@ -13,6 +13,13 @@ interface ProcessedProject {
   repo_type: string;
   submittedAt: number;
   language: string;
+  autoUpdateEnabled?: boolean;
+  autoUpdateInterval?: number;
+  autoUpdateStatus?: {
+    lastUpdate?: string;
+    updateCount?: number;
+    lastError?: string;
+  };
 }
 
 interface ProcessedProjectsProps {
@@ -223,6 +230,32 @@ export default function ProcessedProjects({
                     {t('processedOn')} {new Date(project.submittedAt).toLocaleDateString()}
                   </p>
                 </Link>
+                {project.autoUpdateEnabled && (
+                  <div className="mt-2 p-2 bg-[var(--accent-primary)]/10 rounded text-xs">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-[var(--accent-primary)]">Auto-Update</span>
+                      <span className={`px-2 py-1 rounded-full ${
+                        project.autoUpdateStatus?.lastError
+                          ? 'bg-[var(--highlight)]/10 text-[var(--highlight)]'
+                          : 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]'
+                      }`}>
+                        {project.autoUpdateStatus?.lastError ? 'Error' : 'Active'}
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-[var(--muted)]">
+                      <div>Frequency: Every {project.autoUpdateInterval}h</div>
+                      {project.autoUpdateStatus?.lastUpdate && (
+                        <div>Last updated: {new Date(project.autoUpdateStatus.lastUpdate).toLocaleString()}</div>
+                      )}
+                      {project.autoUpdateStatus?.updateCount ? (
+                        <div>Updates performed: {project.autoUpdateStatus.updateCount}</div>
+                      ) : null}
+                      {project.autoUpdateStatus?.lastError && (
+                        <div className="text-[var(--highlight)] mt-1">Error: {project.autoUpdateStatus.lastError}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div key={project.id} className="relative p-3 border border-[var(--border-color)] rounded-lg bg-[var(--card-bg)] hover:bg-[var(--background)] transition-colors">
@@ -252,6 +285,32 @@ export default function ProcessedProjects({
                     </span>
                   </div>
                 </Link>
+                {project.autoUpdateEnabled && (
+                  <div className="mt-2 p-2 bg-[var(--accent-primary)]/10 rounded text-xs">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-[var(--accent-primary)]">Auto-Update</span>
+                      <span className={`px-2 py-1 rounded-full ${
+                        project.autoUpdateStatus?.lastError
+                          ? 'bg-[var(--highlight)]/10 text-[var(--highlight)]'
+                          : 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]'
+                      }`}>
+                        {project.autoUpdateStatus?.lastError ? 'Error' : 'Active'}
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-[var(--muted)]">
+                      <div>Frequency: Every {project.autoUpdateInterval}h</div>
+                      {project.autoUpdateStatus?.lastUpdate && (
+                        <div>Last updated: {new Date(project.autoUpdateStatus.lastUpdate).toLocaleString()}</div>
+                      )}
+                      {project.autoUpdateStatus?.updateCount ? (
+                        <div>Updates performed: {project.autoUpdateStatus.updateCount}</div>
+                      ) : null}
+                      {project.autoUpdateStatus?.lastError && (
+                        <div className="text-[var(--highlight)] mt-1">Error: {project.autoUpdateStatus.lastError}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )
           ))}
