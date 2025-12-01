@@ -57,6 +57,9 @@ class ProcessedProjectEntry(BaseModel):
     repo_type: str # Renamed from type to repo_type for clarity with existing models
     submittedAt: int # Timestamp
     language: str # Extracted from filename
+    autoUpdateEnabled: Optional[bool] = None
+    autoUpdateInterval: Optional[int] = None
+    autoUpdateStatus: Optional[Dict[str, Any]] = None
 
 class RepoInfo(BaseModel):
     owner: str
@@ -685,8 +688,17 @@ async def get_processed_projects():
                                 repo=repo,
                                 name=f"{owner}/{repo}",
                                 repo_type=repo_type,
-                                submittedAt=int(stats.st_mtime * 1000), # Convert to milliseconds
-                                language=language
+                                submittedAt=int(stats.st_mtime * 1000),
+                                language=language,
+                                autoUpdateEnabled=(scheduler.get_repo_status(f"{repo_type}/{owner}/{repo}") is not None),
+                                autoUpdateInterval=(scheduler.update_intervals.get(f"{repo_type}/{owner}/{repo}") or None),
+                                autoUpdateStatus=(
+                                    lambda s: {
+                                        "lastUpdate": s.get("last_update").isoformat() if s and s.get("last_update") else None,
+                                        "updateCount": s.get("update_count") if s else None,
+                                        "lastError": s.get("last_error") if s else None,
+                                    }
+                                )(scheduler.get_repo_status(f"{repo_type}/{owner}/{repo}"))
                             )
                         )
                     else:

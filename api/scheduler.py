@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from typing import Dict, Set, Optional
 from datetime import datetime, timedelta
 
@@ -86,6 +87,7 @@ class WikiUpdateScheduler:
         path = info["local_path"]
         access_token = info["access_token"]
         repo_type = info["repo_type"]
+        owner, repo = self._parse_owner_repo(repo_id)
         try:
             result = update_repo(path, access_token, repo_type)
             logger.info(f"Auto-update {repo_id}: {result}")
@@ -94,6 +96,7 @@ class WikiUpdateScheduler:
             if should_process and isinstance(current_hash, str):
                 logger.info(f"Processing repo {repo_id}")
                 mark_repo_processed(path, current_hash)
+                self._invalidate_wiki_cache(repo_type, owner, repo)
                 info["update_count"] += 1
                 info["last_update"] = datetime.now()
                 info["last_error"] = None
@@ -145,5 +148,32 @@ class WikiUpdateScheduler:
 
     def get_update_history(self, repo_id: str, limit: int = 10) -> list[Dict]:
         return (self.update_history.get(repo_id, [])[:limit])
+
+    def _parse_owner_repo(self, repo_id: str) -> tuple[str, str]:
+        try:
+            parts = repo_id.split("/")
+            if len(parts) >= 3:
+                return parts[1], parts[2]
+        except Exception:
+            pass
+        return "", ""
+
+    def _get_cache_dir(self) -> str:
+        return os.path.join(os.path.expanduser(os.path.join("~", ".adalflow")), "wikicache")
+
+    def _invalidate_wiki_cache(self, repo_type: Optional[str], owner: str, repo: str):
+        try:
+            cache_dir = self._get_cache_dir()
+            if not os.path.isdir(cache_dir):
+                return
+            prefix = f"deepwiki_cache_{repo_type}_{owner}_{repo}_"
+            for name in os.listdir(cache_dir):
+                if name.startswith(prefix) and name.endswith(".json"):
+                    try:
+                        os.remove(os.path.join(cache_dir, name))
+                    except Exception:
+                        continue
+        except Exception:
+            pass
 
 scheduler = WikiUpdateScheduler()
