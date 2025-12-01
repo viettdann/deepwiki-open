@@ -9,6 +9,8 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import google.generativeai as genai
 import asyncio
+import hmac
+import hashlib
 from api.scheduler import scheduler
 
 # Configure logging
@@ -640,11 +642,70 @@ async def get_update_history(repo_id: str, limit: int = 10):
 @app.post("/api/wiki/webhook/{provider}")
 async def handle_webhook(provider: str, request: Request):
     if provider == "github":
-        payload = await request.json()
+        secret = os.environ.get("GITHUB_WEBHOOK_SECRET")
+        if not secret:
+            raise HTTPException(status_code=400, detail="Webhook secret not configured")
+        signature = request.headers.get("X-Hub-Signature-256", "")
+        body = await request.body()
+        computed = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, computed):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        try:
+            payload = json.loads(body.decode())
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid payload")
+        if payload.get("zen"):
+            return {"status": "ok"}
         repo_full_name = payload.get("repository", {}).get("full_name")
         if repo_full_name:
             repo_id = f"github/{repo_full_name}"
             asyncio.create_task(asyncio.to_thread(scheduler._perform_repo_update, repo_id))
+        return {"status": "received"}
+    if provider == "azure":
+        token = os.environ.get("AZURE_DEVOPS_WEBHOOK_TOKEN")
+        header_token = request.headers.get("X-Azure-DevOps-Token")
+        if not token or not header_token or token != header_token:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        body = await request.body()
+        try:
+            payload = json.loads(body.decode())
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid payload")
+        remote_url = (
+            payload.get("resource", {})
+            .get("repository", {})
+            .get("remoteUrl")
+        ) or (
+            payload.get("resource", {})
+            .get("repository", {})
+            .get("url")
+        )
+        org = ""
+        repo = ""
+        if isinstance(remote_url, str):
+            try:
+                from urllib.parse import urlparse
+                p = urlparse(remote_url)
+                parts = [s for s in p.path.split("/") if s]
+                if "_git" in parts:
+                    idx = parts.index("_git")
+                    if idx >= 2 and idx + 1 < len(parts):
+                        org = parts[0]
+                        repo = parts[idx + 1]
+            except Exception:
+                pass
+        project = (
+            payload.get("resource", {})
+            .get("repository", {})
+            .get("project", {})
+            .get("name")
+        ) or payload.get("resource", {}).get("project", {}).get("name")
+        if not org and project:
+            org = project
+        if org and repo:
+            repo_id = f"azure/{org}/{repo}"
+            asyncio.create_task(asyncio.to_thread(scheduler._perform_repo_update, repo_id))
+        return {"status": "received"}
     return {"status": "received"}
 
 # --- Processed Projects Endpoint --- (New Endpoint)
