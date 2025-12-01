@@ -432,6 +432,11 @@ docker-compose up
 | `SERVER_BASE_URL`    | Base URL for the API server (default: http://localhost:8001) | No |
 | `DEEPWIKI_AUTH_MODE` | Set to `true` or `1` to enable authorization mode. | No | Defaults to `false`. If enabled, `DEEPWIKI_AUTH_CODE` is required. |
 | `DEEPWIKI_AUTH_CODE` | The secret code required for wiki generation when `DEEPWIKI_AUTH_MODE` is enabled. | No | Only used if `DEEPWIKI_AUTH_MODE` is `true` or `1`. |
+| `PYTHON_BACKEND_HOST` | Backend base URL used by Next.js route proxies | No | Defaults to `http://localhost:8001`. |
+| `GITHUB_WEBHOOK_SECRET` | Secret used to validate GitHub webhook signature (`X-Hub-Signature-256`) | No | Required if enabling GitHub webhooks. |
+| `AZURE_DEVOPS_WEBHOOK_TOKEN` | Token header value for Azure DevOps service hooks | No | Send as `X-Azure-DevOps-Token` header. |
+| `AZURE_DEVOPS_VALIDATE_STRUCTURE` | Enable Azure DevOps webhook payload validation | No | `true`/`1` enables validation (default `true`). |
+| `AZURE_DEVOPS_ACCEPT_EVENT_TYPES` | Comma-separated allowed Azure DevOps event types | No | Example: `git.push,git.pullrequest.created,git.pullrequest.updated`. |
 
 **API Key Requirements:**
 - If using `DEEPWIKI_EMBEDDER_TYPE=openai` (default): `OPENAI_API_KEY` is required

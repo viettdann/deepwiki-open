@@ -197,3 +197,100 @@ All data is stored locally on your machine:
 - Generated wiki cache: `~/.adalflow/wikicache/`
 
 No cloud storage is used - everything runs on your computer!
+
+## 🔔 Webhooks
+
+DeepWiki supports incoming webhooks to trigger repository update checks and cache invalidation.
+
+- Endpoint: `POST /api/wiki/webhook/{provider}`
+- Providers: `github`, `azure`
+
+### GitHub Webhook (HMAC SHA-256)
+
+- Configure in GitHub: Repository → Settings → Webhooks
+  - Payload URL: `http://<host>:8001/api/wiki/webhook/github`
+  - Content type: `application/json`
+  - Secret: set to the same value as `GITHUB_WEBHOOK_SECRET`
+  - Events: typically “Just the push event”
+
+- Server validation: Computes `sha256=<hex>` HMAC of raw body using `GITHUB_WEBHOOK_SECRET` and compares with `X-Hub-Signature-256` header (api/api.py:642-663)
+
+Example: generate signature and send test request (Python)
+
+```python
+import hmac, hashlib, json, requests, os
+
+secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "change-me")
+body = json.dumps({
+  "repository": {"full_name": "owner/repo"},
+  "ref": "refs/heads/main",
+  "zen": None
+}, separators=(",", ":"))  # ensure minimized JSON
+
+sig = "sha256=" + hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+r = requests.post(
+  "http://localhost:8001/api/wiki/webhook/github",
+  data=body,
+  headers={"Content-Type": "application/json", "X-Hub-Signature-256": sig}
+)
+print(r.status_code, r.text)
+```
+
+Example: curl with openssl
+
+```bash
+SECRET="change-me"
+BODY='{"repository":{"full_name":"owner/repo"},"ref":"refs/heads/main"}'
+SIG="sha256=$(printf "%s" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -binary | xxd -p -c 256)"
+curl -sS -X POST \
+  -H "Content-Type: application/json" \
+  -H "X-Hub-Signature-256: $SIG" \
+  --data "$BODY" \
+  http://localhost:8001/api/wiki/webhook/github
+```
+
+### Azure DevOps Service Hooks (Token + Optional Structure Check)
+
+- Configure in Azure DevOps: Project Settings → Service hooks → Web Hooks
+  - URL: `http://<host>:8001/api/wiki/webhook/azure`
+  - Use HTTPS in production
+  - Add a custom header `X-Azure-DevOps-Token: <your-token>` that matches `AZURE_DEVOPS_WEBHOOK_TOKEN`
+  - Choose events such as `git.push`, `git.pullrequest.created`
+
+- Optional validation controls:
+  - `AZURE_DEVOPS_VALIDATE_STRUCTURE=true` (default) enables payload structure checks
+  - `AZURE_DEVOPS_ACCEPT_EVENT_TYPES=git.push,git.pullrequest.created,git.pullrequest.updated`
+
+- Server handler extracts repository info from `resource.repository.remoteUrl` or `resource.repository.url` and triggers an update (api/api.py:665-739)
+
+Example: curl test request
+
+```bash
+TOKEN="change-me"
+BODY='{
+  "eventType":"git.push",
+  "resource":{
+    "repository":{
+      "remoteUrl":"https://dev.azure.com/org/project/_git/repo"
+    },
+    "commits":[{"id":"abc"}]
+  }
+}'
+curl -sS -X POST \
+  -H "Content-Type: application/json" \
+  -H "X-Azure-DevOps-Token: $TOKEN" \
+  --data "$BODY" \
+  http://localhost:8001/api/wiki/webhook/azure
+```
+
+### Check Update Status
+
+- Per repo: `GET /api/wiki/auto-update/status/{repo_id}`
+- All repos: `GET /api/wiki/auto-update/status`
+
+Where `repo_id` is `github/<owner>/<repo>` or `azure/<org>/<repo>`.
+
+### References
+
+- GitHub webhook signature (HMAC SHA-256): https://docs.github.com/en/developers/webhooks-and-events/webhooks/securing-your-webhooks
+- Azure DevOps Webhooks overview: https://learn.microsoft.com/en-us/azure/devops/service-hooks/services/webhooks
