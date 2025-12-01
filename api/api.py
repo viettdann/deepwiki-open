@@ -9,6 +9,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import google.generativeai as genai
 import asyncio
+from api.scheduler import scheduler
 
 # Configure logging
 from api.logging_config import setup_logging
@@ -572,6 +573,60 @@ async def root():
         "version": "1.0.0",
         "endpoints": endpoints
     }
+
+@app.on_event("startup")
+async def start_auto_update_scheduler():
+    asyncio.create_task(scheduler.start_scheduler())
+
+@app.on_event("shutdown")
+def stop_auto_update_scheduler():
+    scheduler.stop_scheduler()
+
+class AutoUpdateRequest(BaseModel):
+    repo_id: str
+    repo_url: str
+    local_path: str
+    access_token: str | None = None
+    repo_type: str | None = None
+    interval_hours: int = 24
+    enabled: bool = True
+
+@app.post("/api/wiki/auto-update/schedule")
+async def schedule_auto_update(request: AutoUpdateRequest):
+    try:
+        scheduler.schedule_repo_update(
+            repo_id=request.repo_id,
+            repo_url=request.repo_url,
+            local_path=request.local_path,
+            access_token=request.access_token,
+            repo_type=request.repo_type,
+            interval_hours=request.interval_hours,
+            enabled=request.enabled,
+        )
+        return {"status": "success", "message": "Auto-update scheduled"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/wiki/auto-update/unschedule")
+async def unschedule_auto_update(request: AutoUpdateRequest):
+    scheduler.unschedule_repo_update(request.repo_id)
+    return {"status": "success", "message": "Auto-update unscheduled"}
+
+@app.get("/api/wiki/auto-update/status/{repo_id}")
+async def get_auto_update_status(repo_id: str):
+    status = scheduler.get_repo_status(repo_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="Repository not scheduled for auto-update")
+    return status
+
+@app.get("/api/wiki/auto-update/status")
+async def get_all_auto_update_status():
+    return scheduler.get_all_repos_status()
+
+@app.post("/api/wiki/auto-update/trigger/{repo_id}")
+async def trigger_manual_update(repo_id: str):
+    scheduler._perform_repo_update(repo_id)
+    return {"status": "success", "message": "Manual update triggered"}
 
 # --- Processed Projects Endpoint --- (New Endpoint)
 @app.get("/api/processed_projects", response_model=List[ProcessedProjectEntry])

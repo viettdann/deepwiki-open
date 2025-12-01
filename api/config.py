@@ -327,7 +327,7 @@ if embedder_config:
 
 # Update repository configuration
 if repo_config:
-    for key in ["file_filters", "repository"]:
+    for key in ["file_filters", "repository", "auto_update", "repo_specific_settings"]:
         if key in repo_config:
             configs[key] = repo_config[key]
 
