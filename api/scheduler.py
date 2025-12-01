@@ -15,10 +15,12 @@ class WikiUpdateScheduler:
         self.running = False
         self.max_concurrent_updates = 5
         self.current_updates = 0
+        self.update_history: Dict[str, list[Dict]] = {}
 
     def schedule_repo_update(self, repo_id: str, repo_url: str, local_path: str,
                              access_token: str = None, repo_type: str = None,
-                             interval_hours: int = 24, enabled: bool = True):
+                             interval_hours: int = 24, enabled: bool = True,
+                             require_changes: bool = True):
         if not enabled:
             self.unschedule_repo_update(repo_id)
             return
@@ -31,7 +33,8 @@ class WikiUpdateScheduler:
             "repo_type": repo_type,
             "last_update": None,
             "last_error": None,
-            "update_count": 0
+            "update_count": 0,
+            "require_changes": require_changes,
         }
         self.active_repos.add(repo_id)
         logger.info(f"Scheduled auto-update for {repo_id} every {interval_hours} hours")
@@ -87,17 +90,36 @@ class WikiUpdateScheduler:
             result = update_repo(path, access_token, repo_type)
             logger.info(f"Auto-update {repo_id}: {result}")
             has_changes, current_hash = detect_repo_changes(path)
-            if has_changes and isinstance(current_hash, str):
-                logger.info(f"Changes detected in {repo_id}, marking processed")
+            should_process = has_changes or (not info.get("require_changes", True))
+            if should_process and isinstance(current_hash, str):
+                logger.info(f"Processing repo {repo_id}")
                 mark_repo_processed(path, current_hash)
                 info["update_count"] += 1
                 info["last_update"] = datetime.now()
                 info["last_error"] = None
+                self._record_history(repo_id, {
+                    "timestamp": datetime.now().isoformat(),
+                    "status": "success",
+                    "message": result,
+                    "update_count": info["update_count"],
+                })
             else:
                 info["last_update"] = datetime.now()
+                self._record_history(repo_id, {
+                    "timestamp": datetime.now().isoformat(),
+                    "status": "skipped",
+                    "message": "No changes detected",
+                    "update_count": info["update_count"],
+                })
         except Exception as e:
             logger.error(f"Failed to auto-update {repo_id}: {e}")
             info["last_error"] = str(e)
+            self._record_history(repo_id, {
+                "timestamp": datetime.now().isoformat(),
+                "status": "error",
+                "message": str(e),
+                "update_count": info.get("update_count", 0),
+            })
 
     def get_repo_status(self, repo_id: str) -> Optional[Dict]:
         return self.repo_info.get(repo_id)
@@ -115,5 +137,13 @@ class WikiUpdateScheduler:
             self.unschedule_repo_update(rid)
             logger.info(f"Cleaned up old repo schedule: {rid}")
 
-scheduler = WikiUpdateScheduler()
+    def _record_history(self, repo_id: str, entry: Dict):
+        history = self.update_history.setdefault(repo_id, [])
+        history.insert(0, entry)
+        if len(history) > 100:
+            del history[100:]
 
+    def get_update_history(self, repo_id: str, limit: int = 10) -> list[Dict]:
+        return (self.update_history.get(repo_id, [])[:limit])
+
+scheduler = WikiUpdateScheduler()

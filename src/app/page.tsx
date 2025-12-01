@@ -404,7 +404,8 @@ export default function Home() {
           access_token: accessToken || '',
           repo_type: selectedPlatform,
           interval_hours: autoUpdateSettings.intervalHours,
-          enabled: true
+          enabled: true,
+          require_changes: autoUpdateSettings.requireChanges
         };
         await fetch(`${serverBaseUrl}/api/wiki/auto-update/schedule`, {
           method: 'POST',

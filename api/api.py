@@ -590,6 +590,7 @@ class AutoUpdateRequest(BaseModel):
     repo_type: str | None = None
     interval_hours: int = 24
     enabled: bool = True
+    require_changes: bool = True
 
 @app.post("/api/wiki/auto-update/schedule")
 async def schedule_auto_update(request: AutoUpdateRequest):
@@ -602,6 +603,7 @@ async def schedule_auto_update(request: AutoUpdateRequest):
             repo_type=request.repo_type,
             interval_hours=request.interval_hours,
             enabled=request.enabled,
+            require_changes=request.require_changes,
         )
         return {"status": "success", "message": "Auto-update scheduled"}
     except Exception as e:
@@ -627,6 +629,20 @@ async def get_all_auto_update_status():
 async def trigger_manual_update(repo_id: str):
     scheduler._perform_repo_update(repo_id)
     return {"status": "success", "message": "Manual update triggered"}
+
+@app.get("/api/wiki/auto-update/history/{repo_id}")
+async def get_update_history(repo_id: str, limit: int = 10):
+    return scheduler.get_update_history(repo_id, limit)
+
+@app.post("/api/wiki/webhook/{provider}")
+async def handle_webhook(provider: str, request: Request):
+    if provider == "github":
+        payload = await request.json()
+        repo_full_name = payload.get("repository", {}).get("full_name")
+        if repo_full_name:
+            repo_id = f"github/{repo_full_name}"
+            asyncio.create_task(asyncio.to_thread(scheduler._perform_repo_update, repo_id))
+    return {"status": "received"}
 
 # --- Processed Projects Endpoint --- (New Endpoint)
 @app.get("/api/processed_projects", response_model=List[ProcessedProjectEntry])
