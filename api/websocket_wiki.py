@@ -531,23 +531,34 @@ This file contains...
         try:
             if request.provider == "ollama":
                 # Get the response and handle it properly using the previously created api_kwargs
+                logger.info(f"Making Ollama API call with model: {model_kwargs.get('model')}")
+                logger.debug(f"Ollama API kwargs: {api_kwargs}")
                 response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
                 # Handle streaming response from Ollama
+                chunk_count = 0
                 async for chunk in response:
+                    chunk_count += 1
+                    logger.debug(f"Ollama chunk #{chunk_count}: {chunk}")
                     text = getattr(chunk, 'response', None) or getattr(chunk, 'text', None) or str(chunk)
                     if text and not text.startswith('model=') and not text.startswith('created_at='):
                         text = text.replace('<think>', '').replace('</think>', '')
                         await websocket.send_text(text)
+                logger.info(f"Ollama streaming completed with {chunk_count} chunks")
                 # Explicitly close the WebSocket connection after the response is complete
                 await websocket.close()
             elif request.provider == "openrouter":
                 try:
                     # Get the response and handle it properly using the previously created api_kwargs
-                    logger.info("Making OpenRouter API call")
+                    logger.info(f"Making OpenRouter API call with model: {request.model}")
+                    logger.debug(f"OpenRouter API kwargs: {api_kwargs}")
                     response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
                     # Handle streaming response from OpenRouter
+                    chunk_count = 0
                     async for chunk in response:
+                        chunk_count += 1
+                        logger.debug(f"OpenRouter chunk #{chunk_count}: {chunk}")
                         await websocket.send_text(chunk)
+                    logger.info(f"OpenRouter streaming completed with {chunk_count} chunks")
                     # Explicitly close the WebSocket connection after the response is complete
                     await websocket.close()
                 except Exception as e_openrouter:
@@ -559,10 +570,14 @@ This file contains...
             elif request.provider == "openai":
                 try:
                     # Get the response and handle it properly using the previously created api_kwargs
-                    logger.info("Making Openai API call")
+                    logger.info(f"Making OpenAI API call with model: {request.model}")
+                    logger.debug(f"OpenAI API kwargs: {api_kwargs}")
                     response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
                     # Handle streaming response from Openai
+                    chunk_count = 0
                     async for chunk in response:
+                        chunk_count += 1
+                        logger.debug(f"OpenAI chunk #{chunk_count}: {chunk}")
                         choices = getattr(chunk, "choices", [])
                         if len(choices) > 0:
                             delta = getattr(choices[0], "delta", None)
@@ -570,6 +585,7 @@ This file contains...
                                 text = getattr(delta, "content", None)
                                 if text is not None:
                                     await websocket.send_text(text)
+                    logger.info(f"OpenAI streaming completed with {chunk_count} chunks")
                     # Explicitly close the WebSocket connection after the response is complete
                     await websocket.close()
                 except Exception as e_openai:
@@ -581,10 +597,14 @@ This file contains...
             elif request.provider == "deepseek":
                 try:
                     # Get the response and handle it properly using the previously created api_kwargs
-                    logger.info("Making DeepSeek API call")
+                    logger.info(f"Making DeepSeek API call with model: {request.model}")
+                    logger.debug(f"DeepSeek API kwargs: {api_kwargs}")
                     response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
                     # Handle streaming response from DeepSeek (same format as OpenAI)
+                    chunk_count = 0
                     async for chunk in response:
+                        chunk_count += 1
+                        logger.debug(f"DeepSeek chunk #{chunk_count}: {chunk}")
                         choices = getattr(chunk, "choices", [])
                         if len(choices) > 0:
                             delta = getattr(choices[0], "delta", None)
@@ -592,6 +612,7 @@ This file contains...
                                 text = getattr(delta, "content", None)
                                 if text is not None:
                                     await websocket.send_text(text)
+                    logger.info(f"DeepSeek streaming completed with {chunk_count} chunks")
                     # Explicitly close the WebSocket connection after the response is complete
                     await websocket.close()
                 except Exception as e_deepseek:
@@ -601,12 +622,18 @@ This file contains...
                     # Close the WebSocket connection after sending the error message
                     await websocket.close()
             else:
-                # Generate streaming response
+                # Generate streaming response (Google)
+                logger.info(f"Making Google API call with model: {model_config.get('model')}")
+                logger.debug(f"Google model config: {model_config}")
                 response = model.generate_content(prompt, stream=True)
                 # Stream the response
+                chunk_count = 0
                 for chunk in response:
+                    chunk_count += 1
+                    logger.debug(f"Google chunk #{chunk_count}: {chunk}")
                     if hasattr(chunk, 'text'):
                         await websocket.send_text(chunk.text)
+                logger.info(f"Google streaming completed with {chunk_count} chunks")
                 # Explicitly close the WebSocket connection after the response is complete
                 await websocket.close()
 
@@ -642,14 +669,20 @@ This file contains...
                         )
 
                         # Get the response using the simplified prompt
+                        logger.info(f"Making fallback Ollama API call with model: {model_kwargs.get('model')}")
+                        logger.debug(f"Ollama fallback API kwargs: {fallback_api_kwargs}")
                         fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
 
                         # Handle streaming fallback_response from Ollama
+                        chunk_count = 0
                         async for chunk in fallback_response:
+                            chunk_count += 1
+                            logger.debug(f"Ollama fallback chunk #{chunk_count}: {chunk}")
                             text = getattr(chunk, 'response', None) or getattr(chunk, 'text', None) or str(chunk)
                             if text and not text.startswith('model=') and not text.startswith('created_at='):
                                 text = text.replace('<think>', '').replace('</think>', '')
                                 await websocket.send_text(text)
+                        logger.info(f"Ollama fallback streaming completed with {chunk_count} chunks")
                     elif request.provider == "openrouter":
                         try:
                             # Create new api_kwargs with the simplified prompt
@@ -660,12 +693,17 @@ This file contains...
                             )
 
                             # Get the response using the simplified prompt
-                            logger.info("Making fallback OpenRouter API call")
+                            logger.info(f"Making fallback OpenRouter API call with model: {request.model}")
+                            logger.debug(f"OpenRouter fallback API kwargs: {fallback_api_kwargs}")
                             fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
 
                             # Handle streaming fallback_response from OpenRouter
+                            chunk_count = 0
                             async for chunk in fallback_response:
+                                chunk_count += 1
+                                logger.debug(f"OpenRouter fallback chunk #{chunk_count}: {chunk}")
                                 await websocket.send_text(chunk)
+                            logger.info(f"OpenRouter fallback streaming completed with {chunk_count} chunks")
                         except Exception as e_fallback:
                             logger.error(f"Error with OpenRouter API fallback: {str(e_fallback)}")
                             error_msg = f"\nError with OpenRouter API fallback: {str(e_fallback)}\n\nPlease check that you have set the OPENROUTER_API_KEY environment variable with a valid API key."
@@ -680,13 +718,18 @@ This file contains...
                             )
 
                             # Get the response using the simplified prompt
-                            logger.info("Making fallback Openai API call")
+                            logger.info(f"Making fallback OpenAI API call with model: {request.model}")
+                            logger.debug(f"OpenAI fallback API kwargs: {fallback_api_kwargs}")
                             fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
 
                             # Handle streaming fallback_response from Openai
+                            chunk_count = 0
                             async for chunk in fallback_response:
+                                chunk_count += 1
+                                logger.debug(f"OpenAI fallback chunk #{chunk_count}: {chunk}")
                                 text = chunk if isinstance(chunk, str) else getattr(chunk, 'text', str(chunk))
                                 await websocket.send_text(text)
+                            logger.info(f"OpenAI fallback streaming completed with {chunk_count} chunks")
                         except Exception as e_fallback:
                             logger.error(f"Error with Openai API fallback: {str(e_fallback)}")
                             error_msg = f"\nError with Openai API fallback: {str(e_fallback)}\n\nPlease check that you have set the OPENAI_API_KEY environment variable with a valid API key."
@@ -701,11 +744,15 @@ This file contains...
                             )
 
                             # Get the response using the simplified prompt
-                            logger.info("Making fallback DeepSeek API call")
+                            logger.info(f"Making fallback DeepSeek API call with model: {request.model}")
+                            logger.debug(f"DeepSeek fallback API kwargs: {fallback_api_kwargs}")
                             fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
 
                             # Handle streaming fallback_response from DeepSeek
+                            chunk_count = 0
                             async for chunk in fallback_response:
+                                chunk_count += 1
+                                logger.debug(f"DeepSeek fallback chunk #{chunk_count}: {chunk}")
                                 choices = getattr(chunk, "choices", [])
                                 if len(choices) > 0:
                                     delta = getattr(choices[0], "delta", None)
@@ -713,6 +760,7 @@ This file contains...
                                         text = getattr(delta, "content", None)
                                         if text is not None:
                                             await websocket.send_text(text)
+                            logger.info(f"DeepSeek fallback streaming completed with {chunk_count} chunks")
                         except Exception as e_fallback:
                             logger.error(f"Error with DeepSeek API fallback: {str(e_fallback)}")
                             error_msg = f"\nError with DeepSeek API fallback: {str(e_fallback)}\n\nPlease check that you have set the DEEPSEEK_API_KEY environment variable with a valid API key."
@@ -720,6 +768,8 @@ This file contains...
                     else:
                         # Initialize Google Generative AI model
                         model_config = get_model_config(request.provider, request.model)
+                        logger.info(f"Making fallback Google API call with model: {model_config.get('model')}")
+                        logger.debug(f"Google fallback model config: {model_config}")
                         fallback_model = genai.GenerativeModel(
                             model_name=model_config["model"],
                             generation_config={
@@ -732,9 +782,13 @@ This file contains...
                         # Get streaming response using simplified prompt
                         fallback_response = fallback_model.generate_content(simplified_prompt, stream=True)
                         # Stream the fallback response
+                        chunk_count = 0
                         for chunk in fallback_response:
+                            chunk_count += 1
+                            logger.debug(f"Google fallback chunk #{chunk_count}: {chunk}")
                             if hasattr(chunk, 'text'):
                                 await websocket.send_text(chunk.text)
+                        logger.info(f"Google fallback streaming completed with {chunk_count} chunks")
                 except Exception as e2:
                     logger.error(f"Error in fallback streaming response: {str(e2)}")
                     await websocket.send_text(f"\nI apologize, but your request is too large for me to process. Please try a shorter query or break it into smaller parts.")

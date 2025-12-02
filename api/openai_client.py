@@ -412,12 +412,20 @@ class OpenAIClient(ModelClient):
         """
         kwargs is the combined input and model_kwargs.  Support streaming call.
         """
-        log.info(f"api_kwargs: {api_kwargs}")
+        log.info(f"OpenAI sync call - model_type: {model_type}")
+        log.info(f"OpenAI API kwargs: {api_kwargs}")
+        log.debug(f"OpenAI full API kwargs details: {api_kwargs}")
         self._api_kwargs = api_kwargs
+        
         if model_type == ModelType.EMBEDDER:
+            log.debug("OpenAI embeddings call")
             return self.sync_client.embeddings.create(**api_kwargs)
         elif model_type == ModelType.LLM:
-            if "stream" in api_kwargs and api_kwargs.get("stream", False):
+            model_name = api_kwargs.get('model', 'unknown')
+            is_streaming = api_kwargs.get('stream', False)
+            log.info(f"OpenAI calling model: {model_name}, streaming: {is_streaming}")
+            
+            if is_streaming:
                 log.debug("streaming call")
                 self.chat_completion_parser = handle_streaming_response
                 return self.sync_client.chat.completions.create(**api_kwargs)
@@ -493,11 +501,21 @@ class OpenAIClient(ModelClient):
         """
         # store the api kwargs in the client
         self._api_kwargs = api_kwargs
+        log.info(f"OpenAI async call - model_type: {model_type}")
+        log.info(f"OpenAI API kwargs: {api_kwargs}")
+        log.debug(f"OpenAI full API kwargs details: {api_kwargs}")
+        
         if self.async_client is None:
+            log.debug("Initializing OpenAI async client")
             self.async_client = self.init_async_client()
+            
         if model_type == ModelType.EMBEDDER:
+            log.debug("OpenAI async embeddings call")
             return await self.async_client.embeddings.create(**api_kwargs)
         elif model_type == ModelType.LLM:
+            model_name = api_kwargs.get('model', 'unknown')
+            is_streaming = api_kwargs.get('stream', False)
+            log.info(f"OpenAI async calling model: {model_name}, streaming: {is_streaming}")
             return await self.async_client.chat.completions.create(**api_kwargs)
         elif model_type == ModelType.IMAGE_GENERATION:
             # Determine which image API to call based on the presence of image/mask

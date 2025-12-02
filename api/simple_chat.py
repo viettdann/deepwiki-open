@@ -432,65 +432,92 @@ async def chat_completions_stream(request: ChatCompletionRequest):
             try:
                 if request.provider == "ollama":
                     # Get the response and handle it properly using the previously created api_kwargs
+                    logger.info(f"Making Ollama API call with model: {model_kwargs.get('model')}")
+                    logger.debug(f"Ollama API kwargs: {api_kwargs}")
                     response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
                     # Handle streaming response from Ollama
+                    chunk_count = 0
                     async for chunk in response:
+                        chunk_count += 1
+                        logger.debug(f"Ollama chunk #{chunk_count}: {chunk}")
                         text = getattr(chunk, 'response', None) or getattr(chunk, 'text', None) or str(chunk)
                         if text and not text.startswith('model=') and not text.startswith('created_at='):
                             text = text.replace('<think>', '').replace('</think>', '')
                             yield text
+                    logger.info(f"Ollama streaming completed with {chunk_count} chunks")
                 elif request.provider == "openrouter":
                     try:
                         # Get the response and handle it properly using the previously created api_kwargs
-                        logger.info("Making OpenRouter API call")
+                        logger.info(f"Making OpenRouter API call with model: {request.model}")
+                        logger.debug(f"OpenRouter API kwargs: {api_kwargs}")
                         response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
                         # Handle streaming response from OpenRouter
+                        chunk_count = 0
                         async for chunk in response:
+                            chunk_count += 1
+                            logger.debug(f"OpenRouter chunk #{chunk_count}: {chunk}")
                             yield chunk
+                        logger.info(f"OpenRouter streaming completed with {chunk_count} chunks")
                     except Exception as e_openrouter:
                         logger.error(f"Error with OpenRouter API: {str(e_openrouter)}")
                         yield f"\nError with OpenRouter API: {str(e_openrouter)}\n\nPlease check that you have set the OPENROUTER_API_KEY environment variable with a valid API key."
                 elif request.provider == "openai":
                     try:
                         # Get the response and handle it properly using the previously created api_kwargs
-                        logger.info("Making Openai API call")
+                        logger.info(f"Making OpenAI API call with model: {request.model}")
+                        logger.debug(f"OpenAI API kwargs: {api_kwargs}")
                         response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
                         # Handle streaming response from Openai
+                        chunk_count = 0
                         async for chunk in response:
-                           choices = getattr(chunk, "choices", [])
-                           if len(choices) > 0:
-                               delta = getattr(choices[0], "delta", None)
-                               if delta is not None:
+                            chunk_count += 1
+                            logger.debug(f"OpenAI chunk #{chunk_count}: {chunk}")
+                            choices = getattr(chunk, "choices", [])
+                            if len(choices) > 0:
+                                delta = getattr(choices[0], "delta", None)
+                                if delta is not None:
                                     text = getattr(delta, "content", None)
                                     if text is not None:
                                         yield text
+                        logger.info(f"OpenAI streaming completed with {chunk_count} chunks")
                     except Exception as e_openai:
                         logger.error(f"Error with Openai API: {str(e_openai)}")
                         yield f"\nError with Openai API: {str(e_openai)}\n\nPlease check that you have set the OPENAI_API_KEY environment variable with a valid API key."
                 elif request.provider == "deepseek":
                     try:
                         # Get the response and handle it properly using the previously created api_kwargs
-                        logger.info("Making DeepSeek API call")
+                        logger.info(f"Making DeepSeek API call with model: {request.model}")
+                        logger.debug(f"DeepSeek API kwargs: {api_kwargs}")
                         response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
                         # Handle streaming response from DeepSeek (same format as OpenAI)
+                        chunk_count = 0
                         async for chunk in response:
-                           choices = getattr(chunk, "choices", [])
-                           if len(choices) > 0:
-                               delta = getattr(choices[0], "delta", None)
-                               if delta is not None:
+                            chunk_count += 1
+                            logger.debug(f"DeepSeek chunk #{chunk_count}: {chunk}")
+                            choices = getattr(chunk, "choices", [])
+                            if len(choices) > 0:
+                                delta = getattr(choices[0], "delta", None)
+                                if delta is not None:
                                     text = getattr(delta, "content", None)
                                     if text is not None:
                                         yield text
+                        logger.info(f"DeepSeek streaming completed with {chunk_count} chunks")
                     except Exception as e_deepseek:
                         logger.error(f"Error with DeepSeek API: {str(e_deepseek)}")
                         yield f"\nError with DeepSeek API: {str(e_deepseek)}\n\nPlease check that you have set the DEEPSEEK_API_KEY environment variable with a valid API key."
                 else:
-                    # Generate streaming response
+                    # Generate streaming response (Google)
+                    logger.info(f"Making Google API call with model: {model_config.get('model')}")
+                    logger.debug(f"Google model config: {model_config}")
                     response = model.generate_content(prompt, stream=True)
                     # Stream the response
+                    chunk_count = 0
                     for chunk in response:
+                        chunk_count += 1
+                        logger.debug(f"Google chunk #{chunk_count}: {chunk}")
                         if hasattr(chunk, 'text'):
                             yield chunk.text
+                    logger.info(f"Google streaming completed with {chunk_count} chunks")
 
             except Exception as e_outer:
                 logger.error(f"Error in streaming response: {str(e_outer)}")
@@ -524,14 +551,20 @@ async def chat_completions_stream(request: ChatCompletionRequest):
                             )
 
                             # Get the response using the simplified prompt
+                            logger.info(f"Making fallback Ollama API call with model: {model_kwargs.get('model')}")
+                            logger.debug(f"Ollama fallback API kwargs: {fallback_api_kwargs}")
                             fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
 
                             # Handle streaming fallback_response from Ollama
+                            chunk_count = 0
                             async for chunk in fallback_response:
+                                chunk_count += 1
+                                logger.debug(f"Ollama fallback chunk #{chunk_count}: {chunk}")
                                 text = getattr(chunk, 'response', None) or getattr(chunk, 'text', None) or str(chunk)
                                 if text and not text.startswith('model=') and not text.startswith('created_at='):
                                     text = text.replace('<think>', '').replace('</think>', '')
                                     yield text
+                            logger.info(f"Ollama fallback streaming completed with {chunk_count} chunks")
                         elif request.provider == "openrouter":
                             try:
                                 # Create new api_kwargs with the simplified prompt
@@ -542,12 +575,17 @@ async def chat_completions_stream(request: ChatCompletionRequest):
                                 )
 
                                 # Get the response using the simplified prompt
-                                logger.info("Making fallback OpenRouter API call")
+                                logger.info(f"Making fallback OpenRouter API call with model: {request.model}")
+                                logger.debug(f"OpenRouter fallback API kwargs: {fallback_api_kwargs}")
                                 fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
 
                                 # Handle streaming fallback_response from OpenRouter
+                                chunk_count = 0
                                 async for chunk in fallback_response:
+                                    chunk_count += 1
+                                    logger.debug(f"OpenRouter fallback chunk #{chunk_count}: {chunk}")
                                     yield chunk
+                                logger.info(f"OpenRouter fallback streaming completed with {chunk_count} chunks")
                             except Exception as e_fallback:
                                 logger.error(f"Error with OpenRouter API fallback: {str(e_fallback)}")
                                 yield f"\nError with OpenRouter API fallback: {str(e_fallback)}\n\nPlease check that you have set the OPENROUTER_API_KEY environment variable with a valid API key."
@@ -561,13 +599,18 @@ async def chat_completions_stream(request: ChatCompletionRequest):
                                 )
 
                                 # Get the response using the simplified prompt
-                                logger.info("Making fallback Openai API call")
+                                logger.info(f"Making fallback OpenAI API call with model: {request.model}")
+                                logger.debug(f"OpenAI fallback API kwargs: {fallback_api_kwargs}")
                                 fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
 
                                 # Handle streaming fallback_response from Openai
+                                chunk_count = 0
                                 async for chunk in fallback_response:
+                                    chunk_count += 1
+                                    logger.debug(f"OpenAI fallback chunk #{chunk_count}: {chunk}")
                                     text = chunk if isinstance(chunk, str) else getattr(chunk, 'text', str(chunk))
                                     yield text
+                                logger.info(f"OpenAI fallback streaming completed with {chunk_count} chunks")
                             except Exception as e_fallback:
                                 logger.error(f"Error with Openai API fallback: {str(e_fallback)}")
                                 yield f"\nError with Openai API fallback: {str(e_fallback)}\n\nPlease check that you have set the OPENAI_API_KEY environment variable with a valid API key."
@@ -581,11 +624,15 @@ async def chat_completions_stream(request: ChatCompletionRequest):
                                 )
 
                                 # Get the response using the simplified prompt
-                                logger.info("Making fallback DeepSeek API call")
+                                logger.info(f"Making fallback DeepSeek API call with model: {request.model}")
+                                logger.debug(f"DeepSeek fallback API kwargs: {fallback_api_kwargs}")
                                 fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
 
                                 # Handle streaming fallback_response from DeepSeek
+                                chunk_count = 0
                                 async for chunk in fallback_response:
+                                    chunk_count += 1
+                                    logger.debug(f"DeepSeek fallback chunk #{chunk_count}: {chunk}")
                                     choices = getattr(chunk, "choices", [])
                                     if len(choices) > 0:
                                         delta = getattr(choices[0], "delta", None)
@@ -593,12 +640,15 @@ async def chat_completions_stream(request: ChatCompletionRequest):
                                             text = getattr(delta, "content", None)
                                             if text is not None:
                                                 yield text
+                                logger.info(f"DeepSeek fallback streaming completed with {chunk_count} chunks")
                             except Exception as e_fallback:
                                 logger.error(f"Error with DeepSeek API fallback: {str(e_fallback)}")
                                 yield f"\nError with DeepSeek API fallback: {str(e_fallback)}\n\nPlease check that you have set the DEEPSEEK_API_KEY environment variable with a valid API key."
                         else:
                             # Initialize Google Generative AI model
                             model_config = get_model_config(request.provider, request.model)
+                            logger.info(f"Making fallback Google API call with model: {model_config.get('model')}")
+                            logger.debug(f"Google fallback model config: {model_config}")
                             fallback_model = genai.GenerativeModel(
                                 model_name=model_config["model"],
                                 generation_config={
@@ -611,9 +661,13 @@ async def chat_completions_stream(request: ChatCompletionRequest):
                             # Get streaming response using simplified prompt
                             fallback_response = fallback_model.generate_content(simplified_prompt, stream=True)
                             # Stream the fallback response
+                            chunk_count = 0
                             for chunk in fallback_response:
+                                chunk_count += 1
+                                logger.debug(f"Google fallback chunk #{chunk_count}: {chunk}")
                                 if hasattr(chunk, 'text'):
                                     yield chunk.text
+                            logger.info(f"Google fallback streaming completed with {chunk_count} chunks")
                     except Exception as e2:
                         logger.error(f"Error in fallback streaming response: {str(e2)}")
                         yield f"\nI apologize, but your request is too large for me to process. Please try a shorter query or break it into smaller parts."
