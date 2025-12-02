@@ -80,6 +80,11 @@ class DeepSeekClient(ModelClient):
     Note:
         DeepSeek does NOT support embeddings. This client is only for LLM generation.
 
+    Environment Variables:
+        DEEPSEEK_API_KEY: API key for DeepSeek
+        DEEPSEEK_BASE_URL: Custom base URL (default: https://api.deepseek.com)
+        OPENAI_BASE_URL: Alternative to DEEPSEEK_BASE_URL (allows using DeepSeek as OpenAI replacement)
+
     Example:
         ```python
         from api.deepseek_client import DeepSeekClient
@@ -117,7 +122,8 @@ class DeepSeekClient(ModelClient):
         super().__init__()
         self._api_key = api_key
         self._env_api_key_name = env_api_key_name
-        self.base_url = "https://api.deepseek.com"
+        # Support custom base URL via DEEPSEEK_BASE_URL or OPENAI_BASE_URL
+        self.base_url = os.getenv("DEEPSEEK_BASE_URL") or os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com")
         self.sync_client = self.init_sync_client()
         self.async_client = None  # only initialize if the async call is called
         self.chat_completion_parser = (

@@ -1,5 +1,6 @@
 """OpenRouter ModelClient integration."""
 
+import os
 from typing import Dict, Sequence, Optional, Any, List
 import logging
 import json
@@ -12,7 +13,9 @@ from adalflow.core.types import (
     CompletionUsage,
     ModelType,
     GeneratorOutput,
+    EmbedderOutput,
 )
+from adalflow.components.model_client.utils import parse_embedding_response
 
 log = logging.getLogger(__name__)
 
@@ -22,16 +25,31 @@ class OpenRouterClient(ModelClient):
     OpenRouter provides a unified API that gives access to hundreds of AI models through a single endpoint.
     The API is compatible with OpenAI's API format with a few small differences.
 
+    Supports both LLM generation and embeddings.
+
+    Environment Variables:
+        OPENROUTER_API_KEY: API key for OpenRouter
+        OPENROUTER_BASE_URL: Custom base URL (default: https://openrouter.ai/api/v1)
+        OPENAI_BASE_URL: Alternative to OPENROUTER_BASE_URL (allows using OpenRouter as OpenAI replacement)
+
     Visit https://openrouter.ai/docs for more details.
 
     Example:
         ```python
         from api.openrouter_client import OpenRouterClient
+        import adalflow as adal
 
+        # For LLM
         client = OpenRouterClient()
         generator = adal.Generator(
             model_client=client,
             model_kwargs={"model": "openai/gpt-4o"}
+        )
+
+        # For Embeddings
+        embedder = adal.Embedder(
+            model_client=client,
+            model_kwargs={"model": "openai/text-embedding-3-small"}
         )
         ```
     """
@@ -49,10 +67,13 @@ class OpenRouterClient(ModelClient):
         if not api_key:
             log.warning("OPENROUTER_API_KEY not configured")
 
+        # Support custom base URL via OPENROUTER_BASE_URL or OPENAI_BASE_URL
+        base_url = os.getenv("OPENROUTER_BASE_URL") or os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
+
         # OpenRouter doesn't have a dedicated client library, so we'll use requests directly
         return {
             "api_key": api_key,
-            "base_url": "https://openrouter.ai/api/v1"
+            "base_url": base_url
         }
 
     def init_async_client(self):
@@ -62,10 +83,13 @@ class OpenRouterClient(ModelClient):
         if not api_key:
             log.warning("OPENROUTER_API_KEY not configured")
 
+        # Support custom base URL via OPENROUTER_BASE_URL or OPENAI_BASE_URL
+        base_url = os.getenv("OPENROUTER_BASE_URL") or os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
+
         # For async, we'll use aiohttp
         return {
             "api_key": api_key,
-            "base_url": "https://openrouter.ai/api/v1"
+            "base_url": base_url
         }
 
     def convert_inputs_to_api_kwargs(
@@ -100,11 +124,26 @@ class OpenRouterClient(ModelClient):
 
             return api_kwargs
 
-        elif model_type == ModelType.EMBEDDING:
-            # OpenRouter doesn't support embeddings directly
-            # We could potentially use a specific model through OpenRouter for embeddings
-            # but for now, we'll raise an error
-            raise NotImplementedError("OpenRouter client does not support embeddings yet")
+        elif model_type == ModelType.EMBEDDER:
+            # Handle embeddings - OpenRouter supports embeddings via /embeddings endpoint
+            # Convert input to list format
+            if isinstance(input, str):
+                input_list = [input]
+            elif isinstance(input, Sequence):
+                input_list = list(input)
+            else:
+                raise TypeError("input must be a string or sequence of strings")
+
+            api_kwargs = {
+                "input": input_list,
+                **model_kwargs
+            }
+
+            # Ensure model is specified
+            if "model" not in api_kwargs:
+                api_kwargs["model"] = "openai/text-embedding-3-small"
+
+            return api_kwargs
 
         else:
             raise ValueError(f"Unsupported model type: {model_type}")
@@ -135,9 +174,7 @@ class OpenRouterClient(ModelClient):
             # Prepare headers
             headers = {
                 "Authorization": f"Bearer {self.async_client['api_key']}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/AsyncFuncAI/deepwiki-open",  # Optional
-                "X-Title": "DeepWiki"  # Optional
+                "Content-Type": "application/json"
             }
 
             # Always use non-streaming mode for OpenRouter
@@ -354,6 +391,40 @@ class OpenRouterClient(ModelClient):
                     yield f"Unexpected error calling OpenRouter API: {str(e_unexp)}"
                 return unexpected_error_generator()
 
+        elif model_type == ModelType.EMBEDDER:
+            # Handle embeddings
+            headers = {
+                "Authorization": f"Bearer {self.async_client['api_key']}",
+                "Content-Type": "application/json"
+            }
+
+            try:
+                model_name = api_kwargs.get('model', 'unknown')
+                log.info(f"OpenRouter embeddings call - model: {model_name}")
+                log.info(f"Making async OpenRouter embeddings API call to {self.async_client['base_url']}/embeddings")
+                log.debug(f"Request body: {api_kwargs}")
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"{self.async_client['base_url']}/embeddings",
+                        headers=headers,
+                        json=api_kwargs,
+                        timeout=60
+                    ) as response:
+                        if response.status != 200:
+                            error_text = await response.text()
+                            log.error(f"OpenRouter embeddings API error ({response.status}): {error_text}")
+                            raise Exception(f"OpenRouter embeddings API error ({response.status}): {error_text}")
+
+                        data = await response.json()
+                        log.info(f"Received embeddings response from OpenRouter")
+                        log.debug(f"Response: {data}")
+                        return data
+
+            except Exception as e:
+                log.error(f"Error calling OpenRouter embeddings API: {str(e)}")
+                raise
+
         else:
             error_msg = f"Unsupported model type: {model_type}"
             log.error(error_msg)
@@ -362,6 +433,72 @@ class OpenRouterClient(ModelClient):
             async def model_type_error_generator():
                 yield error_msg
             return model_type_error_generator()
+
+    def call(self, api_kwargs: Dict = None, model_type: ModelType = None) -> Any:
+        """Make a synchronous call to the OpenRouter API."""
+        log.info(f"OpenRouter sync call - model_type: {model_type}")
+        log.info(f"OpenRouter API kwargs: {api_kwargs}")
+        log.debug(f"OpenRouter full API kwargs details: {api_kwargs}")
+
+        if not self.sync_client:
+            log.debug("Initializing OpenRouter sync client")
+            self.sync_client = self.init_sync_client()
+
+        # Check if API key is set
+        if not self.sync_client.get("api_key"):
+            error_msg = "OPENROUTER_API_KEY not configured. Please set this environment variable to use OpenRouter."
+            log.error(error_msg)
+            raise ValueError(error_msg)
+
+        api_kwargs = api_kwargs or {}
+
+        if model_type == ModelType.EMBEDDER:
+            # Handle embeddings
+            headers = {
+                "Authorization": f"Bearer {self.sync_client['api_key']}",
+                "Content-Type": "application/json"
+            }
+
+            try:
+                model_name = api_kwargs.get('model', 'unknown')
+                log.info(f"OpenRouter embeddings sync call - model: {model_name}")
+                log.info(f"Making sync OpenRouter embeddings API call to {self.sync_client['base_url']}/embeddings")
+                log.debug(f"Request body: {api_kwargs}")
+
+                response = requests.post(
+                    f"{self.sync_client['base_url']}/embeddings",
+                    headers=headers,
+                    json=api_kwargs,
+                    timeout=60
+                )
+
+                if response.status_code != 200:
+                    error_text = response.text
+                    log.error(f"OpenRouter embeddings API error ({response.status_code}): {error_text}")
+                    raise Exception(f"OpenRouter embeddings API error ({response.status_code}): {error_text}")
+
+                data = response.json()
+                log.info(f"Received embeddings response from OpenRouter")
+                log.debug(f"Response: {data}")
+                return data
+
+            except Exception as e:
+                log.error(f"Error calling OpenRouter embeddings API: {str(e)}")
+                raise
+
+        elif model_type == ModelType.LLM:
+            raise NotImplementedError("Sync LLM calls not implemented for OpenRouter. Use acall() instead.")
+
+        else:
+            raise ValueError(f"Unsupported model type: {model_type}")
+
+    def parse_embedding_response(self, response) -> EmbedderOutput:
+        """Parse OpenRouter embedding response to EmbedderOutput format."""
+        try:
+            return parse_embedding_response(response)
+        except Exception as e:
+            log.error(f"Error parsing OpenRouter embedding response: {e}")
+            return EmbedderOutput(data=[], error=str(e), raw_response=response)
 
     def _process_completion_response(self, data: Dict) -> GeneratorOutput:
         """Process a non-streaming completion response from OpenRouter."""

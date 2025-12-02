@@ -200,18 +200,20 @@ DeepWiki now implements a flexible provider-based model selection system support
 
 Each provider requires its corresponding API key environment variables:
 
-```
+```bash
 # API Keys
-GOOGLE_API_KEY=your_google_api_key        # Required for Google Gemini models
-OPENAI_API_KEY=your_openai_api_key        # Required for OpenAI models
+GOOGLE_API_KEY=your_google_api_key         # Required for Google Gemini models
+OPENAI_API_KEY=your_openai_api_key         # Required for OpenAI models
 OPENROUTER_API_KEY=your_openrouter_api_key # Required for OpenRouter models
-DEEPSEEK_API_KEY=your_deepseek_api_key    # Required for DeepSeek models
+DEEPSEEK_API_KEY=your_deepseek_api_key     # Required for DeepSeek models
 
-# OpenAI API Base URL Configuration
-OPENAI_BASE_URL=https://custom-api-endpoint.com/v1  # Optional, for custom OpenAI API endpoints
+# API Base URL Configuration (Optional)
+OPENAI_BASE_URL=https://custom-endpoint.com/v1     # Universal alias for custom endpoints
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1   # OpenRouter-specific endpoint (falls back to OPENAI_BASE_URL)
+DEEPSEEK_BASE_URL=https://api.deepseek.com         # DeepSeek-specific endpoint (falls back to OPENAI_BASE_URL)
 
-# Ollama host
-OLLAMA_HOST=your_ollama_host # Optional, if Ollama is not local. default: http://localhost:11434
+# Ollama Configuration
+OLLAMA_HOST=http://localhost:11434  # Ollama host URL (default: http://localhost:11434)
 
 # Configuration Directory
 DEEPWIKI_CONFIG_DIR=/path/to/custom/config/dir  # Optional, for custom config file location
@@ -249,15 +251,26 @@ The custom model selection feature is specifically designed for service provider
 
 Service providers can implement their model offerings by selecting from the predefined options or entering custom model identifiers in the frontend interface.
 
-### Base URL Configuration for Enterprise Private Channels
+### Base URL Configuration for Custom Endpoints
 
-The OpenAI Client's base_url configuration is designed primarily for enterprise users with private API channels. This feature:
+DeepWiki supports custom API endpoints through flexible base URL configuration:
 
-- Enables connection to private or enterprise-specific API endpoints
-- Allows organizations to use their own self-hosted or custom-deployed LLM services
-- Supports integration with third-party OpenAI API-compatible services
+**Environment Variables:**
+- `OPENAI_BASE_URL`: Universal alias - can be used by any OpenAI-compatible client
+- `OPENROUTER_BASE_URL`: OpenRouter-specific endpoint (falls back to `OPENAI_BASE_URL`)
+- `DEEPSEEK_BASE_URL`: DeepSeek-specific endpoint (falls back to `OPENAI_BASE_URL`)
 
-**Coming Soon**: In future updates, DeepWiki will support a mode where users need to provide their own API keys in requests. This will allow enterprise customers with private channels to use their existing API arrangements without sharing credentials with the DeepWiki deployment.
+**Use Cases:**
+- Connect to private or enterprise-specific API endpoints
+- Use self-hosted or custom-deployed LLM services
+- Route traffic through proxy servers
+- Access special DeepSeek endpoints (reasoning, etc.)
+- Point OpenAI clients to OpenRouter by setting `OPENAI_BASE_URL=https://openrouter.ai/api/v1`
+
+**Priority Order:**
+1. Provider-specific URL (e.g., `DEEPSEEK_BASE_URL`)
+2. Universal alias (`OPENAI_BASE_URL`)
+3. Default endpoint for the provider
 
 ## 🧩 Using OpenAI-Compatible Embedding Models (e.g., Alibaba Qwen)
 
@@ -355,7 +368,6 @@ export DEEPWIKI_EMBEDDER_TYPE=ollama
 
 # Use OpenRouter embeddings
 export DEEPWIKI_EMBEDDER_TYPE=openrouter
-export OPENAI_BASE_URL=https://openrouter.ai/api/v1
 export OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small  # Optional, defaults to openai/text-embedding-3-small
 ```
 
@@ -371,7 +383,9 @@ export OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small  # Optional, def
 
 View all models: https://openrouter.ai/models?output_modalities=embeddings
 
-**Note**: When switching embedders, you may need to regenerate your repository embeddings as different models produce different vector spaces.
+**Note**:
+- OpenRouter embeddings are now natively supported through `OpenRouterClient` (no need to configure `OPENAI_BASE_URL`)
+- When switching embedders, you may need to regenerate your repository embeddings as different models produce different vector spaces
 
 ### Logging
 
@@ -434,15 +448,16 @@ cp .env.example .env
 | `OPENAI_API_KEY`         | OpenAI API key for embeddings and models                  | Conditional\* | -                          |
 | `OPENROUTER_API_KEY`     | OpenRouter API key for alternative models                 | Conditional\* | -                          |
 | `DEEPSEEK_API_KEY`       | DeepSeek API key for DeepSeek models                      | Conditional\* | -                          |
-| `AZURE_OPENAI_API_KEY`   | Azure OpenAI API key                                      | No            | -                          |
-| `AZURE_OPENAI_ENDPOINT`  | Azure OpenAI endpoint URL                                 | No            | -                          |
-| `AZURE_OPENAI_VERSION`   | Azure OpenAI API version                                  | No            | -                          |
+| `OPENAI_BASE_URL`        | Universal API base URL (for custom endpoints)             | No            | Provider-specific default  |
+| `OPENROUTER_BASE_URL`    | OpenRouter API base URL (falls back to OPENAI_BASE_URL)  | No            | `https://openrouter.ai/api/v1` |
+| `DEEPSEEK_BASE_URL`      | DeepSeek API base URL (falls back to OPENAI_BASE_URL)    | No            | `https://api.deepseek.com` |
 | `DEEPWIKI_EMBEDDER_TYPE` | Embedder type: `openai`, `google`, `ollama`, `openrouter` | No            | `openai`                   |
 | `OLLAMA_HOST`            | Ollama host URL                                           | No            | `http://localhost:11434`   |
 | `PORT`                   | API server port                                           | No            | `8001`                     |
 | `SERVER_BASE_URL`        | Base URL for API server                                   | No            | `http://localhost:8001`    |
 | `DEEPWIKI_AUTH_MODE`     | Enable authorization mode (`true` or `1`)                 | No            | `false`                    |
 | `DEEPWIKI_AUTH_CODE`     | Authorization code (when auth mode is enabled)            | No            | -                          |
+| `DEEPWIKI_CONFIG_DIR`    | Custom configuration directory path                        | No            | `api/config/`              |
 | `LOG_LEVEL`              | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)     | No            | `INFO`                     |
 | `LOG_FILE_PATH`          | Path to log file                                          | No            | `api/logs/application.log` |
 
@@ -457,7 +472,7 @@ For a complete list of all environment variables with detailed descriptions, see
 - If using `DEEPWIKI_EMBEDDER_TYPE=openai` (default): `OPENAI_API_KEY` is required
 - If using `DEEPWIKI_EMBEDDER_TYPE=google`: `GOOGLE_API_KEY` is required
 - If using `DEEPWIKI_EMBEDDER_TYPE=ollama`: No API key required (local processing)
-- If using `DEEPWIKI_EMBEDDER_TYPE=openrouter`: `OPENROUTER_API_KEY` is required, and set `OPENAI_BASE_URL=https://openrouter.ai/api/v1`
+- If using `DEEPWIKI_EMBEDDER_TYPE=openrouter`: `OPENROUTER_API_KEY` is required
 
 Other API keys are only required when configuring and using models from the corresponding providers.
 
