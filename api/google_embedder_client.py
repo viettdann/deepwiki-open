@@ -200,8 +200,12 @@ class GoogleEmbedderClient(ModelClient):
         """
         if model_type != ModelType.EMBEDDER:
             raise ValueError(f"GoogleEmbedderClient only supports EMBEDDER model type")
-            
-        log.info(f"Google AI Embeddings API kwargs: {api_kwargs}")
+        
+        model_name = api_kwargs.get('model', 'unknown')
+        task_type = api_kwargs.get('task_type', 'unknown')
+        log.info(f"Google Embedder sync call - model: {model_name}, task_type: {task_type}")
+        log.info(f"Google Embedder API kwargs: {api_kwargs}")
+        log.debug(f"Google Embedder full API kwargs details: {api_kwargs}")
         
         try:
             # Use embed_content for single text or batch embedding
@@ -227,5 +231,8 @@ class GoogleEmbedderClient(ModelClient):
         Note: Google AI Python client doesn't have async support yet,
         so this falls back to synchronous call.
         """
+        model_name = api_kwargs.get('model', 'unknown')
+        log.info(f"Google Embedder async call - model: {model_name} (falling back to sync)")
+        log.debug(f"Google Embedder async API kwargs: {api_kwargs}")
         # Google AI client doesn't have async support yet
         return self.call(api_kwargs, model_type)

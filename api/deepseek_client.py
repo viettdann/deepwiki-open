@@ -259,19 +259,25 @@ class DeepSeekClient(ModelClient):
         
         Supports both streaming and non-streaming modes.
         """
-        log.info(f"api_kwargs: {api_kwargs}")
+        log.info(f"DeepSeek sync call - model_type: {model_type}")
+        log.info(f"DeepSeek API kwargs: {api_kwargs}")
+        log.debug(f"DeepSeek full API kwargs details: {api_kwargs}")
         self._api_kwargs = api_kwargs
         
         if model_type == ModelType.EMBEDDER:
             raise NotImplementedError("DeepSeek does not support embeddings")
             
         elif model_type == ModelType.LLM:
-            if "stream" in api_kwargs and api_kwargs.get("stream", False):
-                log.debug("streaming call")
+            model_name = api_kwargs.get('model', 'unknown')
+            is_streaming = api_kwargs.get('stream', False)
+            log.info(f"DeepSeek calling model: {model_name}, streaming: {is_streaming}")
+            
+            if is_streaming:
+                log.debug("DeepSeek streaming call")
                 self.chat_completion_parser = handle_streaming_response
                 return self.sync_client.chat.completions.create(**api_kwargs)
             else:
-                log.debug("non-streaming call")
+                log.debug("DeepSeek non-streaming call")
                 # Ensure the parser expects a standard ChatCompletion object
                 self.chat_completion_parser = get_first_message_content
                 # Perform a direct non-streaming API call
@@ -296,14 +302,26 @@ class DeepSeekClient(ModelClient):
     ):
         """Make an asynchronous call to the DeepSeek API."""
         self._api_kwargs = api_kwargs
+        log.info(f"DeepSeek async call - model_type: {model_type}")
+        log.info(f"DeepSeek API kwargs: {api_kwargs}")
+        log.debug(f"DeepSeek full API kwargs details: {api_kwargs}")
+        
         if self.async_client is None:
+            log.debug("Initializing DeepSeek async client")
             self.async_client = self.init_async_client()
-            
+
         if model_type == ModelType.EMBEDDER:
             raise NotImplementedError("DeepSeek does not support embeddings")
-            
+
         elif model_type == ModelType.LLM:
-            return await self.async_client.chat.completions.create(**api_kwargs)
+            model_name = api_kwargs.get('model', 'unknown')
+            is_streaming = api_kwargs.get('stream', False)
+            log.info(f"DeepSeek calling model: {model_name}, streaming: {is_streaming}")
+            
+            response = await self.async_client.chat.completions.create(**api_kwargs)
+            log.info(f"DeepSeek response type: {type(response)}")
+            log.debug(f"DeepSeek response received successfully")
+            return response
         else:
             raise ValueError(f"model_type {model_type} is not supported")
 

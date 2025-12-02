@@ -111,7 +111,12 @@ class OpenRouterClient(ModelClient):
 
     async def acall(self, api_kwargs: Dict = None, model_type: ModelType = None) -> Any:
         """Make an asynchronous call to the OpenRouter API."""
+        log.info(f"OpenRouter async call - model_type: {model_type}")
+        log.info(f"OpenRouter API kwargs: {api_kwargs}")
+        log.debug(f"OpenRouter full API kwargs details: {api_kwargs}")
+        
         if not self.async_client:
+            log.debug("Initializing OpenRouter async client")
             self.async_client = self.init_async_client()
 
         # Check if API key is set
@@ -140,9 +145,11 @@ class OpenRouterClient(ModelClient):
 
             # Make the API call
             try:
+                model_name = api_kwargs.get('model', 'unknown')
+                log.info(f"OpenRouter calling model: {model_name}")
                 log.info(f"Making async OpenRouter API call to {self.async_client['base_url']}/chat/completions")
-                log.info(f"Request headers: {headers}")
-                log.info(f"Request body: {api_kwargs}")
+                log.debug(f"Request headers: {headers}")
+                log.debug(f"Request body: {api_kwargs}")
 
                 async with aiohttp.ClientSession() as session:
                     try:
