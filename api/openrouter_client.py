@@ -14,6 +14,8 @@ from adalflow.core.types import (
     ModelType,
     GeneratorOutput,
     EmbedderOutput,
+    Embedding,
+    Usage,
 )
 from adalflow.components.model_client.utils import parse_embedding_response
 
@@ -501,19 +503,34 @@ class OpenRouterClient(ModelClient):
             if isinstance(response, dict):
                 # Extract embeddings from dict response
                 embeddings_data = response.get('data', [])
-                embeddings = [item.get('embedding', []) for item in embeddings_data]
+                log.debug(f"Parsing {len(embeddings_data)} embeddings from OpenRouter response")
+
+                # Create Embedding objects with proper structure
+                # Each item in embeddings_data has: {"object": "embedding", "embedding": [...], "index": 0}
+                embedding_objects = [
+                    Embedding(
+                        embedding=item.get('embedding', []),
+                        index=item.get('index', i)
+                    )
+                    for i, item in enumerate(embeddings_data)
+                ]
+
+                log.debug(f"Created {len(embedding_objects)} Embedding objects")
 
                 # Extract usage information if available
                 usage = None
                 if 'usage' in response:
-                    usage = CompletionUsage(
+                    usage = Usage(
                         prompt_tokens=response['usage'].get('prompt_tokens', 0),
-                        completion_tokens=response['usage'].get('completion_tokens', 0),
                         total_tokens=response['usage'].get('total_tokens', 0)
                     )
 
+                # Extract model name
+                model = response.get('model', None)
+
                 return EmbedderOutput(
-                    data=embeddings,
+                    data=embedding_objects,
+                    model=model,
                     usage=usage,
                     raw_response=response
                 )
