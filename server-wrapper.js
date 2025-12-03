@@ -10,14 +10,14 @@ const next = require('next');
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
-const port = parseInt(process.env.PORT || '3000', 10);
+const fe_port = parseInt(process.env.FE_PORT || '3000', 10);
 
 // Backend API configuration
 const API_PORT = process.env.API_PORT || '8001';
 const API_TARGET = `http://localhost:${API_PORT}`;
 
 // Initialize Next.js app
-const app = next({ dev, hostname, port, dir: __dirname });
+const app = next({ dev, hostname, fe_port, dir: __dirname });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
@@ -58,8 +58,8 @@ app.prepare().then(() => {
     }
   });
 
-  server.listen(port, hostname, () => {
-    console.log(`> Ready on http://${hostname}:${port}`);
+  server.listen(fe_port, hostname, () => {
+    console.log(`> Ready on http://${hostname}:${fe_port}`);
     console.log(`> WebSocket proxy enabled for /ws/* -> ${API_TARGET}/ws/*`);
   });
 });
