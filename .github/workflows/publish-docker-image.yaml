@@ -25,12 +25,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      security-events: write  # Required for uploading SARIF results
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+      labels: ${{ steps.meta.outputs.labels }}
 
     steps:
       - name: Checkout repository
@@ -62,18 +64,31 @@ jobs:
             type=sha,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Create empty .env file for build
-        run: touch .env
-
-      - name: Build Docker image
+      - name: Build and Push Docker image
         uses: docker/build-push-action@v6
-        id: build
         with:
           context: .
-          push: false
-          load: true
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@0.33.1
@@ -89,19 +104,3 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy-scan'
-
-      - name: Push Docker image to registry
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Display build metrics
-        if: always()
-        run: |
-          echo "=== Build Completed Successfully ==="
-          echo "Image tags: ${{ steps.meta.outputs.tags }}"
-          echo "Build timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          echo "=== Scan Results Available in Security Tab ===" 
