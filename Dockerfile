@@ -3,13 +3,19 @@ ARG CUSTOM_CERT_DIR="certs"
 
 FROM node:20-alpine3.22 AS node_deps
 WORKDIR /app
-COPY package.json yarn.lock ./
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
     --mount=type=bind,source=package.json,target=/app/package.json \
     --mount=type=bind,source=yarn.lock,target=/app/yarn.lock \
-    yarn install --frozen-lockfile --legacy-peer-deps
+  yarn install --production --frozen-lockfile --legacy-peer-deps
 
-FROM node_deps AS node_builder
+FROM node_deps AS node_deps_builder
+
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
+  --mount=type=bind,source=package.json,target=/app/package.json \
+  --mount=type=bind,source=yarn.lock,target=/app/yarn.lock \
+  yarn install --frozen-lockfile --legacy-peer-deps
+
+FROM node_deps_builder AS node_builder
 
 # Increase Node.js memory limit for build and disable telemetry
 ENV NODE_OPTIONS="--max-old-space-size=4096"
@@ -38,17 +44,22 @@ RUN python -m pip install poetry==${POETRY_VERSION} --no-cache-dir && \
 
 # Use Python 3.11 as final image
 FROM python:3.11-slim
-ARG PORT=8001
+ARG API_PORT=8001
+ARG FE_PORT=3000
 ARG NODE_ENV=production
-ARG SERVER_BASE_URL=http://localhost:${PORT:-8001}
+ARG SERVER_BASE_URL=http://localhost:${API_PORT}
 
 # Set environment variables
-ENV PORT=${PORT} \
+ENV API_PORT=${API_PORT} \
+    FE_PORT=${FE_PORT} \
     NODE_ENV=${NODE_ENV} \
     SERVER_BASE_URL=${SERVER_BASE_URL}
 
 # Set working directory
 WORKDIR /app
+
+# Set shell with pipefail for proper error handling in pipes
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install Node.js 20.x and other dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -56,6 +67,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg \
     git \
     ca-certificates \
+    tini \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
@@ -68,7 +80,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN if [ -n "${CUSTOM_CERT_DIR}" ]; then \
     mkdir -p /usr/local/share/ca-certificates && \
     if [ -d "${CUSTOM_CERT_DIR}" ]; then \
-    cp -r ${CUSTOM_CERT_DIR}/* /usr/local/share/ca-certificates/ 2>/dev/null || true; \
+    cp -r "${CUSTOM_CERT_DIR}"/* /usr/local/share/ca-certificates/ 2>/dev/null || true; \
     update-ca-certificates; \
     echo "Custom certificates installed successfully."; \
     else \
@@ -82,14 +94,16 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY --from=py_deps /api/.venv /opt/venv
 COPY api/ ./api/
 
-# Copy Node app
+# Copy Node.js dependencies and built app
+COPY --from=node_deps /app/node_modules ./node_modules
+COPY --from=node_builder /app/.next ./.next
+COPY ./package.json ./package.json
 COPY ./public ./public
 COPY ./server-wrapper.js ./server-wrapper.js
-COPY --from=node_builder /app/.next/standalone ./
-COPY --from=node_builder /app/.next/static ./.next/static
 
 # Create a script to run both backend and frontend
-RUN cat <<'EOF' > /app/start.sh \
+RUN touch .env \
+    && cat <<'EOF' > /app/start.sh \
     && chmod +x /app/start.sh
 #!/bin/bash
 set -e
@@ -116,11 +130,11 @@ if [ $api_keys_present -eq 0 ]; then
 fi
 
 # Start backend API server
-python -m api.main --port "${PORT}" &
+python -m api.main --port "${API_PORT}" &
 API_PID=$!
 
 # Start Next.js frontend server
-PORT=3000 HOSTNAME=0.0.0.0 node server-wrapper.js &
+PORT=${FE_PORT} HOSTNAME=0.0.0.0 node server-wrapper.js &
 FRONTEND_PID=$!
 
 # Trap SIGTERM to gracefully shutdown both processes
@@ -135,15 +149,14 @@ kill $API_PID $FRONTEND_PID 2>/dev/null || true
 exit $exit_code
 EOF
 
-# Create empty .env file (will be overridden if one exists at runtime)
-RUN touch .env
-
 # Expose the port the app runs on
-EXPOSE ${PORT:-8001} 3000
+EXPOSE ${API_PORT} ${FE_PORT}
 
 # Health check to monitor container status
 HEALTHCHECK --interval=60s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:3000 || exit 1
+
+ENTRYPOINT ["tini", "--"]
 
 # Command to run the application
 CMD ["/app/start.sh"]
