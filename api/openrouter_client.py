@@ -30,7 +30,6 @@ class OpenRouterClient(ModelClient):
     Environment Variables:
         OPENROUTER_API_KEY: API key for OpenRouter
         OPENROUTER_BASE_URL: Custom base URL (default: https://openrouter.ai/api/v1)
-        OPENAI_BASE_URL: Alternative to OPENROUTER_BASE_URL (allows using OpenRouter as OpenAI replacement)
 
     Visit https://openrouter.ai/docs for more details.
 
@@ -67,8 +66,9 @@ class OpenRouterClient(ModelClient):
         if not api_key:
             log.warning("OPENROUTER_API_KEY not configured")
 
-        # Support custom base URL via OPENROUTER_BASE_URL or OPENAI_BASE_URL
-        base_url = os.getenv("OPENROUTER_BASE_URL") or os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
+        # Use OPENROUTER_BASE_URL if set, otherwise use hardcoded OpenRouter URL
+        # NOTE: Do NOT use OPENAI_BASE_URL as fallback because it may be set by other providers (e.g., DeepSeek)
+        base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
         # OpenRouter doesn't have a dedicated client library, so we'll use requests directly
         return {
@@ -83,8 +83,9 @@ class OpenRouterClient(ModelClient):
         if not api_key:
             log.warning("OPENROUTER_API_KEY not configured")
 
-        # Support custom base URL via OPENROUTER_BASE_URL or OPENAI_BASE_URL
-        base_url = os.getenv("OPENROUTER_BASE_URL") or os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
+        # Use OPENROUTER_BASE_URL if set, otherwise use hardcoded OpenRouter URL
+        # NOTE: Do NOT use OPENAI_BASE_URL as fallback because it may be set by other providers (e.g., DeepSeek)
+        base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
         # For async, we'll use aiohttp
         return {
@@ -495,7 +496,30 @@ class OpenRouterClient(ModelClient):
     def parse_embedding_response(self, response) -> EmbedderOutput:
         """Parse OpenRouter embedding response to EmbedderOutput format."""
         try:
-            return parse_embedding_response(response)
+            # OpenRouter returns a dict, not an object with .data attribute
+            # Handle both dict and object-like responses
+            if isinstance(response, dict):
+                # Extract embeddings from dict response
+                embeddings_data = response.get('data', [])
+                embeddings = [item.get('embedding', []) for item in embeddings_data]
+
+                # Extract usage information if available
+                usage = None
+                if 'usage' in response:
+                    usage = CompletionUsage(
+                        prompt_tokens=response['usage'].get('prompt_tokens', 0),
+                        completion_tokens=response['usage'].get('completion_tokens', 0),
+                        total_tokens=response['usage'].get('total_tokens', 0)
+                    )
+
+                return EmbedderOutput(
+                    data=embeddings,
+                    usage=usage,
+                    raw_response=response
+                )
+            else:
+                # Try the utility function for object-like responses
+                return parse_embedding_response(response)
         except Exception as e:
             log.error(f"Error parsing OpenRouter embedding response: {e}")
             return EmbedderOutput(data=[], error=str(e), raw_response=response)
