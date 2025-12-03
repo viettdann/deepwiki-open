@@ -3,13 +3,14 @@
     "client_class": "OpenAIClient",
     "batch_size": 500,
     "model_kwargs": {
-      "model": "${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}",
+      "model": "${OPENAI_EMBEDDING_MODEL:-text-embedding-3-large}",
       "dimensions": 256,
       "encoding_format": "float"
     }
   },
   "embedder_ollama": {
     "client_class": "OllamaClient",
+    "batch_size": 8,
     "model_kwargs": {
       "model": "${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}"
     }
@@ -26,7 +27,8 @@
     "client_class": "OpenRouterClient",
     "batch_size": 500,
     "model_kwargs": {
-      "model": "${OPENROUTER_EMBEDDING_MODEL:-openai/text-embedding-3-small}"
+      "model": "${OPENROUTER_EMBEDDING_MODEL:-openai/text-embedding-3-large}",
+      "dimensions": 256
     }
   },
   "retriever": {
@@ -34,7 +36,7 @@
   },
   "text_splitter": {
     "split_by": "word",
-    "chunk_size": 600,
-    "chunk_overlap": 120
+    "chunk_size": 500,
+    "chunk_overlap": 100
   }
 }
