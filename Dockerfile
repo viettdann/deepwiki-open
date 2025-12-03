@@ -7,20 +7,20 @@ FROM node:20-alpine3.22 AS node_base
 
 FROM node_base AS node_deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile --legacy-peer-deps
 
 FROM node_base AS node_builder
 WORKDIR /app
 COPY --from=node_deps /app/node_modules ./node_modules
 # Copy only necessary files for Next.js build
-COPY package.json package-lock.json next.config.ts tsconfig.json tailwind.config.js postcss.config.mjs ./
+COPY package.json yarn.lock next.config.ts tsconfig.json tailwind.config.js postcss.config.mjs server-wrapper.js ./
 COPY src/ ./src/
 COPY public/ ./public/
 # Increase Node.js memory limit for build and disable telemetry
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN NODE_ENV=production npm run build
+RUN NODE_ENV=production yarn run build
 
 FROM python:3.11-slim AS py_deps
 WORKDIR /api
@@ -39,7 +39,7 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install Node.js and npm
+# Install Node.js 20.x and other dependencies
 RUN apt-get update && apt-get install -y \
     curl \
     gnupg \
@@ -75,6 +75,7 @@ COPY api/ ./api/
 COPY --from=node_builder /app/public ./public
 COPY --from=node_builder /app/.next/standalone ./
 COPY --from=node_builder /app/.next/static ./.next/static
+COPY --from=node_builder /app/server-wrapper.js ./server-wrapper.js
 
 # Expose the port the app runs on
 EXPOSE ${PORT:-8001} 3000
@@ -99,7 +100,7 @@ if [ $api_keys_present -eq 0 ]; then
 fi
 
 python -m api.main --port "${PORT:-8001}" &
-PORT=3000 HOSTNAME=0.0.0.0 node server.js &
+PORT=3000 HOSTNAME=0.0.0.0 node server-wrapper.js &
 
 wait -n
 exit $?
