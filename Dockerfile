@@ -1,46 +1,57 @@
-# syntax=docker/dockerfile:1-labs
-
 # Build argument for custom certificates directory
 ARG CUSTOM_CERT_DIR="certs"
 
-FROM node:20-alpine3.22 AS node_base
-
-FROM node_base AS node_deps
+FROM node:20-alpine3.22 AS node_deps
 WORKDIR /app
 COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile --legacy-peer-deps
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
+    --mount=type=bind,source=package.json,target=/app/package.json \
+    --mount=type=bind,source=yarn.lock,target=/app/yarn.lock \
+    yarn install --frozen-lockfile --legacy-peer-deps
 
-FROM node_base AS node_builder
-WORKDIR /app
-COPY --from=node_deps /app/node_modules ./node_modules
-# Copy only necessary files for Next.js build
-COPY package.json yarn.lock next.config.ts tsconfig.json tailwind.config.js postcss.config.mjs server-wrapper.js ./
-COPY src/ ./src/
-COPY public/ ./public/
+FROM node_deps AS node_builder
+
 # Increase Node.js memory limit for build and disable telemetry
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN NODE_ENV=production yarn run build
+RUN --mount=type=bind,source=package.json,target=/app/package.json \
+    --mount=type=bind,source=yarn.lock,target=/app/yarn.lock \
+    --mount=type=bind,source=next.config.ts,target=/app/next.config.ts \
+    --mount=type=bind,source=tsconfig.json,target=/app/tsconfig.json \
+    --mount=type=bind,source=tailwind.config.js,target=/app/tailwind.config.js \
+    --mount=type=bind,source=postcss.config.mjs,target=/app/postcss.config.mjs \
+    --mount=type=bind,source=src,target=/app/src \
+    NODE_ENV=production yarn run build
 
 FROM python:3.11-slim AS py_deps
+ARG POETRY_VERSION="2.0.1"
+ARG POETRY_MAX_WORKERS="10"
 WORKDIR /api
 COPY api/pyproject.toml .
 COPY api/poetry.lock .
-RUN python -m pip install poetry==2.0.1 --no-cache-dir && \
+RUN python -m pip install poetry==${POETRY_VERSION} --no-cache-dir && \
     poetry config virtualenvs.create true --local && \
     poetry config virtualenvs.in-project true --local && \
     poetry config virtualenvs.options.always-copy --local true && \
-    POETRY_MAX_WORKERS=10 poetry install --no-interaction --no-ansi --only main && \
+    POETRY_MAX_WORKERS=${POETRY_MAX_WORKERS} poetry install --no-interaction --no-ansi --only main && \
     poetry cache clear --all .
 
 # Use Python 3.11 as final image
 FROM python:3.11-slim
+ARG PORT=8001
+ARG NODE_ENV=production
+ARG SERVER_BASE_URL=http://localhost:${PORT:-8001}
+
+# Set environment variables
+ENV PORT=${PORT} \
+    NODE_ENV=${NODE_ENV} \
+    SERVER_BASE_URL=${SERVER_BASE_URL}
 
 # Set working directory
 WORKDIR /app
 
 # Install Node.js 20.x and other dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gnupg \
     git \
@@ -49,7 +60,7 @@ RUN apt-get update && apt-get install -y \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
     && apt-get update \
-    && apt-get install -y nodejs \
+    && apt-get install -y --no-install-recommends nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -72,47 +83,67 @@ COPY --from=py_deps /api/.venv /opt/venv
 COPY api/ ./api/
 
 # Copy Node app
-COPY --from=node_builder /app/public ./public
+COPY ./public ./public
+COPY ./server-wrapper.js ./server-wrapper.js
 COPY --from=node_builder /app/.next/standalone ./
 COPY --from=node_builder /app/.next/static ./.next/static
-COPY --from=node_builder /app/server-wrapper.js ./server-wrapper.js
-
-# Expose the port the app runs on
-EXPOSE ${PORT:-8001} 3000
 
 # Create a script to run both backend and frontend
 RUN cat <<'EOF' > /app/start.sh \
     && chmod +x /app/start.sh
 #!/bin/bash
+set -e
 
-[ -f .env ] && export $(grep -v "^#" .env | xargs -r)
-
-api_keys_present=0
-[ -n "$GOOGLE_API_KEY" ] && api_keys_present=1
-[ -n "$OPENAI_API_KEY" ] && api_keys_present=1
-[ -n "$OPENROUTER_API_KEY" ] && api_keys_present=1
-[ -n "$DEEPSEEK_API_KEY" ] && api_keys_present=1
-[ -n "$OLLAMA_HOST" ] && api_keys_present=1
-
-if [ $api_keys_present -eq 0 ]; then
-  echo "Warning: No API keys configured and no Ollama host found."
-  echo "Need at least one API key or a local Ollama setup."
+# Load environment variables from .env if it exists
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
 fi
 
-python -m api.main --port "${PORT:-8001}" &
+# Check for at least one configured API key or Ollama
+api_keys_present=0
+for key in GOOGLE_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY DEEPSEEK_API_KEY OLLAMA_HOST; do
+  if [ -n "${!key}" ]; then
+api_keys_present=1
+break
+  fi
+done
+
+if [ $api_keys_present -eq 0 ]; then
+  echo "⚠️  Warning: No API keys configured and no Ollama host found."
+  echo "You need at least one API key or a local Ollama setup to use this service."
+fi
+
+# Start backend API server
+python -m api.main --port "${PORT}" &
+API_PID=$!
+
+# Start Next.js frontend server
 PORT=3000 HOSTNAME=0.0.0.0 node server-wrapper.js &
+FRONTEND_PID=$!
 
+# Trap SIGTERM to gracefully shutdown both processes
+trap "kill $API_PID $FRONTEND_PID 2>/dev/null; exit 0" SIGTERM
+
+# Wait for any process to exit
 wait -n
-exit $?
-EOF
+exit_code=$?
 
-# Set environment variables
-ENV PORT=8001
-ENV NODE_ENV=production
-ENV SERVER_BASE_URL=http://localhost:${PORT:-8001}
+# Clean up if one process exits
+kill $API_PID $FRONTEND_PID 2>/dev/null || true
+exit $exit_code
+EOF
 
 # Create empty .env file (will be overridden if one exists at runtime)
 RUN touch .env
+
+# Expose the port the app runs on
+EXPOSE ${PORT:-8001} 3000
+
+# Health check to monitor container status
+HEALTHCHECK --interval=60s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3000 || exit 1
 
 # Command to run the application
 CMD ["/app/start.sh"]
