@@ -518,17 +518,7 @@ Based ONLY on the content of the \`[RELEVANT_SOURCE_FILES]\`:
 
 9.  **Conclusion/Summary:** End with a brief summary paragraph if appropriate for "${page.title}", reiterating the key aspects covered and their significance within the project.
 
-IMPORTANT: Generate the content in ${language === 'en' ? 'English' :
-            language === 'ja' ? 'Japanese (日本語)' :
-            language === 'zh' ? 'Mandarin Chinese (中文)' :
-            language === 'zh-tw' ? 'Traditional Chinese (繁體中文)' :
-            language === 'es' ? 'Spanish (Español)' :
-            language === 'kr' ? 'Korean (한국어)' :
-            language === 'vi' ? 'Vietnamese (Tiếng Việt)' : 
-            language === "pt-br" ? "Brazilian Portuguese (Português Brasileiro)" :
-            language === "fr" ? "Français (French)" :
-            language === "ru" ? "Русский (Russian)" :
-            'English'}.
+IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Việt)' : 'English'}.
 
 Remember:
 - Ground every claim in the provided source files.
@@ -734,17 +724,7 @@ ${readme}
 
 I want to create a wiki for this repository. Determine the most logical structure for a wiki based on the repository's content.
 
-IMPORTANT: The wiki content will be generated in ${language === 'en' ? 'English' :
-            language === 'ja' ? 'Japanese (日本語)' :
-            language === 'zh' ? 'Mandarin Chinese (中文)' :
-            language === 'zh-tw' ? 'Traditional Chinese (繁體中文)' :
-            language === 'es' ? 'Spanish (Español)' :
-            language === 'kr' ? 'Korean (한国語)' :
-            language === 'vi' ? 'Vietnamese (Tiếng Việt)' :
-            language === "pt-br" ? "Brazilian Portuguese (Português Brasileiro)" :
-            language === "fr" ? "Français (French)" :
-            language === "ru" ? "Русский (Russian)" :
-            'English'} language.
+IMPORTANT: The wiki content will be generated in ${language === 'vi' ? 'Vietnamese (Tiếng Việt)' : 'English'} language.
 
 When designing the wiki structure, include pages that would benefit from visual diagrams, such as:
 - Architecture overviews
@@ -1515,7 +1495,7 @@ IMPORTANT:
     try {
       setIsExporting(true);
       setExportError(null);
-      setLoadingMessage(`${language === 'ja' ? 'Wikiを' : 'Exporting wiki as '} ${format} ${language === 'ja' ? 'としてエクスポート中...' : '...'}`);
+      setLoadingMessage(`${language === 'vi' ? 'Xuất wiki dưới dạng' : 'Exporting wiki as'} ${format}...`);
 
       // Prepare the pages for export
       const pagesToExport = wikiStructure.pages.map(page => {
@@ -1991,13 +1971,11 @@ IMPORTANT:
                   />
                 </div>
                 <p className="text-xs text-[var(--muted)] text-center">
-                  {language === 'ja'
-                    ? `${wikiStructure.pages.length}ページ中${wikiStructure.pages.length - pagesInProgress.size}ページ完了`
-                    : messages.repoPage?.pagesCompleted
-                        ? messages.repoPage.pagesCompleted
-                            .replace('{completed}', (wikiStructure.pages.length - pagesInProgress.size).toString())
-                            .replace('{total}', wikiStructure.pages.length.toString())
-                        : `${wikiStructure.pages.length - pagesInProgress.size} of ${wikiStructure.pages.length} pages completed`}
+                  {messages.repoPage?.pagesCompleted
+                    ? messages.repoPage.pagesCompleted
+                        .replace('{completed}', (wikiStructure.pages.length - pagesInProgress.size).toString())
+                        .replace('{total}', wikiStructure.pages.length.toString())
+                    : `${wikiStructure.pages.length - pagesInProgress.size} of ${wikiStructure.pages.length} pages completed`}
                 </p>
 
                 {/* Show list of in-progress pages */}
@@ -2013,11 +1991,9 @@ IMPORTANT:
                       })}
                       {pagesInProgress.size > 3 && (
                         <li className="text-[var(--muted)]">
-                          {language === 'ja'
-                            ? `...他に${pagesInProgress.size - 3}ページ`
-                            : messages.repoPage?.andMorePages
-                                ? messages.repoPage.andMorePages.replace('{count}', (pagesInProgress.size - 3).toString())
-                                : `...and ${pagesInProgress.size - 3} more`}
+                          {messages.repoPage?.andMorePages
+                            ? messages.repoPage.andMorePages.replace('{count}', (pagesInProgress.size - 3).toString())
+                            : `...and ${pagesInProgress.size - 3} more`}
                         </li>
                       )}
                     </ul>
