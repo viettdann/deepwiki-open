@@ -400,6 +400,34 @@ app.add_api_route("/chat/completions/stream", chat_completions_stream, methods=[
 # Add the WebSocket endpoint
 app.add_websocket_route("/ws/chat", handle_websocket_chat)
 
+# --- Background Jobs System ---
+from api.routes.jobs import router as jobs_router
+
+# Register jobs router
+app.include_router(jobs_router)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize background worker on app startup."""
+    try:
+        from api.background.worker import start_worker
+        await start_worker()
+        logger.info("Background worker started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start background worker: {e}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Stop background worker on app shutdown."""
+    try:
+        from api.background.worker import stop_worker
+        await stop_worker()
+        logger.info("Background worker stopped successfully")
+    except Exception as e:
+        logger.error(f"Error stopping background worker: {e}")
+
 # --- Wiki Cache Helper Functions ---
 
 WIKI_CACHE_DIR = os.path.join(get_adalflow_default_root_path(), "wikicache")

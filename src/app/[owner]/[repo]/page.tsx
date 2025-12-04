@@ -11,7 +11,8 @@ import { RepoInfo } from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
 import { extractUrlDomain, extractUrlPath } from '@/utils/urlDecoder';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { findActiveJob, startBackgroundWikiGeneration } from '@/utils/backgroundJobClient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FaBitbucket, FaBookOpen, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes } from 'react-icons/fa';
 // Define the WikiSection and WikiStructure types directly in this file
@@ -178,6 +179,7 @@ export default function RepoWikiPage() {
   // Get route parameters and search params
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Extract owner and repo from route params
   const owner = params.owner as string;
@@ -1667,15 +1669,35 @@ IMPORTANT:
     setStructureRequestInProgress(false); // Assuming this flag should be reset
     setRequestInProgress(false); // Assuming this flag should be reset
 
-    // Explicitly trigger the data loading process again by re-invoking what the main useEffect does.
-    // This will first attempt to load from (now hopefully non-existent or soon-to-be-overwritten) server cache,
-    // then proceed to fetchRepositoryStructure if needed.
-    // To ensure fetchRepositoryStructure is called if cache is somehow still there or to force a full refresh:
-    // One option is to directly call fetchRepositoryStructure() if force refresh means bypassing cache check.
-    // For now, we rely on the standard loadData flow initiated by resetting effectRan and dependencies.
-    // This will re-trigger the main data loading useEffect.
-    // No direct call to fetchRepositoryStructure here, let the useEffect handle it based on effectRan.current = false.
-  }, [effectiveRepoInfo, language, messages.loading, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, isComprehensiveView, authCode, authRequired]);
+    // Start a new background job for wiki regeneration
+    try {
+      const repoUrl = getRepoUrl(effectiveRepoInfo);
+      const jobRedirectUrl = await startBackgroundWikiGeneration(
+        repoUrl,
+        effectiveRepoInfo.type,
+        effectiveRepoInfo.owner,
+        effectiveRepoInfo.repo,
+        selectedProviderState,
+        isCustomSelectedModelState ? customSelectedModelState : selectedModelState,
+        language,
+        isComprehensiveView,
+        newToken || currentToken || undefined,
+        modelExcludedDirs ? modelExcludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
+        modelExcludedFiles ? modelExcludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,
+        modelIncludedDirs ? modelIncludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
+        modelIncludedFiles ? modelIncludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined
+      );
+
+      // Redirect to job progress page
+      console.log(`Created new job for refresh, redirecting to ${jobRedirectUrl}`);
+      router.push(jobRedirectUrl);
+    } catch (jobError) {
+      console.error('Error creating background job for refresh:', jobError);
+      setError(jobError instanceof Error ? jobError.message : 'Failed to start wiki regeneration');
+      setIsLoading(false);
+      setLoadingMessage(undefined);
+    }
+  }, [effectiveRepoInfo, language, messages.loading, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, isComprehensiveView, authCode, authRequired, currentToken, router]);
 
   // Start wiki generation when component mounts
   useEffect(() => {
@@ -1852,8 +1874,49 @@ IMPORTANT:
         }
 
         // If we reached here, either there was no cache, it was invalid, or an error occurred
-        // Proceed to fetch repository structure
-        fetchRepositoryStructure();
+        // Check for active background job first, then create new job if needed
+        setLoadingMessage(messages.loading?.checkingJobs || 'Checking for active generation jobs...');
+
+        try {
+          // Check for existing active job
+          const activeJob = await findActiveJob(effectiveRepoInfo.owner, effectiveRepoInfo.repo);
+
+          if (activeJob) {
+            // Redirect to the job progress page
+            console.log(`Found active job ${activeJob.id}, redirecting to job page`);
+            router.push(`/wiki/job/${activeJob.id}`);
+            return;
+          }
+
+          // No active job found, create a new background job
+          setLoadingMessage(messages.loading?.creatingJob || 'Starting wiki generation...');
+
+          const repoUrl = getRepoUrl(effectiveRepoInfo);
+          const jobRedirectUrl = await startBackgroundWikiGeneration(
+            repoUrl,
+            effectiveRepoInfo.type,
+            effectiveRepoInfo.owner,
+            effectiveRepoInfo.repo,
+            selectedProviderState,
+            isCustomSelectedModelState ? customSelectedModelState : selectedModelState,
+            language,
+            isComprehensiveView,
+            currentToken || undefined,
+            modelExcludedDirs ? modelExcludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
+            modelExcludedFiles ? modelExcludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,
+            modelIncludedDirs ? modelIncludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
+            modelIncludedFiles ? modelIncludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined
+          );
+
+          // Redirect to job progress page
+          console.log(`Created new job, redirecting to ${jobRedirectUrl}`);
+          router.push(jobRedirectUrl);
+        } catch (jobError) {
+          console.error('Error with background job:', jobError);
+          setError(jobError instanceof Error ? jobError.message : 'Failed to start wiki generation');
+          setIsLoading(false);
+          setLoadingMessage(undefined);
+        }
       };
 
       loadData();
@@ -1864,7 +1927,8 @@ IMPORTANT:
 
     // Clean up function for this effect is not strictly necessary for loadData,
     // but keeping the main unmount cleanup in the other useEffect
-  }, [effectiveRepoInfo, effectiveRepoInfo.owner, effectiveRepoInfo.repo, effectiveRepoInfo.type, language, fetchRepositoryStructure, messages.loading?.fetchingCache, isComprehensiveView]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveRepoInfo, effectiveRepoInfo.owner, effectiveRepoInfo.repo, effectiveRepoInfo.type, language, messages.loading?.fetchingCache, isComprehensiveView, router, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, currentToken, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles]);
 
   // Save wiki to server-side cache when generation is complete
   useEffect(() => {
