@@ -1,0 +1,381 @@
+'use client';
+
+import React, { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/contexts/LanguageContext';
+import ThemeToggle from '@/components/theme-toggle';
+import { FaHome, FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaTrash, FaEye, FaGithub, FaGitlab, FaBitbucket, FaSync } from 'react-icons/fa';
+
+interface Job {
+  id: string;
+  repo_url: string;
+  repo_type: string;
+  owner: string;
+  repo: string;
+  provider: string;
+  model?: string;
+  language: string;
+  is_comprehensive: boolean;
+  status: string;
+  current_phase: number;
+  progress_percent: number;
+  error_message?: string;
+  total_pages: number;
+  completed_pages: number;
+  failed_pages: number;
+  total_tokens_used: number;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+interface JobListResponse {
+  jobs: Job[];
+  total: number;
+}
+
+const statusFilters = [
+  { value: '', label: 'All' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'preparing_embeddings', label: 'Preparing' },
+  { value: 'generating_structure', label: 'Structure' },
+  { value: 'generating_pages', label: 'Generating' },
+  { value: 'paused', label: 'Paused' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+export default function JobsPage() {
+  const router = useRouter();
+  const { messages } = useLanguage();
+
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(0);
+  const limit = 20;
+
+  const fetchJobs = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter) params.append('status', statusFilter);
+      params.append('limit', limit.toString());
+      params.append('offset', (page * limit).toString());
+
+      const response = await fetch(`/api/wiki/jobs?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch jobs');
+
+      const data: JobListResponse = await response.json();
+      setJobs(data.jobs);
+      setTotal(data.total);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [statusFilter, page]);
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
+
+  // Auto-refresh for active jobs
+  useEffect(() => {
+    const hasActiveJobs = jobs.some(j =>
+      ['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(j.status)
+    );
+
+    if (hasActiveJobs) {
+      const interval = setInterval(fetchJobs, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [jobs, fetchJobs]);
+
+  const handlePause = async (jobId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/wiki/jobs/${jobId}/pause`, { method: 'POST' });
+      fetchJobs();
+    } catch (e) {
+      console.error('Failed to pause job:', e);
+    }
+  };
+
+  const handleResume = async (jobId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/wiki/jobs/${jobId}/resume`, { method: 'POST' });
+      fetchJobs();
+    } catch (e) {
+      console.error('Failed to resume job:', e);
+    }
+  };
+
+  const handleCancel = async (jobId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Cancel this job?')) return;
+    try {
+      await fetch(`/api/wiki/jobs/${jobId}`, { method: 'DELETE' });
+      fetchJobs();
+    } catch (e) {
+      console.error('Failed to cancel job:', e);
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <FaCheck className="text-green-500" />;
+      case 'pending':
+      case 'preparing_embeddings':
+      case 'generating_structure':
+      case 'generating_pages':
+        return <FaSpinner className="text-blue-500 animate-spin" />;
+      case 'paused':
+        return <FaPause className="text-yellow-500" />;
+      case 'failed':
+        return <FaExclamationTriangle className="text-red-500" />;
+      case 'cancelled':
+        return <FaTimes className="text-gray-500" />;
+      default:
+        return <FaClock className="text-gray-400" />;
+    }
+  };
+
+  const getRepoIcon = (type: string) => {
+    switch (type) {
+      case 'github':
+        return <FaGithub />;
+      case 'gitlab':
+        return <FaGitlab />;
+      case 'bitbucket':
+        return <FaBitbucket />;
+      default:
+        return <FaGithub />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'failed':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'cancelled':
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+      case 'paused':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      default:
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const totalPages = Math.ceil(total / limit);
+
+  return (
+    <div className="min-h-screen bg-[var(--background)]">
+      {/* Header */}
+      <header className="sticky top-0 z-50 backdrop-blur-lg bg-[var(--background)]/80 border-b border-[var(--border-color)]">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-[var(--foreground)] hover:text-[var(--accent-primary)]">
+              <FaHome className="text-xl" />
+            </Link>
+            <h1 className="text-lg font-semibold text-[var(--foreground)]">
+              Wiki Generation Jobs
+            </h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => fetchJobs()}
+              className="p-2 text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+              title="Refresh"
+            >
+              <FaSync className={isLoading ? 'animate-spin' : ''} />
+            </button>
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8">
+        {/* Filters */}
+        <div className="mb-6 flex items-center gap-4">
+          <label className="text-sm text-[var(--muted-foreground)]">Status:</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+            className="px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border-color)] text-[var(--foreground)] text-sm"
+          >
+            {statusFilters.map(f => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+          <span className="text-sm text-[var(--muted-foreground)] ml-auto">
+            {total} job{total !== 1 ? 's' : ''} found
+          </span>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mb-6 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
+        {/* Jobs List */}
+        {isLoading && jobs.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <FaSpinner className="text-4xl text-blue-500 animate-spin" />
+          </div>
+        ) : jobs.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-[var(--muted-foreground)]">No jobs found</p>
+            <Link href="/" className="text-blue-500 hover:underline mt-2 inline-block">
+              Generate a new wiki
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {jobs.map((job) => (
+              <div
+                key={job.id}
+                onClick={() => router.push(`/wiki/job/${job.id}`)}
+                className="p-4 rounded-lg bg-[var(--background)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] cursor-pointer transition-colors"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[var(--muted-foreground)]">
+                      {getRepoIcon(job.repo_type)}
+                    </span>
+                    <div>
+                      <h3 className="font-medium text-[var(--foreground)]">
+                        {job.owner}/{job.repo}
+                      </h3>
+                      <p className="text-sm text-[var(--muted-foreground)]">
+                        {job.provider} / {job.model || 'default'} &bull; {job.language.toUpperCase()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
+                      {job.status.replace(/_/g, ' ')}
+                    </span>
+                    {getStatusIcon(job.status)}
+                  </div>
+                </div>
+
+                {/* Progress */}
+                {['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(job.status) && (
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs text-[var(--muted-foreground)] mb-1">
+                      <span>Phase {job.current_phase + 1}/3</span>
+                      <span>{Math.round(job.progress_percent)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-blue-500 h-2 rounded-full transition-all"
+                        style={{ width: `${job.progress_percent}%` }}
+                      />
+                    </div>
+                    {job.total_pages > 0 && (
+                      <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                        {job.completed_pages}/{job.total_pages} pages
+                        {job.failed_pages > 0 && ` (${job.failed_pages} failed)`}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Error */}
+                {job.error_message && (
+                  <p className="mt-2 text-xs text-red-500 truncate">{job.error_message}</p>
+                )}
+
+                {/* Actions & Meta */}
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-xs text-[var(--muted-foreground)]">
+                    {formatDate(job.created_at)}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(job.status) && (
+                      <button
+                        onClick={(e) => handlePause(job.id, e)}
+                        className="p-1.5 text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded"
+                        title="Pause"
+                      >
+                        <FaPause className="text-sm" />
+                      </button>
+                    )}
+                    {job.status === 'paused' && (
+                      <button
+                        onClick={(e) => handleResume(job.id, e)}
+                        className="p-1.5 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/30 rounded"
+                        title="Resume"
+                      >
+                        <FaPlay className="text-sm" />
+                      </button>
+                    )}
+                    {!['completed', 'failed', 'cancelled'].includes(job.status) && (
+                      <button
+                        onClick={(e) => handleCancel(job.id, e)}
+                        className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                        title="Cancel"
+                      >
+                        <FaTimes className="text-sm" />
+                      </button>
+                    )}
+                    {job.status === 'completed' && (
+                      <Link
+                        href={`/${job.owner}/${job.repo}?type=${job.repo_type}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded"
+                        title="View Wiki"
+                      >
+                        <FaEye className="text-sm" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="px-3 py-1 rounded border border-[var(--border-color)] text-sm disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-[var(--muted-foreground)]">
+              Page {page + 1} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="px-3 py-1 rounded border border-[var(--border-color)] text-sm disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
