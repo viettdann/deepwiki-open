@@ -222,11 +222,15 @@ class WikiGenerationWorker:
             logger.info(f"Shutdown requested, pausing job {job_id}")
             return True
 
-        # Check if job was paused
+        # Check if job was paused or cancelled
         job = await JobManager.get_job_raw(job_id)
-        if job and job['status'] == JobStatus.PAUSED.value:
-            logger.info(f"Job {job_id} was paused, stopping processing")
-            return True
+        if job:
+            if job['status'] == JobStatus.PAUSED.value:
+                logger.info(f"Job {job_id} was paused, stopping processing")
+                return True
+            if job['status'] == JobStatus.CANCELLED.value:
+                logger.info(f"Job {job_id} was cancelled, stopping processing")
+                return True
 
         return False
 

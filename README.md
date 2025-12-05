@@ -2,143 +2,149 @@
 
 ![DeepWiki Banner](screenshots/Deepwiki.png)
 
-> **📢 Fork Notice**  
-> This is a **fork** of [AsyncFuncAI/deepwiki-open](https://github.com/AsyncFuncAI/deepwiki-open) with additional experimental features and improvements.  
-> **For stable features and official releases**, please follow the [original repository](https://github.com/AsyncFuncAI/deepwiki-open).
->
-> **What's special about this fork:**  
-> If you're looking for support for **DeepSeek**, **OpenRouter**, and **OpenRouter Embeddings** (recently introduced), you've found the right place!
+## Why This Project
 
-**DeepWiki** is my own implementation attempt of DeepWiki, automatically creates beautiful, interactive wikis for any GitHub, GitLab, or BitBucket repository! Just enter a repo name, and DeepWiki will:
+DeepWiki started as a fork but became much more. What began as small fixes turned into something completely different:
 
-1. Analyze the code structure
-2. Generate comprehensive documentation
-3. Create visual diagrams to explain how everything works
+**Key Improvements**
+- **Background Jobs**: Your generation won't stop if you close the browser. It keeps running in the background and saves progress for each page. If it stops, it picks up where it left off.
+- **Data Storage**: Pages get saved as you generate them, so you won't lose work if your browser crashes or the connection drops.
+- **Live Progress**: Watch your wiki being made in real-time with a simple dashboard.
+
+**Better User Experience**
+- Works great on phones and tablets
+- Cleaner design throughout
+- Support for many AI providers (Google Gemini, OpenAI, DeepSeek, OpenRouter, Ollama)
+
+**More Stuff You Can Do**
+- Use different embedding models
+- Support for Azure DevOps
+- Flexible setup for big companies
+
+This is a real-world version that solves actual problems: generate docs for huge projects without worrying about your browser crashing, see exactly what's happening, and pick which AI provider you want to use.
+
+---
+
+**DeepWiki** turns any GitHub, GitLab, or Bitbucket repository into a searchable wiki automatically! Just give it a repo URL and it will:
+
+1. Look at your code structure
+2. Write documentation
+3. Make diagrams showing how everything connects
 4. Organize it all into an easy-to-navigate wiki
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/sheing)
-[![Tip in Crypto](https://tip.md/badge.svg)](https://tip.md/sng-asyncfunc)
-[![Twitter/X](https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://x.com/sashimikun_void)
-[![Discord](https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/invite/VQMBGR8u5v)
+## ✨ What You Get
 
-[English](./README.md) | [简体中文](./README.zh.md) | [繁體中文](./README.zh-tw.md) | [日本語](./README.ja.md) | [Español](./README.es.md) | [한국어](./README.kr.md) | [Tiếng Việt](./README.vi.md) | [Português Brasileiro](./README.pt-br.md) | [Français](./README.fr.md) | [Русский](./README.ru.md)
+- **Quick Docs**: Turn any GitHub, GitLab, BitBucket or Azure repo into a wiki in seconds
+- **Private Repos**: Use your personal access token to access private repositories
+- **Smart Code Reading**: AI understands your code and how it fits together
+- **Auto Diagrams**: Get Mermaid diagrams that show how your code works
+- **Easy Search**: Simple way to find and read your documentation
+- **Chat With Your Code**: Ask questions and get answers about your repository using RAG
+- **Deep Research**: Ask complex questions and get thorough answers that look at multiple parts of your code
+- **Pick Your AI**: Choose between Google Gemini, OpenAI, DeepSeek, OpenRouter, or run models locally
+- **Flexible Embeddings**: Use OpenAI, Google, or local models for finding similar code
 
-## ✨ Features
-
-- **Instant Documentation**: Turn any GitHub, GitLab or BitBucket repo into a wiki in seconds
-- **Private Repository Support**: Securely access private repositories with personal access tokens
-- **Smart Analysis**: AI-powered understanding of code structure and relationships
-- **Beautiful Diagrams**: Automatic Mermaid diagrams to visualize architecture and data flow
-- **Easy Navigation**: Simple, intuitive interface to explore the wiki
-- **Ask Feature**: Chat with your repository using RAG-powered AI to get accurate answers
-- **DeepResearch**: Multi-turn research process that thoroughly investigates complex topics
-- **Multiple Model Providers**: Support for Google Gemini, OpenAI, DeepSeek, OpenRouter, and local Ollama models
-- **Flexible Embeddings**: Choose between OpenAI, Google AI, or local Ollama embeddings for optimal performance
-
-## 🚀 Quick Start (Super Easy!)
+## 🚀 Quick Start
 
 ### Option 1: Using Docker
 
 ```bash
-# Clone the repository
-git clone https://github.com/AsyncFuncAI/deepwiki-open.git
+# Get the code
+git clone https://github.com/viettdann/deepwiki-open.git
 cd deepwiki-open
 
-# Copy the example environment file and configure it
+# Copy the example settings file
 cp .env.example .env
 
-# Edit .env file and add your API keys
-# At minimum, you need one of: GOOGLE_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, or OLLAMA setup
-# IMPORTANT: The application will exit immediately if no API keys are configured
-# See .env.example for all available configuration options with detailed descriptions
+# Add your API keys to .env
+# You need at least one of: GOOGLE_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, or local Ollama
+# The app will close if no keys are set up
+# See .env.example for all options
 
-# Run with Docker Compose
-docker-compose up
+# Run it with Docker
+docker compose up
 ```
 
-For detailed instructions on using DeepWiki with Ollama and Docker, see [Ollama Instructions](Ollama-instruction.md).
+For Ollama + Docker, see [Ollama Instructions](Ollama-instruction.md)
 
-> 💡 **Where to get these keys:**
+Discaimer: I don't use Ollama myself, so I can't provide support for it (these file from old forks)
+
+> 💡 **Where to get your keys:**
 >
-> - Get a Google API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-> - Get an OpenAI API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-> - Get an OpenRouter API key from [OpenRouter](https://openrouter.ai/)
-> - Get a DeepSeek API key from [DeepSeek Platform](https://platform.deepseek.com/api_keys)
+> - Google API key: [Google AI Studio](https://makersuite.google.com/app/apikey)
+> - OpenAI API key: [OpenAI Platform](https://platform.openai.com/api-keys)
+> - OpenRouter API key: [OpenRouter](https://openrouter.ai/)
+> - DeepSeek API key: [DeepSeek Platform](https://platform.deepseek.com/api_keys)
 
-### Option 2: Manual Setup (Recommended)
+### Option 2: Manual Setup
 
 #### Step 1: Set Up Your API Keys
 
-Create a `.env` file in the project root:
+Create a `.env` file:
 
 ```bash
-# Copy the example environment file
 cp .env.example .env
-
-# Edit .env and add your API keys
-# At minimum, you need one of: GOOGLE_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, or OLLAMA setup
-# IMPORTANT: The application will exit immediately if no API keys are configured
-# See .env.example for all available configuration options and detailed descriptions
+# Edit .env and add your keys
 ```
 
 #### Step 2: Start the Backend
 
 ```bash
-# Install Python dependencies
+# Install Python stuff
 python -m pip install poetry==1.8.2 && poetry install -C api
 
-# Start the API server
+# Start the API
 python -m api.main
 ```
 
 #### Step 3: Start the Frontend
 
 ```bash
-# Install JavaScript dependencies
+# Install JavaScript packages
 npm install
 # or
 yarn install
 
-# Start the web app
+# Start the app
 npm run dev
 # or
 yarn dev
 ```
 
-#### Step 4: Use DeepWiki!
+#### Step 4: Use It!
 
-1. Open [http://localhost:3000](http://localhost:3000) in your browser
-2. Enter a GitHub, GitLab, or Bitbucket repository (like `https://github.com/openai/codex`, `https://github.com/microsoft/autogen`, `https://gitlab.com/gitlab-org/gitlab`, or `https://bitbucket.org/redradish/atlassian_app_versions`)
-3. For private repositories, click "+ Add access tokens" and enter your GitHub or GitLab personal access token
-4. Click "Generate Wiki" and watch the magic happen!
+1. Open [http://localhost:3000](http://localhost:3000)
+2. Enter a repo like `https://github.com/openai/codex` or `https://gitlab.com/gitlab-org/gitlab`
+3. For private repos, add your access token
+4. Click "Generate Wiki" and watch it work!
 
 ## 🔍 How It Works
 
 DeepWiki uses AI to:
 
-1. Clone and analyze the GitHub, GitLab, or Bitbucket repository (including private repos with token authentication)
-2. Create embeddings of the code for smart retrieval
-3. Generate documentation with context-aware AI (using Google Gemini, OpenAI, DeepSeek, OpenRouter, or local Ollama models)
-4. Create visual diagrams to explain code relationships
-5. Organize everything into a structured wiki
-6. Enable intelligent Q&A with the repository through the Ask feature
-7. Provide in-depth research capabilities with DeepResearch
+1. Clone your repository (including private ones with tokens)
+2. Create searchable code embeddings
+3. Write documentation using AI (Google, OpenAI, DeepSeek, OpenRouter, or Ollama)
+4. Create diagrams to explain how things connect
+5. Build a structured wiki you can search
+6. Let you ask questions about your code
+7. Do deep research on complex topics
 
 ```mermaid
 graph TD
-    A[User inputs GitHub/GitLab/Bitbucket repo] --> AA{Private repo?}
-    AA -->|Yes| AB[Add access token]
-    AA -->|No| B[Clone Repository]
+    A[User gives repo URL] --> AA{Private repo?}
+    AA -->|Yes| AB[Add PAT]
+    AA -->|No| B[Clone the repo]
     AB --> B
-    B --> C[Analyze Code Structure]
-    C --> D[Create Code Embeddings]
+    B --> C[Read code structure]
+    C --> D[Make searchable code snippets]
 
-    D --> M{Select Model Provider}
-    M -->|Google Gemini| E1[Generate with Gemini]
-    M -->|OpenAI| E2[Generate with OpenAI]
-    M -->|OpenRouter| E3[Generate with OpenRouter]
-    M -->|Local Ollama| E4[Generate with Ollama]
-    M -->|DeepSeek| E5[Generate with DeepSeek]
+    D --> M{Pick an AI provider}
+    M -->|Google Gemini| E1[Use Gemini]
+    M -->|OpenAI| E2[Use OpenAI]
+    M -->|OpenRouter| E3[Use OpenRouter]
+    M -->|Local Ollama| E4[Use Ollama]
+    M -->|DeepSeek| E5[Use DeepSeek]
 
     E1 --> E[Generate Documentation]
     E2 --> E
@@ -149,7 +155,7 @@ graph TD
     D --> F[Create Visual Diagrams]
     E --> G[Organize as Wiki]
     F --> G
-    G --> H[Interactive DeepWiki]
+    G --> H[Your wiki is ready]
 
     classDef process stroke-width:2px;
     classDef data stroke-width:2px;
@@ -171,7 +177,7 @@ deepwiki/
 │   ├── api.py            # FastAPI implementation
 │   ├── rag.py            # Retrieval Augmented Generation
 │   ├── data_pipeline.py  # Data processing utilities
-│   └── requirements.txt  # Python dependencies
+│   └── pyproject.toml    # Python packages
 │
 ├── src/                  # Frontend Next.js app
 │   ├── app/              # Next.js app directory
@@ -184,62 +190,91 @@ deepwiki/
 └── .env                  # Environment variables (create this)
 ```
 
+## 🔄 Background Job System
+
+DeepWiki includes a robust background job system for long-running wiki generation tasks:
+
+### Features
+- **Asynchronous Processing**: Wiki generation runs in the background, allowing you to track progress without blocking
+- **Multi-Phase Workflow**:
+  1. **Phase 0**: Prepare embeddings (0-10% progress)
+  2. **Phase 1**: Generate wiki structure from repository analysis (10-50% progress)
+  3. **Phase 2**: Generate individual page content with RAG (50-100% progress)
+- **Per-Page Checkpointing**: If processing is interrupted, it resumes from the last completed page
+- **Job Tracking**: Monitor active generation jobs via the jobs dashboard at `/jobs`
+- **Progress Updates**: Real-time progress notifications with page generation details
+- **Error Handling**: Automatic retry mechanism (up to 3 attempts per page) for transient failures
+- **Graceful Shutdown**: Pause/resume/cancel jobs at any time
+
+### Accessing the Jobs Dashboard
+Navigate to `http://localhost:3000/jobs` to:
+- View all active and completed wiki generation jobs
+- Monitor progress per phase and page
+- See detailed statistics (completed pages, failed pages, generation time)
+- Access completed wikis from the job detail view
+
+### Implementation Details
+The background job system uses:
+- **SQLite async database** (`api/background/database.py`) for job persistence
+- **WikiGenerationWorker** (`api/background/worker.py`) - single async worker processing jobs sequentially
+- **Job API** (`api/routes/jobs.py`) - REST endpoints for job management
+- **WebSocket notifications** - real-time progress updates to connected clients
+
+This system handles large repositories efficiently by processing pages concurrently with timeout protection (10 minutes max per page, 5 minutes max for LLM generation).
+
+
 ## 🤖 Provider-Based Model Selection System
 
-DeepWiki now implements a flexible provider-based model selection system supporting multiple LLM providers:
+DeepWiki lets you use different AI providers:
 
-### Supported Providers and Models
+### What's Available
 
-- **Google**: Default `gemini-2.5-flash`, also supports `gemini-2.5-flash-lite`, `gemini-2.5-pro`, etc.
-- **OpenAI**: Default `gpt-5-nano`, also supports `gpt-5`, `gpt-4o`, etc.
-- **OpenRouter**: Access to multiple models via a unified API, including Claude, Llama, Mistral, etc.
-- **DeepSeek**: Default `deepseek-chat`, also supports `deepseek-reasoner`
-- **Ollama**: Support for locally running open-source models like `llama3`, `qwen3`
+- **Google**: Default is `gemini-2.5-flash`, also has `gemini-2.5-flash-lite`, `gemini-2.5-pro`
+- **OpenAI**: Default is `gpt-5-nano`, also `gpt-5`, `gpt-4o`
+- **OpenRouter**: Tons of models from OpenAI, Claude, Llama, Mistral, etc.
+- **DeepSeek**: Default `deepseek-chat`, also `deepseek-reasoner`
+- **Ollama**: Run local models like `llama3`, `qwen3`
 
 ### Environment Variables
 
-Each provider requires its corresponding API key environment variables:
+Add these to your `.env`:
 
 ```bash
-# API Keys
-GOOGLE_API_KEY=your_google_api_key         # Required for Google Gemini models
-OPENAI_API_KEY=your_openai_api_key         # Required for OpenAI models
-OPENROUTER_API_KEY=your_openrouter_api_key # Required for OpenRouter models
-DEEPSEEK_API_KEY=your_deepseek_api_key     # Required for DeepSeek models
+# Your API keys (pick at least one)
+GOOGLE_API_KEY=your_key
+OPENAI_API_KEY=your_key
+OPENROUTER_API_KEY=your_key
+DEEPSEEK_API_KEY=your_key
 
-# API Base URL Configuration (Optional)
-OPENAI_BASE_URL=https://custom-endpoint.com/v1     # Universal alias for custom endpoints
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1   # OpenRouter-specific endpoint (falls back to OPENAI_BASE_URL)
-DEEPSEEK_BASE_URL=https://api.deepseek.com         # DeepSeek-specific endpoint (falls back to OPENAI_BASE_URL)
+# Optional: Use a different API endpoint
+OPENAI_BASE_URL=https://custom-endpoint.com/v1
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+DEEPSEEK_BASE_URL=https://api.deepseek.com
 
-# Ollama Configuration
-OLLAMA_HOST=http://localhost:11434  # Ollama host URL (default: http://localhost:11434)
-
-# Configuration Directory
-DEEPWIKI_CONFIG_DIR=/path/to/custom/config/dir  # Optional, for custom config file location
+# For local models
+OLLAMA_HOST=http://localhost:11434
 ```
 
-### Configuration Files
+### Config Files
 
-DeepWiki uses JSON configuration files to manage various aspects of the system:
+DeepWiki uses JSON files to set up models:
 
 1. **`generator.json`**: Configuration for text generation models
-
-   - Defines available model providers (Google, OpenAI, OpenRouter, DeepSeek, Ollama)
-   - Specifies default and available models for each provider
-   - Contains model-specific parameters like temperature and top_p
+   - Available models and providers
+   - Default models
+   - Temperature, top_p, top_k and other settings
 
 2. **`embedder.json`**: Configuration for embedding models and text processing
 
-   - Defines embedding models for vector storage
-   - Contains retriever configuration for RAG
-   - Specifies text splitter settings for document chunking
+   - Which embedding model to use for vector stor
+   - How to split up text
+   - Specifies text splitter settings for document chunki
 
-3. **`repo.json`**: Configuration for repository handling
-   - Contains file filters to exclude certain files and directories
-   - Defines repository size limits and processing rules
+3. **`repo.json`**: How to handle repositories
+   - Which files to skip
+   - Size limits
 
-By default, these files are located in the `api/config/` directory. You can customize their location using the `DEEPWIKI_CONFIG_DIR` environment variable.
+These are in `api/config/` by default. Change it with `DEEPWIKI_CONFIG_DIR` environment variable.
 
 ### Custom Model Selection for Service Providers
 
@@ -272,69 +307,49 @@ DeepWiki supports custom API endpoints through flexible base URL configuration:
 2. Universal alias (`OPENAI_BASE_URL`)
 3. Default endpoint for the provider
 
-## 🧩 Using OpenAI-Compatible Embedding Models (e.g., Alibaba Qwen)
+## 🧠 Using Google Embeddings
 
-If you want to use embedding models compatible with the OpenAI API (such as Alibaba Qwen), follow these steps:
-
-1. Replace the contents of `api/config/embedder.json` with those from `api/config/embedder_openai_compatible.json`.
-2. In your project root `.env` file, set the relevant environment variables, for example:
-   ```
-   OPENAI_API_KEY=your_api_key
-   OPENAI_BASE_URL=your_openai_compatible_endpoint
-   ```
-3. The program will automatically substitute placeholders in embedder.json with the values from your environment variables.
-
-This allows you to seamlessly switch to any OpenAI-compatible embedding service without code changes.
-
-## 🧠 Using Google AI Embeddings
-
-DeepWiki now supports Google AI's latest embedding models as an alternative to OpenAI embeddings. This provides better integration when you're already using Google Gemini models for text generation.
+DeepWiki can use Google's embedding model instead of OpenAI. Great if you're already using Google Gemini.
 
 ### Features
 
 - **Latest Model**: Uses Google's `text-embedding-004` model
-- **Same API Key**: Uses your existing `GOOGLE_API_KEY` (no additional setup required)
-- **Better Integration**: Optimized for use with Google Gemini text generation models
-- **Task-Specific**: Supports semantic similarity, retrieval, and classification tasks
-- **Batch Processing**: Efficient processing of multiple texts
+- **Same API Key**: Uses your existing `GOOGLE_API_KEY`
+- **Works Better With Gemini**: Same company, works better together
+- **Handles Different Tasks**: Supports semantic similarity, retrieval, and classification tasks
 
 ### How to Enable Google AI Embeddings
 
-**Option 1: Environment Variable (Recommended)**
-
-Set the embedder type in your `.env` file:
+**Option 1: In .env (Recommended)**
 
 ```bash
-# Your existing Google API key
-GOOGLE_API_KEY=your_google_api_key
-
-# Enable Google AI embeddings
+GOOGLE_API_KEY=your_key
 DEEPWIKI_EMBEDDER_TYPE=google
 ```
 
-**Option 2: Docker Environment**
+**Option 2: Docker**
 
 ```bash
 docker run -p 8001:8001 -p 3000:3000 \
-  -e GOOGLE_API_KEY=your_google_api_key \
+  -e GOOGLE_API_KEY=your_key \
   -e DEEPWIKI_EMBEDDER_TYPE=google \
   -v ~/.adalflow:/root/.adalflow \
-  ghcr.io/asyncfuncai/deepwiki-open:latest
+  ghcr.io/viettdann/deepwiki-open:latest
 ```
 
 **Option 3: Docker Compose**
 
-Add to your `.env` file:
+Add to `.env`:
 
 ```bash
-GOOGLE_API_KEY=your_google_api_key
+GOOGLE_API_KEY=your_key
 DEEPWIKI_EMBEDDER_TYPE=google
 ```
 
 Then run:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 ### Available Embedder Types
@@ -354,21 +369,20 @@ docker-compose up
 
 ### Switching Between Embedders
 
-You can easily switch between different embedding providers:
 
 ```bash
-# Use OpenAI embeddings (default)
+# Use OpenAI (default)
 export DEEPWIKI_EMBEDDER_TYPE=openai
 
-# Use Google AI embeddings
+# Use Google
 export DEEPWIKI_EMBEDDER_TYPE=google
 
-# Use local Ollama embeddings
+# Use local Ollama
 export DEEPWIKI_EMBEDDER_TYPE=ollama
 
-# Use OpenRouter embeddings
+# Use OpenRouter
 export DEEPWIKI_EMBEDDER_TYPE=openrouter
-export OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small  # Optional, defaults to openai/text-embedding-3-small
+export OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small
 ```
 
 **Available OpenRouter Embedding Models:**
@@ -404,13 +418,13 @@ export LOG_FILE_PATH=./debug.log
 python -m api.main
 ```
 
-Or with Docker Compose:
+Or with Docker:
 
 ```bash
 LOG_LEVEL=DEBUG LOG_FILE_PATH=./debug.log docker-compose up
 ```
 
-When running with Docker Compose, the container's `api/logs` directory is bind-mounted to `./api/logs` on your host (see the `volumes` section in `docker-compose.yml`), ensuring log files persist across restarts.
+When running with Docker Compose, the container's `api/logs` directory is bind-mounted to `./api/logs` on your host (see the `volumes` section in `compose.yaml`), ensuring log files persist across restarts.
 
 Alternatively, you can store these settings in your `.env` file:
 
@@ -419,25 +433,25 @@ LOG_LEVEL=DEBUG
 LOG_FILE_PATH=./debug.log
 ```
 
-Then simply run:
+Then run:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
-**Logging Path Security Considerations:** In production environments, ensure the `api/logs` directory and any custom log file path are secured with appropriate filesystem permissions and access controls. The application enforces that `LOG_FILE_PATH` resides within the project's `api/logs` directory to prevent path traversal or unauthorized writes.
+**Security note**: Make sure your log files are protected so people can't see your data.
 
 ## 🛠️ Advanced Setup
 
 ### Environment Variables
 
-DeepWiki uses environment variables for configuration. A comprehensive `.env.example` file is provided in the repository with all available options and detailed descriptions.
+See `.env.example` for everything you can set up.
 
 **Quick Setup:**
 
 ```bash
 cp .env.example .env
-# Edit .env and add your API keys
+# Edit it and add your keys
 ```
 
 **Key Environment Variables:**
@@ -461,168 +475,139 @@ cp .env.example .env
 | `LOG_LEVEL`              | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)     | No            | `INFO`                     |
 | `LOG_FILE_PATH`          | Path to log file                                          | No            | `api/logs/application.log` |
 
-\*At minimum, you need one of: `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`, or a local Ollama setup.
+*You need at least one of: `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`, or local Ollama.
 
-**IMPORTANT**: The application will exit immediately on startup if no API keys are configured. This ensures you're aware of missing configuration before attempting to generate wikis.
+**Important**: The app stops if no keys are set up. So you'll know right away if something's missing.
 
-For a complete list of all environment variables with detailed descriptions, see the comprehensive [`.env.example`](.env.example) file.
+For a complete list of all environment variables with detailed descriptions, see [`.env.example`](.env.example).
 
 **API Key Requirements:**
 
-- If using `DEEPWIKI_EMBEDDER_TYPE=openai` (default): `OPENAI_API_KEY` is required
-- If using `DEEPWIKI_EMBEDDER_TYPE=google`: `GOOGLE_API_KEY` is required
-- If using `DEEPWIKI_EMBEDDER_TYPE=ollama`: No API key required (local processing)
-- If using `DEEPWIKI_EMBEDDER_TYPE=openrouter`: `OPENROUTER_API_KEY` is required
+- Using `DEEPWIKI_EMBEDDER_TYPE=openai`: Need `OPENAI_API_KEY`
+- Using `DEEPWIKI_EMBEDDER_TYPE=google`: Need `GOOGLE_API_KEY`
+- Using `DEEPWIKI_EMBEDDER_TYPE=ollama`: No key needed
+- Using `DEEPWIKI_EMBEDDER_TYPE=openrouter`: Need `OPENROUTER_API_KEY`
 
-Other API keys are only required when configuring and using models from the corresponding providers.
+Only add other keys if you're actually using those providers.
 
-## Authorization Mode
+## Access Control
 
-DeepWiki can be configured to run in an authorization mode, where wiki generation requires a valid authorization code. This is useful if you want to control who can use the generation feature.
-Restricts frontend initiation and protects cache deletion, but doesn't fully prevent backend generation if API endpoints are hit directly.
+You can lock down who can generate wikis by turning on access codes.
 
-To enable authorization mode, set the following environment variables:
+Set these:
 
-- `DEEPWIKI_AUTH_MODE`: Set this to `true` or `1`. When enabled, the frontend will display an input field for the authorization code.
-- `DEEPWIKI_AUTH_CODE`: Set this to the desired secret code. Restricts frontend initiation and protects cache deletion, but doesn't fully prevent backend generation if API endpoints are hit directly.
+- `DEEPWIKI_AUTH_MODE`: Set to `true` or `1` to turn on access codes
+- `DEEPWIKI_AUTH_CODE`: Your secret code
 
-If `DEEPWIKI_AUTH_MODE` is not set or is set to `false` (or any other value than `true`/`1`), the authorization feature will be disabled, and no code will be required.
+If you don't set `DEEPWIKI_AUTH_MODE` or set it to `false`, anyone can use it.
 
-### Docker Setup
+### Docker
 
-You can use Docker to run DeepWiki:
-
-#### Running the Container
+#### Run a Container
 
 ```bash
-# Pull the image from GitHub Container Registry
-docker pull ghcr.io/asyncfuncai/deepwiki-open:latest
+# Get the image
+docker pull ghcr.io/viettdann/deepwiki-open:latest
 
-# Run the container with environment variables
+# Run it
 docker run -p 8001:8001 -p 3000:3000 \
-  -e GOOGLE_API_KEY=your_google_api_key \
-  -e OPENAI_API_KEY=your_openai_api_key \
-  -e OPENROUTER_API_KEY=your_openrouter_api_key \
-  -e OLLAMA_HOST=your_ollama_host \
-  -e AZURE_OPENAI_API_KEY=your_azure_openai_api_key \
-  -e AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint \
-  -e AZURE_OPENAI_VERSION=your_azure_openai_version \
-
+  -e GOOGLE_API_KEY=your_key \
+  -e OPENAI_API_KEY=your_key \
+  -e OPENROUTER_API_KEY=your_key \
+  -e OLLAMA_HOST=your_host \
   -v ~/.adalflow:/root/.adalflow \
-  ghcr.io/asyncfuncai/deepwiki-open:latest
+  ghcr.io/viettdann/deepwiki-open:latest
 ```
 
-This command also mounts `~/.adalflow` on your host to `/root/.adalflow` in the container. This path is used to store:
-
-- Cloned repositories (`~/.adalflow/repos/`)
-- Their embeddings and indexes (`~/.adalflow/databases/`)
-- Cached generated wiki content (`~/.adalflow/wikicache/`)
-
+Data gets saved in `~/.adalflow`:
+- Cloned repos: `~/.adalflow/repos/`
+- Embeddings: `~/.adalflow/databases/`
+- Generated wikis: `~/.adalflow/wikicache/`
 This ensures that your data persists even if the container is stopped or removed.
 
-Or use the provided `docker-compose.yml` file:
+Or use Docker Compose:
 
 ```bash
-# Edit the .env file with your API keys first
-docker-compose up
+# Must set up .env first
+docker compose up
 ```
+(The `compose.yaml` file is pre-configured to mount `~/.adalflow` for data persistence, similar to the `docker run` command above.)
 
-(The `docker-compose.yml` file is pre-configured to mount `~/.adalflow` for data persistence, similar to the `docker run` command above.)
 
-#### Using a .env file with Docker
-
-You can also mount a .env file to the container:
+#### Use a .env File With Docker
 
 ```bash
-# Create a .env file with your API keys
-echo "GOOGLE_API_KEY=your_google_api_key" > .env
-echo "OPENAI_API_KEY=your_openai_api_key" >> .env
-echo "OPENROUTER_API_KEY=your_openrouter_api_key" >> .env
-echo "AZURE_OPENAI_API_KEY=your_azure_openai_api_key" >> .env
-echo "AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint" >> .env
-echo "AZURE_OPENAI_VERSION=your_azure_openai_version"  >>.env
-echo "OLLAMA_HOST=your_ollama_host" >> .env
+echo "GOOGLE_API_KEY=your_key" > .env
+echo "OPENAI_API_KEY=your_key" >> .env
+echo "OPENROUTER_API_KEY=your_key" >> .env
+echo "OLLAMA_HOST=your_host" >> .env
 
 # Run the container with the .env file mounted
 docker run -p 8001:8001 -p 3000:3000 \
   -v $(pwd)/.env:/app/.env \
   -v ~/.adalflow:/root/.adalflow \
-  ghcr.io/asyncfuncai/deepwiki-open:latest
+  ghcr.io/viettdann/deepwiki-open:latest
 ```
 
-This command also mounts `~/.adalflow` on your host to `/root/.adalflow` in the container. This path is used to store:
-
-- Cloned repositories (`~/.adalflow/repos/`)
-- Their embeddings and indexes (`~/.adalflow/databases/`)
-- Cached generated wiki content (`~/.adalflow/wikicache/`)
-
-This ensures that your data persists even if the container is stopped or removed.
-
-#### Building the Docker image locally
-
-If you want to build the Docker image locally:
+#### Build Locally
 
 ```bash
-# Clone the repository
-git clone https://github.com/AsyncFuncAI/deepwiki-open.git
+git clone https://github.com/viettdann/deepwiki-open.git
 cd deepwiki-open
 
-# Build the Docker image
-docker build -t deepwiki-open .
+docker build -t deepwiki .
 
-# Run the container
 docker run -p 8001:8001 -p 3000:3000 \
-  -e GOOGLE_API_KEY=your_google_api_key \
-  -e OPENAI_API_KEY=your_openai_api_key \
-  -e OPENROUTER_API_KEY=your_openrouter_api_key \
-  -e AZURE_OPENAI_API_KEY=your_azure_openai_api_key \
-  -e AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint \
-  -e AZURE_OPENAI_VERSION=your_azure_openai_version \
-  -e OLLAMA_HOST=your_ollama_host \
-  deepwiki-open
+  -e GOOGLE_API_KEY=your_key \
+  -e OPENAI_API_KEY=your_key \
+  -e OPENROUTER_API_KEY=your_key \
+  -e OLLAMA_HOST=your_host \
+  deepwiki
 ```
 
-#### Using Self-Signed Certificates in Docker
+#### Self-Signed Certificates
 
-If you're in an environment that uses self-signed certificates, you can include them in the Docker build:
+If your company uses special certificates:
 
 1. Create a directory for your certificates (default is `certs` in your project root)
-2. Copy your `.crt` or `.pem` certificate files into this directory
-3. Build the Docker image:
+2. Put your `.crt` or `.pem` files in the `certs` folder
+3. Build:
 
 ```bash
-# Build with default certificates directory (certs)
 docker build .
-
-# Or build with a custom certificates directory
-docker build --build-arg CUSTOM_CERT_DIR=my-custom-certs .
+# or with a custom folder
+docker build --build-arg CUSTOM_CERT_DIR=my-certs .
 ```
 
-### API Server Details
+### API Server
 
-The API server provides:
+The API does:
 
 - Repository cloning and indexing
-- RAG (Retrieval Augmented Generation)
-- Streaming chat completions
+- RAG (Retrieval Augmented Generation) - Search code and generate answers
+- Stream responses back to you
 
-For more details, see the [API README](./api/README.md).
+See [API README](./api/README.md) for more.
 
 ## 🔌 OpenRouter Integration
 
-DeepWiki now supports [OpenRouter](https://openrouter.ai/) as a model provider, giving you access to hundreds of AI models through a single API:
+[OpenRouter](https://openrouter.ai/) gives you access to hundreds of models through one API:
 
 - **Multiple Model Options**: Access models from OpenAI, Anthropic, Google, Meta, Mistral, and more
 - **Simple Configuration**: Just add your OpenRouter API key and select the model you want to use
 - **Cost Efficiency**: Choose models that fit your budget and performance needs
 - **Easy Switching**: Toggle between different models without changing your code
 
-### How to Use OpenRouter with DeepWiki
+### How to Use It
 
-1. **Get an API Key**: Sign up at [OpenRouter](https://openrouter.ai/) and get your API key
-2. **Add to Environment**: Add `OPENROUTER_API_KEY=your_key` to your `.env` file
-3. **Enable in UI**: Check the "Use OpenRouter API" option on the homepage
-4. **Select Model**: Choose from popular models like GPT-4o, Claude 3.5 Sonnet, Gemini 2.0, and more
+1. **Get a Key**: Sign up at [OpenRouter](https://openrouter.ai/)
+2. **Add to .env**: `OPENROUTER_API_KEY=your_key`
+3. **Turn It On**: Check "Use OpenRouter" on the home page
+4. **Pick a Model**: GPT-4o, Claude, Gemini, etc.
+
+5. **Embeddings** (Optional)**: Set `DEEPWIKI_EMBEDDER_TYPE=openrouter` to use OpenRouter embeddings
+
+Notes: **Yes, you can use OpenRouter for both text generation and embeddings, I've implemented support for both.**
 
 OpenRouter is particularly useful if you want to:
 
@@ -631,47 +616,25 @@ OpenRouter is particularly useful if you want to:
 - Compare performance across different model providers
 - Optimize for cost vs. performance based on your needs
 
-## 🤖 Ask & DeepResearch Features
+## 🤖 Ask & Deep Research
 
-### Ask Feature
+### Ask
 
-The Ask feature allows you to chat with your repository using Retrieval Augmented Generation (RAG):
+Chat with your code using RAG (finds relevant code and answers questions):
 
-- **Context-Aware Responses**: Get accurate answers based on the actual code in your repository
-- **RAG-Powered**: The system retrieves relevant code snippets to provide grounded responses
-- **Real-Time Streaming**: See responses as they're generated for a more interactive experience
-- **Conversation History**: The system maintains context between questions for more coherent interactions
+- **Gets The Right Answers**: Finds actual code to answer your question
+- **Real-time Typing**: Watch the answer appear as it's being written
+- **Remembers Context**: Keeps track of what you've asked before
+- **Finds Related Code**: Shows you which parts of your code it used
 
-### DeepResearch Feature
+### Deep Research
 
-DeepResearch takes repository analysis to the next level with a multi-turn research process:
+For harder questions, turn on "Deep Research":
 
-- **In-Depth Investigation**: Thoroughly explores complex topics through multiple research iterations
-- **Structured Process**: Follows a clear research plan with updates and a comprehensive conclusion
-- **Automatic Continuation**: The AI automatically continues research until reaching a conclusion (up to 5 iterations)
-- **Research Stages**:
-  1. **Research Plan**: Outlines the approach and initial findings
-  2. **Research Updates**: Builds on previous iterations with new insights
-  3. **Final Conclusion**: Provides a comprehensive answer based on all iterations
-
-To use DeepResearch, simply toggle the "Deep Research" switch in the Ask interface before submitting your question.
-
-## 📱 Screenshots
-
-![DeepWiki Main Interface](screenshots/Interface.png)
-_The main interface of DeepWiki_
-
-![Private Repository Support](screenshots/privaterepo.png)
-_Access private repositories with personal access tokens_
-
-![DeepResearch Feature](screenshots/DeepResearch.png)
-_DeepResearch conducts multi-turn investigations for complex topics_
-
-### Demo Video
-
-[![DeepWiki Demo Video](https://img.youtube.com/vi/zGANs8US8B4/0.jpg)](https://youtu.be/zGANs8US8B4)
-
-_Watch DeepWiki in action!_
+- **Digs Deeper**: Looks at multiple parts of your code
+- **Follows A Plan**: Shows you what it's researching
+- **Keeps Going**: Does up to 5 rounds of research
+- **Gives Full Answer**: Combines everything into one answer
 
 ## ❓ Troubleshooting
 
@@ -686,12 +649,11 @@ _Watch DeepWiki in action!_
 - **"Missing environment variables"**: Make sure your `.env` file is in the project root and contains the required API keys. Use `.env.example` as a reference.
 - **"API key not valid"**: Check that you've copied the full key correctly with no extra spaces
 - **"OpenRouter API error"**: Verify your OpenRouter API key is valid and has sufficient credits
-- **"Azure OpenAI API error"**: Verify your Azure OpenAI credentials (API key, endpoint, and version) are correct and the service is properly deployed
 
-### Connection Problems
+### Can't Connect
 
-- **"Cannot connect to API server"**: Make sure the API server is running on port 8001
-- **"CORS error"**: The API is configured to allow all origins, but if you're having issues, try running both frontend and backend on the same machine
+- **"Can't reach API"**: Make sure API is running on port 8001
+- **"CORS error"**: Both should be on same machine, or check CORS settings. Maybe I'll create compose file for detached FE & BE.
 
 ### Generation Issues
 
@@ -705,19 +667,3 @@ _Watch DeepWiki in action!_
 1. **Restart both servers**: Sometimes a simple restart fixes most issues
 2. **Check console logs**: Open browser developer tools to see any JavaScript errors
 3. **Check API logs**: Look at the terminal where the API is running for Python errors
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to:
-
-- Open issues for bugs or feature requests
-- Submit pull requests to improve the code
-- Share your feedback and ideas
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## ⭐ Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=AsyncFuncAI/deepwiki-open&type=Date)](https://star-history.com/#AsyncFuncAI/deepwiki-open&Date)
