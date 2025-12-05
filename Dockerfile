@@ -95,11 +95,9 @@ COPY --from=py_deps /api/.venv /opt/venv
 COPY api/ ./api/
 
 # Copy Node.js dependencies and built app
-COPY --from=node_deps /app/node_modules ./node_modules
-COPY --from=node_builder /app/.next ./.next
-COPY ./package.json ./package.json
+COPY --from=node_builder /app/.next/standalone ./
+COPY --from=node_builder /app/.next/static ./.next/static
 COPY ./public ./public
-COPY ./server-wrapper.js ./server-wrapper.js
 
 # Create a script to run both backend and frontend
 RUN touch .env \
@@ -134,7 +132,7 @@ python -m api.main --port "${API_PORT}" &
 API_PID=$!
 
 # Start Next.js frontend server
-PORT=${FE_PORT} HOSTNAME=0.0.0.0 node server-wrapper.js &
+PORT=${FE_PORT} HOSTNAME=0.0.0.0 node server.js &
 FRONTEND_PID=$!
 
 # Trap SIGTERM to gracefully shutdown both processes

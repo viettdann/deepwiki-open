@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "http-proxy-middleware": "^3.0.5",
     "mermaid": "^11.4.1",
     "next": "15.3.1",
     "next-intl": "^4.1.0",

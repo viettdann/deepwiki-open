@@ -4,8 +4,8 @@ const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Remove standalone output to fix http-proxy-middleware issues
-  // output: 'standalone',
+  // Enable standalone output for Docker
+  output: 'standalone',
   // Optimize build for Docker
   experimental: {
     optimizePackageImports: ['@mermaid-js/mermaid', 'react-syntax-highlighter'],
@@ -63,6 +63,15 @@ const nextConfig: NextConfig = {
       {
         source: '/api/lang/config',
         destination: `${TARGET_SERVER_BASE_URL}/lang/config`,
+      },
+      // Background jobs API
+      {
+        source: '/api/wiki/jobs',
+        destination: `${TARGET_SERVER_BASE_URL}/api/wiki/jobs`,
+      },
+      {
+        source: '/api/wiki/jobs/:path*',
+        destination: `${TARGET_SERVER_BASE_URL}/api/wiki/jobs/:path*`,
       },
     ];
   },
