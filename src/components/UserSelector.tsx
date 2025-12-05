@@ -292,7 +292,7 @@ next.config.js
             id="provider-dropdown"
             value={provider}
             onChange={(e) => handleProviderChange(e.target.value)}
-            className="input-japanese block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors"
+            className="input-glass block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors"
           >
             <option value="" disabled>{t.form?.selectProvider || 'Select Provider'}</option>
             {modelConfig?.providers.map((providerOption) => (
@@ -360,14 +360,14 @@ next.config.js
                 setModel(e.target.value);
               }}
               placeholder={t.form?.customModelPlaceholder || 'e.g., gpt-4, claude-3-opus'}
-              className="input-japanese block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors"
+              className="input-glass block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors"
             />
           ) : (
             <select
               id="model-dropdown"
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              className="input-japanese block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="input-glass block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!provider || isLoading || !modelConfig?.providers.find(p => p.id === provider)?.models?.length}
             >
               {modelConfig?.providers.find((p: Provider) => p.id === provider)?.models.map((modelOption) => (

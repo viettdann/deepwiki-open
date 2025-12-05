@@ -161,7 +161,7 @@ export default function ConfigurationModal({
                             setIsEditingRepo(false);
                           }
                         }}
-                        className="input-japanese flex-1 px-3 py-2 text-sm"
+                        className="input-glass flex-1 px-3 py-2 text-sm"
                         autoFocus
                       />
                       <button
@@ -250,7 +250,7 @@ export default function ConfigurationModal({
                           value={accessToken}
                           onChange={(e) => setAccessToken(e.target.value)}
                           placeholder="Enter your access token"
-                          className="input-japanese block w-full px-3 py-2 text-sm"
+                          className="input-glass block w-full px-3 py-2 text-sm"
                         />
                         <div className="flex items-center mt-2 text-xs text-[var(--muted)]">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -272,7 +272,7 @@ export default function ConfigurationModal({
                 id="language-select"
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="input-japanese block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors"
+                className="input-glass block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors"
               >
                 {
                   Object.entries(supportedLanguages).map(([key, value])=> <option key={key} value={key}>{value}</option>)
@@ -375,7 +375,7 @@ export default function ConfigurationModal({
                   id="authCode"
                   value={authCode || ''}
                   onChange={(e) => setAuthCode?.(e.target.value)}
-                  className="input-japanese block w-full px-3 py-2 text-sm rounded-md bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
+                  className="input-glass block w-full px-3 py-2 text-sm rounded-md bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
                   placeholder="Enter your authorization code"
                 />
                  <div className="flex items-center mt-2 text-xs text-[var(--muted)]">

@@ -442,7 +442,7 @@ export default function Home() {
                       value={repositoryInput}
                       onChange={handleRepositoryInputChange}
                       placeholder="https://github.com/owner/repo or owner/repo"
-                      className="input-japanese flex-1"
+                      className="input-glass flex-1"
                     />
                     <button
                       type="submit"
