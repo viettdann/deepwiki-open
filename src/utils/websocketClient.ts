@@ -4,7 +4,8 @@
  */
 
 // Get the server base URL from environment or use default
-const SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
+// NOTE: Use NEXT_PUBLIC_ prefix for environment variables in client-side code
+const SERVER_BASE_URL = process.env.NEXT_PUBLIC_SERVER_BASE_URL || 'http://localhost:8001';
 
 // Convert HTTP URL to WebSocket URL
 const getWebSocketUrl = () => {
