@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ThemeToggle from '@/components/theme-toggle';
-import { FaHome, FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaTrash, FaEye, FaGithub, FaGitlab, FaBitbucket, FaSync } from 'react-icons/fa';
+import { FaHome, FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaSync } from 'react-icons/fa';
 
 interface Job {
   id: string;
@@ -49,7 +49,7 @@ const statusFilters = [
 
 export default function JobsPage() {
   const router = useRouter();
-  const { messages } = useLanguage();
+  useLanguage(); // Keep language context active
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [total, setTotal] = useState(0);

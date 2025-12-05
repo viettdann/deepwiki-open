@@ -182,18 +182,18 @@ export default function RepoWikiPage() {
   const router = useRouter();
 
   // Extract owner and repo from route params
-  const owner = params.owner as string;
-  const repo = params.repo as string;
+  const owner = params?.owner as string;
+  const repo = params?.repo as string;
 
   // Extract tokens from search params
-  const token = searchParams.get('token') || '';
-  const localPath = searchParams.get('local_path') ? decodeURIComponent(searchParams.get('local_path') || '') : undefined;
-  const repoUrl = searchParams.get('repo_url') ? decodeURIComponent(searchParams.get('repo_url') || '') : undefined;
-  const providerParam = searchParams.get('provider') || '';
-  const modelParam = searchParams.get('model') || '';
-  const isCustomModelParam = searchParams.get('is_custom_model') === 'true';
-  const customModelParam = searchParams.get('custom_model') || '';
-  const language = searchParams.get('language') || 'en';
+  const token = searchParams?.get('token') || '';
+  const localPath = searchParams?.get('local_path') ? decodeURIComponent(searchParams?.get('local_path') || '') : undefined;
+  const repoUrl = searchParams?.get('repo_url') ? decodeURIComponent(searchParams?.get('repo_url') || '') : undefined;
+  const providerParam = searchParams?.get('provider') || '';
+  const modelParam = searchParams?.get('model') || '';
+  const isCustomModelParam = searchParams?.get('is_custom_model') === 'true';
+  const customModelParam = searchParams?.get('custom_model') || '';
+  const language = searchParams?.get('language') || 'en';
   const repoHost = (() => {
     if (!repoUrl) return '';
     try {
@@ -209,7 +209,7 @@ export default function RepoWikiPage() {
       ? 'gitlab'
       : repoHost?.includes('github')
         ? 'github'
-        : searchParams.get('type') || 'github';
+        : searchParams?.get('type') || 'github';
 
   // Import language context for translations
   const { messages } = useLanguage();
@@ -248,18 +248,18 @@ export default function RepoWikiPage() {
   const [isCustomSelectedModelState, setIsCustomSelectedModelState] = useState(isCustomModelParam);
   const [customSelectedModelState, setCustomSelectedModelState] = useState(customModelParam);
   const [showModelOptions, setShowModelOptions] = useState(false); // Controls whether to show model options
-  const excludedDirs = searchParams.get('excluded_dirs') || '';
-  const excludedFiles = searchParams.get('excluded_files') || '';
+  const excludedDirs = searchParams?.get('excluded_dirs') || '';
+  const excludedFiles = searchParams?.get('excluded_files') || '';
   const [modelExcludedDirs, setModelExcludedDirs] = useState(excludedDirs);
   const [modelExcludedFiles, setModelExcludedFiles] = useState(excludedFiles);
-  const includedDirs = searchParams.get('included_dirs') || '';
-  const includedFiles = searchParams.get('included_files') || '';
+  const includedDirs = searchParams?.get('included_dirs') || '';
+  const includedFiles = searchParams?.get('included_files') || '';
   const [modelIncludedDirs, setModelIncludedDirs] = useState(includedDirs);
   const [modelIncludedFiles, setModelIncludedFiles] = useState(includedFiles);
 
 
   // Wiki type state - default to comprehensive view
-  const isComprehensiveParam = searchParams.get('comprehensive') !== 'false';
+  const isComprehensiveParam = searchParams?.get('comprehensive') !== 'false';
   const [isComprehensiveView, setIsComprehensiveView] = useState(isComprehensiveParam);
   // Using useRef for activeContentRequests to maintain a single instance across renders
   // This map tracks which pages are currently being processed to prevent duplicate requests
