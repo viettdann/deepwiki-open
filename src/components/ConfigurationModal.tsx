@@ -105,10 +105,6 @@ export default function ConfigurationModal({
   // Is Private Repository toggle
   const [isPrivateRepo, setIsPrivateRepo] = useState(false);
 
-  // Check if auth is enabled from environment
-  const isAuthEnabled = typeof window !== 'undefined' &&
-    (process.env.NEXT_PUBLIC_DEEPWIKI_AUTH_MODE === 'true' ||
-     process.env.NEXT_PUBLIC_DEEPWIKI_AUTH_MODE === '1');
 
   // Update local state when modal opens
   React.useEffect(() => {
@@ -359,25 +355,25 @@ export default function ConfigurationModal({
               />
             </div>
 
-            {/* Authorization Code Input - Only if auth mode is enabled */}
-            {isAuthEnabled && isAuthLoading && (
-              <div className="mb-4 p-3 bg-[var(--background)]/50 rounded-md border border-[var(--border-color)] text-sm text-[var(--muted)]">
-                Loading authentication status...
-              </div>
+            {/* Authorization Code Input */}
+            {isAuthLoading && (
+                <div className="mb-4 p-3 bg-[var(--background)]/50 rounded-md border border-[var(--border-color)] text-sm text-[var(--muted)]">
+                  Loading authentication status...
+                </div>
             )}
-            {isAuthEnabled && !isAuthLoading && authRequired && (
-              <div className="mb-4 p-4 bg-[var(--background)]/50 rounded-md border border-[var(--border-color)]">
-                <label htmlFor="authCode" className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                  {t.form?.authorizationCode || 'Authorization Code'}
-                </label>
-                <input
-                  type="password"
-                  id="authCode"
-                  value={authCode || ''}
-                  onChange={(e) => setAuthCode?.(e.target.value)}
-                  className="input-glass block w-full px-3 py-2 text-sm rounded-md bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
-                  placeholder="Enter your authorization code"
-                />
+            {!isAuthLoading && authRequired && (
+                <div className="mb-4 p-4 bg-[var(--background)]/50 rounded-md border border-[var(--border-color)]">
+                  <label htmlFor="authCode" className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                    {t.form?.authorizationCode || 'Authorization Code'}
+                  </label>
+                  <input
+                      type="password"
+                      id="authCode"
+                      value={authCode || ''}
+                      onChange={(e) => setAuthCode?.(e.target.value)}
+                      className="input-glass block w-full px-3 py-2 text-sm rounded-md bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
+                      placeholder="Enter your authorization code"
+                  />
                  <div className="flex items-center mt-2 text-xs text-[var(--muted)]">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-[var(--muted)]"
                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
