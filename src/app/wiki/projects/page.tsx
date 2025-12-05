@@ -116,7 +116,7 @@ export default function WikiProjectsPage() {
       return;
     }
 
-    const { owner, repo, type } = parsedRepo;
+    const { owner, repo } = parsedRepo;
     const params = new URLSearchParams();
     if (accessToken) params.append('token', accessToken);
     params.append('type', selectedPlatform || 'github');
@@ -138,19 +138,19 @@ export default function WikiProjectsPage() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[var(--surface)] border-b border-[var(--glass-border)]">
+      <header className="sticky top-0 z-50 bg-(--surface) border-b border-(--glass-border)">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo & Brand */}
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded-lg blur opacity-50"></div>
-                <div className="relative bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] p-2 rounded-lg">
+                <div className="absolute inset-0 bg-linear-to-r from-(--gradient-from) to-(--gradient-to) rounded-lg blur opacity-50"></div>
+                <div className="relative bg-linear-to-r from-(--gradient-from) to-(--gradient-to) p-2 rounded-lg">
                   <WikiIcon />
                 </div>
               </div>
               <div>
-                <h1 className="text-xl font-bold font-[family-name:var(--font-display)] gradient-text">
+                <h1 className="text-xl font-bold font-display gradient-text">
                   DeepWiki
                 </h1>
               </div>
@@ -158,15 +158,15 @@ export default function WikiProjectsPage() {
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
+              <Link href="/" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors">
                 Home
               </Link>
-              <Link href="/wiki/projects" className="text-sm font-medium text-[var(--accent-primary)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
+              <Link href="/wiki/projects" className="text-sm font-medium text-(--accent-primary) hover:text-foreground transition-colors flex items-center gap-2">
                 Indexed Wiki
               </Link>
-              <Link href="/jobs" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
+              <Link href="/jobs" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors flex items-center gap-2">
                 Jobs
-                <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
+                <span className="w-2 h-2 bg-(--accent-emerald) rounded-full pulse-glow"></span>
               </Link>
             </nav>
 
@@ -234,10 +234,10 @@ export default function WikiProjectsPage() {
       />
 
       {/* Footer */}
-      <footer className="bg-[var(--surface)] border-t border-[var(--glass-border)] mt-auto">
+      <footer className="bg-(--surface) border-t border-(--glass-border) mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-[var(--foreground-muted)]">
+            <p className="text-sm text-(--foreground-muted)">
               {messages.footer?.copyright || '© 2024 DeepWiki. All rights reserved.'}
             </p>
             <div className="flex items-center gap-6">
@@ -245,7 +245,7 @@ export default function WikiProjectsPage() {
                 href="https://github.com/viettdann/deepwiki-open"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                className="text-(--foreground-muted) hover:text-(--accent-primary) transition-colors"
               >
                 <GitHubIcon />
               </a>
