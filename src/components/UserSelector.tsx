@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 // Define the interfaces for our model configuration
@@ -80,7 +80,10 @@ export default function UserSelector({
   const [showDefaultFiles, setShowDefaultFiles] = useState(false);
 
   // Fetch model configurations from the backend
+  const hasFetchedRef = useRef(false);
   useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     const fetchModelConfig = async () => {
       try {
         setIsLoading(true);
@@ -95,11 +98,8 @@ export default function UserSelector({
         const data = await response.json();
         setModelConfig(data);
 
-        // Initialize provider and model with defaults from API if not already set
         if (!provider && data.defaultProvider) {
           setProvider(data.defaultProvider);
-
-          // Find the default provider and set its default model
           const selectedProvider = data.providers.find((p: Provider) => p.id === data.defaultProvider);
           if (selectedProvider && selectedProvider.models.length > 0) {
             setModel(selectedProvider.models[0].id);
@@ -114,7 +114,7 @@ export default function UserSelector({
     };
 
     fetchModelConfig();
-  }, [provider, setModel, setProvider]);
+  }, []);
 
   // Handler for changing provider - smooth transition without flash
   const handleProviderChange = (newProvider: string) => {
