@@ -46,14 +46,29 @@ class WikiGenerationWorker:
         self._current_job_id: Optional[str] = None
         self._shutdown_event = asyncio.Event()
         self._progress_callbacks: Dict[str, ProgressCallback] = {}
+        self._callback_timestamps: Dict[str, float] = {}
 
     def register_progress_callback(self, job_id: str, callback: ProgressCallback):
         """Register a callback for job progress updates."""
         self._progress_callbacks[job_id] = callback
+        self._callback_timestamps[job_id] = time.time()
+        # Schedule cleanup
+        asyncio.create_task(self._cleanup_stale_callbacks())
 
     def unregister_progress_callback(self, job_id: str):
         """Remove progress callback."""
         self._progress_callbacks.pop(job_id, None)
+        self._callback_timestamps.pop(job_id, None)
+
+    async def _cleanup_stale_callbacks(self, max_age_seconds: int = 3600):
+        """Remove callbacks older than max_age."""
+        current_time = time.time()
+        stale_ids = [
+            job_id for job_id, ts in self._callback_timestamps.items()
+            if current_time - ts > max_age_seconds
+        ]
+        for job_id in stale_ids:
+            self.unregister_progress_callback(job_id)
 
     async def _notify_progress(
         self,
@@ -190,8 +205,10 @@ class WikiGenerationWorker:
             logger.info(f"Job {job_id} cancelled")
             raise
         except Exception as e:
-            logger.error(f"Job {job_id} failed: {e}")
-            await JobManager.update_job_status(job_id, JobStatus.FAILED, error=str(e))
+            logger.error(f"Job {job_id} failed: {e}", exc_info=True)
+            # Explicitly update status on unhandled exception
+            await JobManager.update_job_status(job_id, JobStatus.FAILED, error=str(e)[:200])
+            # Notify failure
             await self._notify_progress(
                 job_id, JobStatus.FAILED, job.get('current_phase', 0),
                 job.get('progress_percent', 0), f"Failed: {e}", error=str(e)
@@ -358,7 +375,15 @@ class WikiGenerationWorker:
             )
 
             # Generate page content
-            success = await self._generate_page_content(job, page, rag)
+            # Add timeout to prevent hanging indefinitely (whole page generation process)
+            try:
+                success = await asyncio.wait_for(self._generate_page_content(job, page, rag), timeout=600) # 10 minutes max per page
+            except asyncio.TimeoutError:
+                logger.error(f"Page generation timeout for page {page['id']}")
+                await JobManager.update_page_status(
+                    page['id'], PageStatus.FAILED, error="Page generation timed out (exceeded 10 minutes)"
+                )
+                success = False
 
             if success:
                 completed_count += 1
@@ -404,47 +429,76 @@ class WikiGenerationWorker:
                         header = f"## File Path: {fp}\n\n"
                         content = "\n\n".join([d.text for d in doc_list])
                         context_parts.append(f"{header}{content}")
-
+                    
                     context_text = "\n\n---\n\n".join(context_parts)
+                    
+                    # Append context to prompt
+                    prompt += f"\n\nCONTEXT FROM REPOSITORY:\n\n{context_text}"
             except Exception as e:
-                logger.warning(f"RAG retrieval failed for page {page['title']}: {e}")
+                logger.warning(f"RAG retrieval failed for page {page_id}: {e}")
+                # Continue without context
 
-            # Build full prompt with context
-            full_prompt = prompt
-            if context_text:
-                full_prompt = f"{prompt}\n\n<START_OF_CONTEXT>\n{context_text}\n<END_OF_CONTEXT>"
+            # Generate content using LLM
+            # Add timeout to prevent hanging indefinitely
+            try:
+                content = await asyncio.wait_for(self._call_llm(job, prompt), timeout=300)
+            except asyncio.TimeoutError:
+                logger.error(f"LLM generation timed out for page {page_id}")
+                raise ValueError("LLM generation timeout (exceeded 5 minutes)")
 
-            # Generate content via LLM
-            content = await self._call_llm(job, full_prompt)
+            if not content:
+                raise ValueError("Empty response from LLM")
 
+            # Update page with content
+            await JobManager.update_page_status(page_id, PageStatus.COMPLETED, content=content)
+            
             # Calculate stats
             elapsed_ms = int((time.time() - start_time) * 1000)
-            tokens = len(content.split()) * 2  # Rough estimate
+            
+            # Better token estimation
+            try:
+                import tiktoken
+                # Use cl100k_base (GPT-4) as default approximation
+                encoding = tiktoken.get_encoding("cl100k_base")
+                tokens = len(encoding.encode(content))
+            except ImportError:
+                 # Fallback: ~4 chars per token
+                 tokens = len(content) // 4
+            except Exception as e:
+                 logger.warning(f"Token counting error: {e}")
+                 # Fallback: ~4 chars per token
+                 tokens = len(content) // 4
 
-            # Save content
-            await JobManager.update_page_status(
-                page_id, PageStatus.COMPLETED,
-                content=content, tokens=tokens, time_ms=elapsed_ms
+            await JobManager.increment_job_page_count(
+                job_id, completed=True, tokens=tokens
             )
-            await JobManager.increment_job_page_count(job_id, completed=True, tokens=tokens)
 
-            logger.info(f"Generated page '{page['title']}' in {elapsed_ms}ms")
+            # Update page stats
+            await JobManager.update_page_status(
+                page_id,
+                PageStatus.COMPLETED,
+                tokens=tokens,
+                time_ms=elapsed_ms
+            )
+
+            logger.info(f"Generated page {page['title']} ({tokens} tokens, {elapsed_ms}ms)")
             return True
 
         except Exception as e:
-            logger.error(f"Error generating page {page_id}: {e}")
+            import traceback
+            error_detail = f"{e}\n{traceback.format_exc()}"
+            logger.error(f"Error generating page {page_id}: {error_detail}")
 
             # Check retry count
             if page.get('retry_count', 0) >= MAX_PAGE_RETRIES - 1:
                 await JobManager.update_page_status(
-                    page_id, PageStatus.PERMANENT_FAILED, error=str(e)
+                    page_id, PageStatus.PERMANENT_FAILED, error=error_detail[:1000]
                 )
-                await JobManager.increment_job_page_count(job_id, completed=False, failed=True)
             else:
                 await JobManager.update_page_status(
-                    page_id, PageStatus.FAILED, error=str(e)
+                    page_id, PageStatus.FAILED, error=error_detail[:1000]
                 )
-
+            
             return False
 
     async def _get_repo_structure(self, job: Dict[str, Any]) -> tuple:
@@ -479,7 +533,23 @@ class WikiGenerationWorker:
         if token:
             headers["Authorization"] = f"token {token}"
 
-        for branch in ["main", "master"]:
+        # First try to get default branch
+        default_branch = "main"
+        try:
+            repo_info_url = f"https://api.github.com/repos/{owner}/{repo}"
+            async with session.get(repo_info_url, headers=headers) as resp:
+                if resp.status == 200:
+                    repo_data = await resp.json()
+                    default_branch = repo_data.get("default_branch", "main")
+        except Exception as e:
+            logger.debug(f"Failed to fetch repo info: {e}")
+
+        # Try default branch first, then fallbacks
+        branches_to_try = [default_branch]
+        if default_branch not in ["main", "master"]:
+             branches_to_try.extend(["main", "master"])
+
+        for branch in branches_to_try:
             url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/{branch}?recursive=1"
             try:
                 async with session.get(url, headers=headers) as resp:
@@ -716,7 +786,23 @@ IMPORTANT:
             # Escape & characters that are not part of an entity
             xml_content = re.sub(r'&(?!(?:amp|lt|gt|apos|quot|#\d+|#x[0-9a-fA-F]+);)', '&amp;', xml_content)
 
-            root = ET.fromstring(xml_content)
+            try:
+                root = ET.fromstring(xml_content)
+            except ET.ParseError as e:
+                logger.error(f"Error parsing wiki structure XML: {e}")
+                logger.error(f"Problematic XML content (first 500 chars): {xml_content[:500]}")
+                
+                # Attempt fallback: try to wrap content in a root tag if missing or recover from simple errors
+                try:
+                    # Sometimes the root tag might be malformed or missing attributes causing issues
+                    # Let's try to re-parse with a cleaner approach if possible, or just raise
+                    # For now, we'll try to wrap in a dummy root if it looks like a fragment
+                    if not xml_content.strip().startswith('<wiki_structure>'):
+                         root = ET.fromstring(f"<wiki_structure>{xml_content}</wiki_structure>")
+                    else:
+                        raise ValueError(f"Invalid wiki structure XML: {e}")
+                except Exception:
+                     raise ValueError(f"Invalid wiki structure XML: {e}")
 
             # Extract title and description
             title_el = root.find("title")
@@ -984,10 +1070,18 @@ IMPORTANT: Generate the content in {language_name}."""
                         "top_k": model_config["top_k"]
                     }
                 )
-                response = google_model.generate_content(prompt, stream=True)
-                for chunk in response:
-                    if hasattr(chunk, 'text'):
-                        content += chunk.text
+                # Google SDK sync call, run in executor
+                loop = asyncio.get_event_loop()
+                
+                def run_google_generation():
+                    response = google_model.generate_content(prompt, stream=True)
+                    text_result = ""
+                    for chunk in response:
+                        if hasattr(chunk, 'text'):
+                            text_result += chunk.text
+                    return text_result
+
+                content = await loop.run_in_executor(None, run_google_generation)
 
         except Exception as e:
             logger.error(f"LLM call failed: {e}")
@@ -1062,15 +1156,17 @@ IMPORTANT: Generate the content in {language_name}."""
 
 
 # Global worker instance
-_worker: Optional[WikiGenerationWorker] = None
+_worker: Optional['WikiGenerationWorker'] = None
 _worker_task: Optional[asyncio.Task] = None
+_worker_lock = asyncio.Lock()
 
 
-async def get_worker() -> WikiGenerationWorker:
-    """Get or create the global worker instance."""
+async def get_worker() -> 'WikiGenerationWorker':
+    """Get the global worker instance."""
     global _worker
-    if _worker is None:
-        _worker = WikiGenerationWorker()
+    async with _worker_lock:
+        if _worker is None:
+            _worker = WikiGenerationWorker()
     return _worker
 
 
