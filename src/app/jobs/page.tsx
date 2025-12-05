@@ -360,17 +360,17 @@ export default function JobsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Filters */}
         <div className="mb-6 flex items-center gap-4">
-          <label className="text-sm text-[var(--muted-foreground)]">Status:</label>
+          <label className="text-sm font-medium text-[var(--foreground)]">Status:</label>
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            className="px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border-color)] text-[var(--foreground)] text-sm"
+            className="input-glass px-3 py-2.5 rounded-lg bg-[var(--surface)]/50 border border-[var(--glass-border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors"
           >
             {statusFilters.map(f => (
               <option key={f.value} value={f.value}>{f.label}</option>
             ))}
           </select>
-          <span className="text-sm text-[var(--muted-foreground)] ml-auto">
+          <span className="text-sm text-[var(--foreground-muted)] ml-auto">
             {total} job{total !== 1 ? 's' : ''} found
           </span>
         </div>
