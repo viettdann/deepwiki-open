@@ -4,7 +4,6 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 // import { useLanguage } from '@/contexts/LanguageContext';
-import ThemeToggle from '@/components/theme-toggle';
 import { FaHome, FaPause, FaPlay, FaTimes, FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaRedo } from 'react-icons/fa';
 
 interface JobProgress {
@@ -78,7 +77,7 @@ export default function JobProgressPage() {
   const router = useRouter();
   // const { messages } = useLanguage();
 
-  const jobId = params.jobId as string;
+  const jobId = params?.jobId as string;
 
   const [jobDetail, setJobDetail] = useState<JobDetail | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
@@ -291,7 +290,6 @@ export default function JobProgressPage() {
             <Link href="/jobs" className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
               All Jobs
             </Link>
-            <ThemeToggle />
           </div>
         </div>
       </header>

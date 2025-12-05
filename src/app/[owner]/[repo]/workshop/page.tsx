@@ -4,7 +4,6 @@ import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FaArrowLeft, FaSync, FaDownload } from 'react-icons/fa';
-import ThemeToggle from '@/components/theme-toggle';
 import Markdown from '@/components/Markdown';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
@@ -42,19 +41,19 @@ export default function WorkshopPage() {
   const searchParams = useSearchParams();
 
   // Extract owner and repo from route params
-  const owner = params.owner as string;
-  const repo = params.repo as string;
+  const owner = params?.owner as string;
+  const repo = params?.repo as string;
 
   // Extract tokens from search params
-  const token = searchParams.get('token') || '';
-  const repoType = searchParams.get('type') || 'github';
-  const localPath = searchParams.get('local_path') ? decodeURIComponent(searchParams.get('local_path') || '') : undefined;
-  const repoUrl = searchParams.get('repo_url') ? decodeURIComponent(searchParams.get('repo_url') || '') : undefined;
-  const providerParam = searchParams.get('provider') || '';
-  const modelParam = searchParams.get('model') || '';
-  const isCustomModelParam = searchParams.get('is_custom_model') === 'true';
-  const customModelParam = searchParams.get('custom_model') || '';
-  const language = searchParams.get('language') || 'en';
+  const token = searchParams?.get('token') || '';
+  const repoType = searchParams?.get('type') || 'github';
+  const localPath = searchParams?.get('local_path') ? decodeURIComponent(searchParams?.get('local_path') || '') : undefined;
+  const repoUrl = searchParams?.get('repo_url') ? decodeURIComponent(searchParams?.get('repo_url') || '') : undefined;
+  const providerParam = searchParams?.get('provider') || '';
+  const modelParam = searchParams?.get('model') || '';
+  const isCustomModelParam = searchParams?.get('is_custom_model') === 'true';
+  const customModelParam = searchParams?.get('custom_model') || '';
+  const language = searchParams?.get('language') || 'en';
 
   // Import language context for translations
   const { messages } = useLanguage();
@@ -590,7 +589,6 @@ Estimated time: 20-30 minutes | Combines concepts from all exercises
             >
               <FaDownload />
             </button>
-            <ThemeToggle />
           </div>
         </div>
       </header>

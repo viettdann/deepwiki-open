@@ -4,7 +4,6 @@
 import Ask from '@/components/Ask';
 import Markdown from '@/components/Markdown';
 import ModelSelectionModal from '@/components/ModelSelectionModal';
-import ThemeToggle from '@/components/theme-toggle';
 import WikiTreeView from '@/components/WikiTreeView';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
@@ -182,18 +181,18 @@ export default function RepoWikiPage() {
   const router = useRouter();
 
   // Extract owner and repo from route params
-  const owner = params.owner as string;
-  const repo = params.repo as string;
+  const owner = params?.owner as string;
+  const repo = params?.repo as string;
 
   // Extract tokens from search params
-  const token = searchParams.get('token') || '';
-  const localPath = searchParams.get('local_path') ? decodeURIComponent(searchParams.get('local_path') || '') : undefined;
-  const repoUrl = searchParams.get('repo_url') ? decodeURIComponent(searchParams.get('repo_url') || '') : undefined;
-  const providerParam = searchParams.get('provider') || '';
-  const modelParam = searchParams.get('model') || '';
-  const isCustomModelParam = searchParams.get('is_custom_model') === 'true';
-  const customModelParam = searchParams.get('custom_model') || '';
-  const language = searchParams.get('language') || 'en';
+  const token = searchParams?.get('token') || '';
+  const localPath = searchParams?.get('local_path') ? decodeURIComponent(searchParams?.get('local_path') || '') : undefined;
+  const repoUrl = searchParams?.get('repo_url') ? decodeURIComponent(searchParams?.get('repo_url') || '') : undefined;
+  const providerParam = searchParams?.get('provider') || '';
+  const modelParam = searchParams?.get('model') || '';
+  const isCustomModelParam = searchParams?.get('is_custom_model') === 'true';
+  const customModelParam = searchParams?.get('custom_model') || '';
+  const language = searchParams?.get('language') || 'en';
   const repoHost = (() => {
     if (!repoUrl) return '';
     try {
@@ -209,7 +208,7 @@ export default function RepoWikiPage() {
       ? 'gitlab'
       : repoHost?.includes('github')
         ? 'github'
-        : searchParams.get('type') || 'github';
+        : searchParams?.get('type') || 'github';
 
   // Import language context for translations
   const { messages } = useLanguage();
@@ -248,18 +247,18 @@ export default function RepoWikiPage() {
   const [isCustomSelectedModelState, setIsCustomSelectedModelState] = useState(isCustomModelParam);
   const [customSelectedModelState, setCustomSelectedModelState] = useState(customModelParam);
   const [showModelOptions, setShowModelOptions] = useState(false); // Controls whether to show model options
-  const excludedDirs = searchParams.get('excluded_dirs') || '';
-  const excludedFiles = searchParams.get('excluded_files') || '';
+  const excludedDirs = searchParams?.get('excluded_dirs') || '';
+  const excludedFiles = searchParams?.get('excluded_files') || '';
   const [modelExcludedDirs, setModelExcludedDirs] = useState(excludedDirs);
   const [modelExcludedFiles, setModelExcludedFiles] = useState(excludedFiles);
-  const includedDirs = searchParams.get('included_dirs') || '';
-  const includedFiles = searchParams.get('included_files') || '';
+  const includedDirs = searchParams?.get('included_dirs') || '';
+  const includedFiles = searchParams?.get('included_files') || '';
   const [modelIncludedDirs, setModelIncludedDirs] = useState(includedDirs);
   const [modelIncludedFiles, setModelIncludedFiles] = useState(includedFiles);
 
 
   // Wiki type state - default to comprehensive view
-  const isComprehensiveParam = searchParams.get('comprehensive') !== 'false';
+  const isComprehensiveParam = searchParams?.get('comprehensive') !== 'false';
   const [isComprehensiveView, setIsComprehensiveView] = useState(isComprehensiveParam);
   // Using useRef for activeContentRequests to maintain a single instance across renders
   // This map tracks which pages are currently being processed to prevent duplicate requests
@@ -2251,11 +2250,10 @@ IMPORTANT:
       </main>
 
       <footer className="max-w-[90%] xl:max-w-[1400px] mx-auto mt-8 flex flex-col gap-4 w-full">
-        <div className="flex justify-between items-center gap-4 text-center text-[var(--muted)] text-sm h-fit w-full bg-[var(--card-bg)] rounded-lg p-3 shadow-sm border border-[var(--border-color)]">
-          <p className="flex-1 font-serif">
+        <div className="flex justify-center items-center gap-4 text-center text-[var(--muted)] text-sm h-fit w-full bg-[var(--card-bg)] rounded-lg p-3 shadow-sm border border-[var(--border-color)]">
+          <p className="font-serif">
             {messages.footer?.copyright || 'DeepWiki - Generate Wiki from GitHub/Gitlab/Bitbucket repositories'}
           </p>
-          <ThemeToggle />
         </div>
       </footer>
 

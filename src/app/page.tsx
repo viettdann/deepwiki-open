@@ -3,17 +3,75 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FaWikipediaW, FaGithub, FaCoffee, FaTwitter } from 'react-icons/fa';
-import ThemeToggle from '@/components/theme-toggle';
 import Mermaid from '../components/Mermaid';
 import ConfigurationModal from '@/components/ConfigurationModal';
 import ProcessedProjects from '@/components/ProcessedProjects';
 import { extractUrlPath, extractUrlDomain } from '@/utils/urlDecoder';
 import { useProcessedProjects } from '@/hooks/useProcessedProjects';
-
 import { useLanguage } from '@/contexts/LanguageContext';
 
-// Define the demo mermaid charts outside the component
+// SVG Icons - Inline to avoid external dependencies
+const WikiIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+    <path d="M11.25 4.533A9.707 9.707 0 0 0 6 3a9.735 9.735 0 0 0-3.25.555.75.75 0 0 0-.5.707v14.25a.75.75 0 0 0 1 .707A8.237 8.237 0 0 1 6 18.75c1.995 0 3.823.707 5.25 1.886V4.533ZM12.75 20.636A8.214 8.214 0 0 1 18 18.75c.966 0 1.89.166 2.75.47a.75.75 0 0 0 1-.708V4.262a.75.75 0 0 0-.5-.707A9.735 9.735 0 0 0 18 3a9.707 9.707 0 0 0-5.25 1.533v16.103Z" />
+  </svg>
+);
+
+const GitHubIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path fillRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" clipRule="evenodd" />
+  </svg>
+);
+
+const GitLabIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path d="M12 21.42l3.684-11.333h-7.368L12 21.42z"/>
+    <path d="M3.16 10.087l-.657 2.02a.858.858 0 00.311.96L12 21.42 3.16 10.087z"/>
+    <path d="M3.16 10.087h5.155L6.257 3.116a.429.429 0 00-.817 0L3.16 10.087z"/>
+    <path d="M20.84 10.087l.657 2.02a.858.858 0 01-.311.96L12 21.42l8.84-11.333z"/>
+    <path d="M20.84 10.087h-5.155l2.058-6.971a.429.429 0 01.817 0l2.28 6.971z"/>
+  </svg>
+);
+
+const BitbucketIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path d="M2.65 3.23A.6.6 0 002 3.83v.03l2.88 16.47a.82.82 0 00.79.67h12.66a.6.6 0 00.59-.5l2.88-16.5v-.03a.6.6 0 00-.6-.67zm10.87 11.43H9.14l-1.24-6.44h7.18z"/>
+  </svg>
+);
+
+const AzureIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path d="M13.05 4.24L7.49 18.3l5.56.01 8.11-3.43-8.11-10.64zM2.84 18.3h7.5l4.95-5.82L10.2 5.76 2.84 18.3z"/>
+  </svg>
+);
+
+const SparklesIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path fillRule="evenodd" d="M9 4.5a.75.75 0 0 1 .721.544l.813 2.846a3.75 3.75 0 0 0 2.576 2.576l2.846.813a.75.75 0 0 1 0 1.442l-2.846.813a3.75 3.75 0 0 0-2.576 2.576l-.813 2.846a.75.75 0 0 1-1.442 0l-.813-2.846a3.75 3.75 0 0 0-2.576-2.576l-2.846-.813a.75.75 0 0 1 0-1.442l2.846-.813A3.75 3.75 0 0 0 7.466 7.89l.813-2.846A.75.75 0 0 1 9 4.5ZM18 1.5a.75.75 0 0 1 .728.568l.258 1.036c.236.94.97 1.674 1.91 1.91l1.036.258a.75.75 0 0 1 0 1.456l-1.036.258c-.94.236-1.674.97-1.91 1.91l-.258 1.036a.75.75 0 0 1-1.456 0l-.258-1.036a2.625 2.625 0 0 0-1.91-1.91l-1.036-.258a.75.75 0 0 1 0-1.456l1.036-.258a2.625 2.625 0 0 0 1.91-1.91l.258-1.036A.75.75 0 0 1 18 1.5ZM16.5 15a.75.75 0 0 1 .712.513l.394 1.183c.15.447.5.799.948.948l1.183.395a.75.75 0 0 1 0 1.422l-1.183.395c-.447.15-.799.5-.948.948l-.395 1.183a.75.75 0 0 1-1.422 0l-.395-1.183a1.5 1.5 0 0 0-.948-.948l-1.183-.395a.75.75 0 0 1 0-1.422l1.183-.395c.447-.15.799-.5.948-.948l.395-1.183A.75.75 0 0 1 16.5 15Z" clipRule="evenodd" />
+  </svg>
+);
+
+const ChartIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path fillRule="evenodd" d="M2.25 13.5a8.25 8.25 0 0 1 8.25-8.25.75.75 0 0 1 .75.75v6.75H18a.75.75 0 0 1 .75.75 8.25 8.25 0 0 1-16.5 0Z" clipRule="evenodd" />
+    <path fillRule="evenodd" d="M12.75 3a.75.75 0 0 1 .75-.75 8.25 8.25 0 0 1 8.25 8.25.75.75 0 0 1-.75.75h-7.5a.75.75 0 0 1-.75-.75V3Z" clipRule="evenodd" />
+  </svg>
+);
+
+const BoltIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+    <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 0 1 .359.852L12.982 9.75h7.268a.75.75 0 0 1 .548 1.262l-10.5 11.25a.75.75 0 0 1-1.272-.71l1.992-7.302H3.75a.75.75 0 0 1-.548-1.262l10.5-11.25a.75.75 0 0 1 .913-.143Z" clipRule="evenodd" />
+  </svg>
+);
+
+const RocketIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+    <path fillRule="evenodd" d="M9.315 7.584C12.195 3.883 16.695 1.5 21.75 1.5a.75.75 0 0 1 .75.75c0 5.056-2.383 9.555-6.084 12.436A6.75 6.75 0 0 1 9.75 22.5a.75.75 0 0 1-.75-.75v-4.131A15.838 15.838 0 0 1 6.382 15H2.25a.75.75 0 0 1-.75-.75 6.75 6.75 0 0 1 7.815-6.666ZM15 6.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" clipRule="evenodd" />
+    <path d="M5.26 17.242a.75.75 0 1 0-.897-1.203 5.243 5.243 0 0 0-2.05 5.022.75.75 0 0 0 .625.627 5.243 5.243 0 0 0 5.022-2.051.75.75 0 1 0-1.202-.897 3.744 3.744 0 0 1-3.008 1.51c0-1.23.592-2.323 1.51-3.008Z" />
+  </svg>
+);
+
+// Demo mermaid charts
 const DEMO_FLOW_CHART = `graph TD
   A[Code Repository] --> B[DeepWiki]
   B --> C[Architecture Diagrams]
@@ -28,57 +86,54 @@ const DEMO_FLOW_CHART = `graph TD
   style E fill:#f9a9d3,stroke:#d81f6c
   style F fill:#d3f9a9,stroke:#6cd81f`;
 
-const DEMO_SEQUENCE_CHART = `sequenceDiagram
-  participant User
-  participant DeepWiki
-  participant GitHub
-
-  User->>DeepWiki: Enter repository URL
-  DeepWiki->>GitHub: Request repository data
-  GitHub-->>DeepWiki: Return repository data
-  DeepWiki->>DeepWiki: Process and analyze code
-  DeepWiki-->>User: Display wiki with diagrams
-
-  %% Add a note to make text more visible
-  Note over User,GitHub: DeepWiki supports sequence diagrams for visualizing interactions`;
-
 export default function Home() {
   const router = useRouter();
   const { language, setLanguage, messages, supportedLanguages } = useLanguage();
   const { projects, isLoading: projectsLoading } = useProcessedProjects();
 
-  // Create a simple translation function
+  // Translation helper
   const t = (key: string, params: Record<string, string | number> = {}): string => {
-    // Split the key by dots to access nested properties
     const keys = key.split('.');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let value: any = messages;
-
-    // Navigate through the nested properties
+    let value: unknown = messages;
     for (const k of keys) {
       if (value && typeof value === 'object' && k in value) {
-        value = value[k];
+        value = (value as Record<string, unknown>)[k];
       } else {
-        // Return the key if the translation is not found
         return key;
       }
     }
-
-    // If the value is a string, replace parameters
     if (typeof value === 'string') {
       return Object.entries(params).reduce((acc: string, [paramKey, paramValue]) => {
         return acc.replace(`{${paramKey}}`, String(paramValue));
       }, value);
     }
-
-    // Return the key if the value is not a string
     return key;
   };
 
-  const [repositoryInput, setRepositoryInput] = useState('https://github.com/AsyncFuncAI/deepwiki-open');
-
+  const [repositoryInput, setRepositoryInput] = useState('https://github.com/viettdann/deepwiki-open');
   const REPO_CONFIG_CACHE_KEY = 'deepwikiRepoConfigCache';
 
+  // State management
+  const [provider, setProvider] = useState<string>('');
+  const [model, setModel] = useState<string>('');
+  const [isCustomModel, setIsCustomModel] = useState<boolean>(false);
+  const [customModel, setCustomModel] = useState<string>('');
+  const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
+  const [excludedDirs, setExcludedDirs] = useState('');
+  const [excludedFiles, setExcludedFiles] = useState('');
+  const [includedDirs, setIncludedDirs] = useState('');
+  const [includedFiles, setIncludedFiles] = useState('');
+  const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket' | 'azure'>('github');
+  const [accessToken, setAccessToken] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
+  const [authRequired, setAuthRequired] = useState<boolean>(false);
+  const [authCode, setAuthCode] = useState<string>('');
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+
+  // Load config from cache
   const loadConfigFromCache = (repoUrl: string) => {
     if (!repoUrl) return;
     try {
@@ -108,10 +163,8 @@ export default function Home() {
   const handleRepositoryInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newRepoUrl = e.target.value;
     setRepositoryInput(newRepoUrl);
-    if (newRepoUrl.trim() === "") {
-      // Optionally reset fields if input is cleared
-    } else {
-        loadConfigFromCache(newRepoUrl);
+    if (newRepoUrl.trim() !== "") {
+      loadConfigFromCache(newRepoUrl);
     }
   };
 
@@ -119,61 +172,33 @@ export default function Home() {
     if (repositoryInput) {
       loadConfigFromCache(repositoryInput);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Provider-based model selection state
-  const [provider, setProvider] = useState<string>('');
-  const [model, setModel] = useState<string>('');
-  const [isCustomModel, setIsCustomModel] = useState<boolean>(false);
-  const [customModel, setCustomModel] = useState<string>('');
-
-  // Wiki type state - default to comprehensive view
-  const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
-
-  const [excludedDirs, setExcludedDirs] = useState('');
-  const [excludedFiles, setExcludedFiles] = useState('');
-  const [includedDirs, setIncludedDirs] = useState('');
-  const [includedFiles, setIncludedFiles] = useState('');
-  const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket' | 'azure'>('github');
-  const [accessToken, setAccessToken] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
-
-  // Authentication state
-  const [authRequired, setAuthRequired] = useState<boolean>(false);
-  const [authCode, setAuthCode] = useState<string>('');
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
-
-  // Sync the language context with the selectedLanguage state
   useEffect(() => {
     setLanguage(selectedLanguage);
   }, [selectedLanguage, setLanguage]);
 
-  // Fetch authentication status on component mount
+  // Fetch authentication status
   useEffect(() => {
     const fetchAuthStatus = async () => {
       try {
         setIsAuthLoading(true);
         const response = await fetch('/api/auth/status');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         setAuthRequired(data.auth_required);
       } catch (err) {
         console.error("Failed to fetch auth status:", err);
-        // Assuming auth is required if fetch fails to avoid blocking UI for safety
         setAuthRequired(true);
       } finally {
         setIsAuthLoading(false);
       }
     };
-
     fetchAuthStatus();
   }, []);
 
-  // Parse repository URL/input and extract owner and repo
+  // Parse repository input
   const parseRepositoryInput = (input: string): {
     owner: string,
     repo: string,
@@ -182,11 +207,9 @@ export default function Home() {
     localPath?: string
   } | null => {
     input = input.trim();
-
     let owner = '', repo = '', type = 'github', fullPath;
     let localPath: string | undefined;
 
-    // Handle Windows absolute paths (e.g., C:\path\to\folder)
     const windowsPathRegex = /^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$/;
     const customGitRegex = /^(?:https?:\/\/)?([^\/]+)\/(.+?)\/([^\/]+)(?:\.git)?\/?$/;
 
@@ -195,16 +218,12 @@ export default function Home() {
       localPath = input;
       repo = input.split('\\').pop() || 'local-repo';
       owner = 'local';
-    }
-    // Handle Unix/Linux absolute paths (e.g., /path/to/folder)
-    else if (input.startsWith('/')) {
+    } else if (input.startsWith('/')) {
       type = 'local';
       localPath = input;
       repo = input.split('/').filter(Boolean).pop() || 'local-repo';
       owner = 'local';
-    }
-    else if (customGitRegex.test(input)) {
-      // Detect repository type based on domain
+    } else if (customGitRegex.test(input)) {
       const domain = extractUrlDomain(input);
       if (domain?.includes('github.com')) {
         type = 'github';
@@ -215,7 +234,7 @@ export default function Home() {
       } else if (domain?.includes('dev.azure.com') || domain?.includes('visualstudio.com')) {
         type = 'azure';
       } else {
-        type = 'web'; // fallback for other git hosting services
+        type = 'web';
       }
 
       fullPath = extractUrlPath(input)?.replace(/\.git$/, '');
@@ -224,22 +243,16 @@ export default function Home() {
         repo = parts[parts.length - 1] || '';
         owner = parts[parts.length - 2] || '';
       }
-    }
-    // Unsupported URL formats
-    else {
+    } else {
       console.error('Unsupported URL format:', input);
       return null;
     }
 
-    if (!owner || !repo) {
-      return null;
-    }
+    if (!owner || !repo) return null;
 
-    // Clean values
     owner = owner.trim();
     repo = repo.trim();
 
-    // Remove .git suffix if present
     if (repo.endsWith('.git')) {
       repo = repo.slice(0, -4);
     }
@@ -247,21 +260,13 @@ export default function Home() {
     return { owner, repo, type, fullPath, localPath };
   };
 
-  // State for configuration modal
-  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Parse repository input to validate
     const parsedRepo = parseRepositoryInput(repositoryInput);
-
     if (!parsedRepo) {
       setError('Invalid repository format. Use "owner/repo", GitHub/GitLab/BitBucket URL, or a local folder path like "/path/to/folder" or "C:\\path\\to\\folder".');
       return;
     }
-
-    // If valid, open the configuration modal
     setError(null);
     setIsConfigModalOpen(true);
   };
@@ -269,19 +274,13 @@ export default function Home() {
   const validateAuthCode = async () => {
     try {
       if(authRequired) {
-        if(!authCode) {
-          return false;
-        }
+        if(!authCode) return false;
         const response = await fetch('/api/auth/validate', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({'code': authCode})
         });
-        if (!response.ok) {
-          return false;
-        }
+        if (!response.ok) return false;
         const data = await response.json();
         return data.success || false;
       }
@@ -292,8 +291,6 @@ export default function Home() {
   };
 
   const handleGenerateWiki = async () => {
-
-    // Check authorization code
     const validation = await validateAuthCode();
     if(!validation) {
       setError(`Failed to validate the authorization code`);
@@ -302,7 +299,6 @@ export default function Home() {
       return;
     }
 
-    // Prevent multiple submissions
     if (isSubmitting) {
       console.log('Form submission already in progress, ignoring duplicate click');
       return;
@@ -313,17 +309,9 @@ export default function Home() {
       if (currentRepoUrl) {
         const existingConfigs = JSON.parse(localStorage.getItem(REPO_CONFIG_CACHE_KEY) || '{}');
         const configToSave = {
-          selectedLanguage,
-          isComprehensiveView,
-          provider,
-          model,
-          isCustomModel,
-          customModel,
-          selectedPlatform,
-          excludedDirs,
-          excludedFiles,
-          includedDirs,
-          includedFiles,
+          selectedLanguage, isComprehensiveView, provider, model,
+          isCustomModel, customModel, selectedPlatform, excludedDirs,
+          excludedFiles, includedDirs, includedFiles,
         };
         existingConfigs[currentRepoUrl] = configToSave;
         localStorage.setItem(REPO_CONFIG_CACHE_KEY, JSON.stringify(existingConfigs));
@@ -333,8 +321,6 @@ export default function Home() {
     }
 
     setIsSubmitting(true);
-
-    // Parse repository input
     const parsedRepo = parseRepositoryInput(repositoryInput);
 
     if (!parsedRepo) {
@@ -344,167 +330,295 @@ export default function Home() {
     }
 
     const { owner, repo, type, localPath } = parsedRepo;
-
-    // Store tokens in query params if they exist
     const params = new URLSearchParams();
-    if (accessToken) {
-      params.append('token', accessToken);
-    }
-    // Always include the type parameter
+
+    if (accessToken) params.append('token', accessToken);
     params.append('type', (type == 'local' ? type : selectedPlatform) || 'github');
-    // Add local path if it exists
     if (localPath) {
       params.append('local_path', encodeURIComponent(localPath));
     } else {
       params.append('repo_url', encodeURIComponent(repositoryInput));
     }
-    // Add model parameters
     params.append('provider', provider);
     params.append('model', model);
-    if (isCustomModel && customModel) {
-      params.append('custom_model', customModel);
-    }
-    // Add file filters configuration
-    if (excludedDirs) {
-      params.append('excluded_dirs', excludedDirs);
-    }
-    if (excludedFiles) {
-      params.append('excluded_files', excludedFiles);
-    }
-    if (includedDirs) {
-      params.append('included_dirs', includedDirs);
-    }
-    if (includedFiles) {
-      params.append('included_files', includedFiles);
-    }
-
-    // Add language parameter
+    if (isCustomModel && customModel) params.append('custom_model', customModel);
+    if (excludedDirs) params.append('excluded_dirs', excludedDirs);
+    if (excludedFiles) params.append('excluded_files', excludedFiles);
+    if (includedDirs) params.append('included_dirs', includedDirs);
+    if (includedFiles) params.append('included_files', includedFiles);
     params.append('language', selectedLanguage);
-
-    // Add comprehensive parameter
     params.append('comprehensive', isComprehensiveView.toString());
 
     const queryString = params.toString() ? `?${params.toString()}` : '';
-
-    // Navigate to the dynamic route
     router.push(`/${owner}/${repo}${queryString}`);
-
-    // The isSubmitting state will be reset when the component unmounts during navigation
   };
 
   return (
-    <div className="h-screen paper-texture p-4 md:p-8 flex flex-col">
-      <header className="max-w-6xl mx-auto mb-6 h-fit w-full">
-        <div
-          className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-[var(--card-bg)] rounded-lg shadow-custom border border-[var(--border-color)] p-4">
-          <div className="flex items-center">
-            <div className="bg-[var(--accent-primary)] p-2 rounded-lg mr-3">
-              <FaWikipediaW className="text-2xl text-white" />
+    <div className="min-h-screen flex flex-col">
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-50 bg-[var(--surface)] border-b border-[var(--glass-border)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo & Brand */}
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded-lg blur opacity-50"></div>
+                <div className="relative bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] p-2 rounded-lg">
+                  <WikiIcon />
+                </div>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold font-[family-name:var(--font-display)] gradient-text">
+                  {t('common.appName')}
+                </h1>
+              </div>
             </div>
-            <div className="mr-6">
-              <h1 className="text-xl md:text-2xl font-bold text-[var(--accent-primary)]">{t('common.appName')}</h1>
-              <div className="flex flex-wrap items-baseline gap-x-2 md:gap-x-3 mt-0.5">
-                <p className="text-xs text-[var(--muted)] whitespace-nowrap">{t('common.tagline')}</p>
-                <div className="hidden md:inline-block">
-                  <Link href="/wiki/projects"
-                    className="text-xs font-medium text-[var(--accent-primary)] hover:text-[var(--highlight)] hover:underline whitespace-nowrap">
-                    {t('nav.wikiProjects')}
-                  </Link>
+
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center gap-8">
+              <Link href="/" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
+                Home
+              </Link>
+              <Link href="/wiki/projects" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
+                Indexed Wiki
+              </Link>
+              <Link href="/jobs" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
+                Jobs
+                <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
+              </Link>
+            </nav>
+
+            {/* CTA Button */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => {
+                  if (repositoryInput.trim()) {
+                    // If repo is already entered, open modal directly
+                    setIsConfigModalOpen(true);
+                  } else {
+                    // Otherwise scroll to input
+                    const input = document.getElementById('repo-input');
+                    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    input?.focus();
+                  }
+                }}
+                className="hidden md:block btn-japanese text-sm px-6 py-2"
+              >
+                Generate Wiki
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1">
+        {/* Hero Section */}
+        <section className="relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+          <div className="max-w-5xl mx-auto">
+            {/* Hero Text */}
+            <div className="text-center mb-12 fade-in-up">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-[var(--glass-border)] mb-6">
+                <SparklesIcon />
+                <span className="text-sm font-medium text-[var(--foreground-muted)]">AI-Powered Documentation Generator</span>
+              </div>
+
+              <h2 className="text-5xl md:text-6xl font-bold font-[family-name:var(--font-display)] mb-6 leading-tight">
+                Transform Your Code into{' '}
+                <span className="gradient-text">Interactive Wikis</span>
+              </h2>
+
+              <p className="text-lg text-[var(--foreground-muted)] max-w-2xl mx-auto mb-12">
+                {t('home.description')}
+              </p>
+
+              {/* Repository Input */}
+              <form onSubmit={handleFormSubmit} className="max-w-2xl mx-auto mb-8">
+                <div className="glass-hover rounded-2xl p-6 border border-[var(--glass-border)]">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      id="repo-input"
+                      type="text"
+                      value={repositoryInput}
+                      onChange={handleRepositoryInputChange}
+                      placeholder="https://github.com/owner/repo or owner/repo"
+                      className="input-glass flex-1"
+                    />
+                    <button
+                      type="submit"
+                      className="btn-japanese whitespace-nowrap"
+                      disabled={isSubmitting}
+                    >
+                      <span className="flex items-center gap-2 justify-center">
+                        <RocketIcon />
+                        {isSubmitting ? t('common.processing') : 'Generate Wiki'}
+                      </span>
+                    </button>
+                  </div>
+                  {error && (
+                    <div className="mt-3 text-sm text-[var(--highlight)] text-left">
+                      {error}
+                    </div>
+                  )}
+                </div>
+              </form>
+
+              {/* Platform Support Badges */}
+              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-[var(--foreground-muted)]">
+                <span>Supports:</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
+                  <GitHubIcon />
+                  <span>GitHub</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
+                  <GitLabIcon />
+                  <span>GitLab</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
+                  <BitbucketIcon />
+                  <span>Bitbucket</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
+                  <AzureIcon />
+                  <span>Azure Repos</span>
                 </div>
               </div>
             </div>
           </div>
+        </section>
 
-          <form onSubmit={handleFormSubmit} className="flex flex-col gap-3 w-full max-w-3xl">
-            {/* Repository URL input and submit button */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  value={repositoryInput}
-                  onChange={handleRepositoryInputChange}
-                  placeholder={t('form.repoPlaceholder') || "owner/repo, GitHub/GitLab/BitBucket URL, or local folder path"}
-                  className="input-japanese block w-full pl-10 pr-3 py-2.5 border-[var(--border-color)] rounded-lg bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
-                />
-                {error && (
-                  <div className="text-[var(--highlight)] text-xs mt-1">
-                    {error}
-                  </div>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="btn-japanese px-6 py-2.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? t('common.processing') : t('common.generateWiki')}
-              </button>
+        {/* Features Bento Grid */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h3 className="text-3xl md:text-4xl font-bold font-[family-name:var(--font-display)] mb-4">
+                Powerful Features for Documentation
+              </h3>
+              <p className="text-[var(--foreground-muted)] max-w-2xl mx-auto">
+                Generate comprehensive documentation with AI-powered analysis, visual diagrams, and intelligent code understanding
+              </p>
             </div>
-          </form>
 
-          {/* Configuration Modal */}
-          <ConfigurationModal
-            isOpen={isConfigModalOpen}
-            onClose={() => setIsConfigModalOpen(false)}
-            repositoryInput={repositoryInput}
-            selectedLanguage={selectedLanguage}
-            setSelectedLanguage={setSelectedLanguage}
-            supportedLanguages={supportedLanguages}
-            isComprehensiveView={isComprehensiveView}
-            setIsComprehensiveView={setIsComprehensiveView}
-            provider={provider}
-            setProvider={setProvider}
-            model={model}
-            setModel={setModel}
-            isCustomModel={isCustomModel}
-            setIsCustomModel={setIsCustomModel}
-            customModel={customModel}
-            setCustomModel={setCustomModel}
-            selectedPlatform={selectedPlatform}
-            setSelectedPlatform={setSelectedPlatform}
-            accessToken={accessToken}
-            setAccessToken={setAccessToken}
-            excludedDirs={excludedDirs}
-            setExcludedDirs={setExcludedDirs}
-            excludedFiles={excludedFiles}
-            setExcludedFiles={setExcludedFiles}
-            includedDirs={includedDirs}
-            setIncludedDirs={setIncludedDirs}
-            includedFiles={includedFiles}
-            setIncludedFiles={setIncludedFiles}
-            onSubmit={handleGenerateWiki}
-            isSubmitting={isSubmitting}
-            authRequired={authRequired}
-            authCode={authCode}
-            setAuthCode={setAuthCode}
-            isAuthLoading={isAuthLoading}
-          />
-
-        </div>
-      </header>
-
-      <main className="flex-1 max-w-6xl mx-auto w-full overflow-y-auto">
-        <div
-          className="min-h-full flex flex-col items-center p-8 pt-10 bg-[var(--card-bg)] rounded-lg shadow-custom card-japanese">
-
-          {/* Conditionally show processed projects or welcome content */}
-          {!projectsLoading && projects.length > 0 ? (
-            <div className="w-full">
-              {/* Header section for existing projects */}
-              <div className="flex flex-col items-center w-full max-w-2xl mb-8 mx-auto">
-                <div className="flex flex-col sm:flex-row items-center mb-6 gap-4">
-                  <div className="relative">
-                    <div className="absolute -inset-1 bg-[var(--accent-primary)]/20 rounded-full blur-md"></div>
-                    <FaWikipediaW className="text-5xl text-[var(--accent-primary)] relative z-10" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Feature 1: Mermaid Diagrams */}
+              <div className="lg:col-span-2 glass-hover rounded-2xl p-8 border border-[var(--border-subtle)] fade-in-up stagger-1">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)]">
+                    <ChartIcon />
                   </div>
-                  <div className="text-center sm:text-left">
-                    <h2 className="text-2xl font-bold text-[var(--foreground)] font-serif mb-1">{t('projects.existingProjects')}</h2>
-                    <p className="text-[var(--accent-primary)] text-sm max-w-md">{t('projects.browseExisting')}</p>
+                  <h4 className="text-xl font-bold font-[family-name:var(--font-display)]">Visual Diagrams</h4>
+                </div>
+                <p className="text-[var(--foreground-muted)] mb-6">
+                  Automatically generate architecture diagrams, flowcharts, and sequence diagrams using Mermaid
+                </p>
+                <div className="glass rounded-xl p-4 border border-[var(--border-subtle)]">
+                  <Mermaid chart={DEMO_FLOW_CHART} zoomingEnabled={false} />
+                </div>
+              </div>
+
+              {/* Feature 2: Wiki Types */}
+              <div className="glass-hover rounded-2xl p-8 border border-[var(--border-subtle)] fade-in-up stagger-2">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-gradient-to-r from-[var(--accent-cyan)] to-[var(--gradient-via)]">
+                    <BoltIcon />
+                  </div>
+                  <h4 className="text-xl font-bold font-[family-name:var(--font-display)]">Two Wiki Types</h4>
+                </div>
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--accent-primary)] transition-colors cursor-pointer">
+                    <h5 className="font-semibold mb-2">Comprehensive</h5>
+                    <p className="text-sm text-[var(--foreground-muted)]">
+                      Deep analysis with detailed documentation, architecture patterns, and code examples
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--accent-primary)] transition-colors cursor-pointer">
+                    <h5 className="font-semibold mb-2">Concise</h5>
+                    <p className="text-sm text-[var(--foreground-muted)]">
+                      Quick overview with essential structure and key components
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Show processed projects */}
+              {/* Feature 3: AI-Powered */}
+              <div className="glass-hover rounded-2xl p-8 border border-[var(--border-subtle)] fade-in-up stagger-3">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-gradient-to-r from-[var(--gradient-via)] to-[var(--accent-cyan)]">
+                    <SparklesIcon />
+                  </div>
+                  <h4 className="text-xl font-bold font-[family-name:var(--font-display)]">AI-Powered</h4>
+                </div>
+                <p className="text-[var(--foreground-muted)] mb-6">
+                  Multiple LLM providers supported for intelligent code analysis
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-[var(--foreground-muted)]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>
+                    Google Gemini
+                  </div>
+                  <div className="flex items-center gap-2 text-[var(--foreground-muted)]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>
+                    OpenAI GPT
+                  </div>
+                  <div className="flex items-center gap-2 text-[var(--foreground-muted)]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>
+                    OpenRouter
+                  </div>
+                  <div className="flex items-center gap-2 text-[var(--foreground-muted)]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>
+                    DeepSeek & Ollama
+                  </div>
+                </div>
+              </div>
+
+              {/* Feature 4: RAG-Powered Chat */}
+              <div className="lg:col-span-2 glass-hover rounded-2xl p-8 border border-[var(--border-subtle)] fade-in-up stagger-4">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-gradient-to-r from-[var(--accent-cyan)] to-[var(--gradient-from)]">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path fillRule="evenodd" d="M4.848 2.771A49.144 49.144 0 0 1 12 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 0 1-3.476.383.39.39 0 0 0-.297.17l-2.755 4.133a.75.75 0 0 1-1.248 0l-2.755-4.133a.39.39 0 0 0-.297-.17 48.9 48.9 0 0 1-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97Z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <h4 className="text-xl font-bold font-[family-name:var(--font-display)]">Interactive Q&A</h4>
+                </div>
+                <p className="text-[var(--foreground-muted)] mb-6">
+                  Ask questions about your codebase with RAG-powered chat interface for instant, context-aware answers
+                </p>
+                <div className="glass rounded-xl p-4 border border-[var(--border-subtle)] space-y-3">
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] flex items-center justify-center text-xs font-bold">
+                      You
+                    </div>
+                    <div className="flex-1 bg-[var(--surface)] rounded-lg p-3 text-sm">
+                      How does authentication work in this codebase?
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[var(--surface)] flex items-center justify-center">
+                      <SparklesIcon />
+                    </div>
+                    <div className="flex-1 bg-[var(--surface)] rounded-lg p-3 text-sm text-[var(--foreground-muted)]">
+                      Based on the codebase analysis, authentication uses JWT tokens...
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Processed Projects Section */}
+        {!projectsLoading && projects.length > 0 && (
+          <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[var(--surface)] bg-opacity-30">
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-12">
+                <h3 className="text-3xl md:text-4xl font-bold font-[family-name:var(--font-display)] mb-4">
+                  {t('projects.existingProjects')}
+                </h3>
+                <p className="text-[var(--foreground-muted)]">
+                  {t('projects.browseExisting')}
+                </p>
+              </div>
               <ProcessedProjects
                 showHeader={false}
                 maxItems={6}
@@ -512,113 +626,65 @@ export default function Home() {
                 className="w-full"
               />
             </div>
-          ) : (
-            <>
-              {/* Header section */}
-              <div className="flex flex-col items-center w-full max-w-2xl mb-8">
-                <div className="flex flex-col sm:flex-row items-center mb-6 gap-4">
-                  <div className="relative">
-                    <div className="absolute -inset-1 bg-[var(--accent-primary)]/20 rounded-full blur-md"></div>
-                    <FaWikipediaW className="text-5xl text-[var(--accent-primary)] relative z-10" />
-                  </div>
-                  <div className="text-center sm:text-left">
-                    <h2 className="text-2xl font-bold text-[var(--foreground)] font-serif mb-1">{t('home.welcome')}</h2>
-                    <p className="text-[var(--accent-primary)] text-sm max-w-md">{t('home.welcomeTagline')}</p>
-                  </div>
-                </div>
-
-                <p className="text-[var(--foreground)] text-center mb-8 text-lg leading-relaxed">
-                  {t('home.description')}
-                </p>
-              </div>
-
-          {/* Quick Start section - redesigned for better spacing */}
-          <div
-            className="w-full max-w-2xl mb-10 bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20 rounded-lg p-5">
-            <h3 className="text-sm font-semibold text-[var(--accent-primary)] mb-3 flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {t('home.quickStart')}
-            </h3>
-            <p className="text-sm text-[var(--foreground)] mb-3">{t('home.enterRepoUrl')}</p>
-            <div className="grid grid-cols-1 gap-3 text-xs text-[var(--muted)]">
-              <div
-                className="bg-[var(--background)]/70 p-3 rounded border border-[var(--border-color)] font-mono overflow-x-hidden whitespace-nowrap"
-              >https://github.com/AsyncFuncAI/deepwiki-open
-              </div>
-              <div
-                className="bg-[var(--background)]/70 p-3 rounded border border-[var(--border-color)] font-mono overflow-x-hidden whitespace-nowrap"
-              >https://gitlab.com/gitlab-org/gitlab
-              </div>
-              <div
-                className="bg-[var(--background)]/70 p-3 rounded border border-[var(--border-color)] font-mono overflow-x-hidden whitespace-nowrap"
-              >AsyncFuncAI/deepwiki-open
-              </div>
-              <div
-                className="bg-[var(--background)]/70 p-3 rounded border border-[var(--border-color)] font-mono overflow-x-hidden whitespace-nowrap"
-              >https://bitbucket.org/atlassian/atlaskit
-              </div>
-            </div>
-          </div>
-
-          {/* Visualization section - improved for better visibility */}
-          <div
-            className="w-full max-w-2xl mb-8 bg-[var(--background)]/70 rounded-lg p-6 border border-[var(--border-color)]">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 text-[var(--accent-primary)] flex-shrink-0 mt-0.5 sm:mt-0" fill="none"
-                viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              <h3 className="text-base font-semibold text-[var(--foreground)] font-serif">{t('home.advancedVisualization')}</h3>
-            </div>
-            <p className="text-sm text-[var(--foreground)] mb-5 leading-relaxed">
-              {t('home.diagramDescription')}
-            </p>
-
-            {/* Diagrams with improved layout */}
-            <div className="grid grid-cols-1 gap-6">
-              <div className="bg-[var(--card-bg)] p-4 rounded-lg border border-[var(--border-color)] shadow-custom">
-                <h4 className="text-sm font-medium text-[var(--foreground)] mb-3 font-serif">{t('home.flowDiagram')}</h4>
-                <Mermaid chart={DEMO_FLOW_CHART} />
-              </div>
-
-              <div className="bg-[var(--card-bg)] p-4 rounded-lg border border-[var(--border-color)] shadow-custom">
-                <h4 className="text-sm font-medium text-[var(--foreground)] mb-3 font-serif">{t('home.sequenceDiagram')}</h4>
-                <Mermaid chart={DEMO_SEQUENCE_CHART} />
-              </div>
-            </div>
-          </div>
-            </>
-          )}
-        </div>
+          </section>
+        )}
       </main>
 
-      <footer className="max-w-6xl mx-auto mt-8 flex flex-col gap-4 w-full">
-        <div
-          className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-[var(--card-bg)] rounded-lg p-4 border border-[var(--border-color)] shadow-custom">
-          <p className="text-[var(--muted)] text-sm font-serif">{t('footer.copyright')}</p>
+      {/* Configuration Modal */}
+      <ConfigurationModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        repositoryInput={repositoryInput}
+        selectedLanguage={selectedLanguage}
+        setSelectedLanguage={setSelectedLanguage}
+        supportedLanguages={supportedLanguages}
+        isComprehensiveView={isComprehensiveView}
+        setIsComprehensiveView={setIsComprehensiveView}
+        provider={provider}
+        setProvider={setProvider}
+        model={model}
+        setModel={setModel}
+        isCustomModel={isCustomModel}
+        setIsCustomModel={setIsCustomModel}
+        customModel={customModel}
+        setCustomModel={setCustomModel}
+        selectedPlatform={selectedPlatform}
+        setSelectedPlatform={setSelectedPlatform}
+        accessToken={accessToken}
+        setAccessToken={setAccessToken}
+        excludedDirs={excludedDirs}
+        setExcludedDirs={setExcludedDirs}
+        excludedFiles={excludedFiles}
+        setExcludedFiles={setExcludedFiles}
+        includedDirs={includedDirs}
+        setIncludedDirs={setIncludedDirs}
+        includedFiles={includedFiles}
+        setIncludedFiles={setIncludedFiles}
+        onSubmit={handleGenerateWiki}
+        isSubmitting={isSubmitting}
+        authRequired={authRequired}
+        authCode={authCode}
+        setAuthCode={setAuthCode}
+        isAuthLoading={isAuthLoading}
+      />
 
-          <div className="flex items-center gap-6">
-            <div className="flex items-center space-x-5">
-              <a href="https://github.com/AsyncFuncAI/deepwiki-open" target="_blank" rel="noopener noreferrer"
-                className="text-[var(--muted)] hover:text-[var(--accent-primary)] transition-colors">
-                <FaGithub className="text-xl" />
-              </a>
-              <a href="https://buymeacoffee.com/sheing" target="_blank" rel="noopener noreferrer"
-                className="text-[var(--muted)] hover:text-[var(--accent-primary)] transition-colors">
-                <FaCoffee className="text-xl" />
-              </a>
-              <a href="https://x.com/sashimikun_void" target="_blank" rel="noopener noreferrer"
-                className="text-[var(--muted)] hover:text-[var(--accent-primary)] transition-colors">
-                <FaTwitter className="text-xl" />
+      {/* Footer */}
+      <footer className="bg-[var(--surface)] border-t border-[var(--glass-border)] mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-[var(--foreground-muted)]">
+              {t('footer.copyright')}
+            </p>
+            <div className="flex items-center gap-6">
+              <a
+                href="https://github.com/viettdann/deepwiki-open"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] transition-colors"
+              >
+                <GitHubIcon />
               </a>
             </div>
-            <ThemeToggle />
           </div>
         </div>
       </footer>
