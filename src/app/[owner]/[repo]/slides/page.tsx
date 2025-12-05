@@ -4,7 +4,6 @@ import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FaArrowLeft, FaSync, FaDownload, FaArrowRight, FaArrowUp, FaTimes } from 'react-icons/fa';
-import ThemeToggle from '@/components/theme-toggle';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
@@ -1217,7 +1216,6 @@ Please return ONLY the HTML with no markdown formatting or code blocks. Just the
               >
                 <FaArrowUp />
               </button>
-              <ThemeToggle />
             </div>
           </div>
         </header>

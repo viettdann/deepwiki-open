@@ -19,114 +19,69 @@ mermaid.initialize({
     padding: 20,
   },
   themeCSS: `
-    /* Japanese aesthetic styles for all diagrams */
+    /* Dark mode styles - Deep Space theme */
     .node rect, .node circle, .node ellipse, .node polygon, .node path {
-      fill: #f8f4e6;
-      stroke: #d7c4bb;
+      fill: #222222;
+      stroke: #5d4037;
       stroke-width: 1px;
     }
     .edgePath .path {
-      stroke: #9b7cb9;
+      stroke: #9370db;
       stroke-width: 1.5px;
     }
     .edgeLabel {
       background-color: transparent;
-      color: #333333;
+      color: #f0f0f0;
       p {
         background-color: transparent !important;
       }
     }
     .label {
-      color: #333333;
+      color: #f0f0f0;
     }
     .cluster rect {
-      fill: #f8f4e6;
-      stroke: #d7c4bb;
+      fill: #222222;
+      stroke: #5d4037;
       stroke-width: 1px;
     }
+    .flowchart-link {
+      stroke: #9370db;
+    }
 
-    /* Sequence diagram specific styles */
+    /* Sequence diagram styles */
     .actor {
-      fill: #f8f4e6;
-      stroke: #d7c4bb;
+      fill: #222222;
+      stroke: #5d4037;
       stroke-width: 1px;
     }
     text.actor {
-      fill: #333333;
+      fill: #f0f0f0;
       stroke: none;
     }
     .messageText {
-      fill: #333333;
-      stroke: none;
-    }
-    .messageLine0, .messageLine1 {
-      stroke: #9b7cb9;
-    }
-    .noteText {
-      fill: #333333;
-    }
-
-    /* Dark mode overrides - will be applied with data-theme="dark" */
-    [data-theme="dark"] .node rect,
-    [data-theme="dark"] .node circle,
-    [data-theme="dark"] .node ellipse,
-    [data-theme="dark"] .node polygon,
-    [data-theme="dark"] .node path {
-      fill: #222222;
-      stroke: #5d4037;
-    }
-    [data-theme="dark"] .edgePath .path {
-      stroke: #9370db;
-    }
-    [data-theme="dark"] .edgeLabel {
-      background-color: transparent;
-      color: #f0f0f0;
-    }
-    [data-theme="dark"] .label {
-      color: #f0f0f0;
-    }
-    [data-theme="dark"] .cluster rect {
-      fill: #222222;
-      stroke: #5d4037;
-    }
-    [data-theme="dark"] .flowchart-link {
-      stroke: #9370db;
-    }
-
-    /* Dark mode sequence diagram overrides */
-    [data-theme="dark"] .actor {
-      fill: #222222;
-      stroke: #5d4037;
-    }
-    [data-theme="dark"] text.actor {
-      fill: #f0f0f0;
-      stroke: none;
-    }
-    [data-theme="dark"] .messageText {
       fill: #f0f0f0;
       stroke: none;
       font-weight: 500;
     }
-    [data-theme="dark"] .messageLine0, [data-theme="dark"] .messageLine1 {
+    .messageLine0, .messageLine1 {
       stroke: #9370db;
       stroke-width: 1.5px;
     }
-    [data-theme="dark"] .noteText {
+    .noteText {
       fill: #f0f0f0;
     }
-    /* Additional styles for sequence diagram text */
-    [data-theme="dark"] #sequenceNumber {
+    #sequenceNumber {
       fill: #f0f0f0;
     }
-    [data-theme="dark"] text.sequenceText {
+    text.sequenceText {
       fill: #f0f0f0;
       font-weight: 500;
     }
-    [data-theme="dark"] text.loopText, [data-theme="dark"] text.loopText tspan {
+    text.loopText, text.loopText tspan {
       fill: #f0f0f0;
     }
     /* Add a subtle background to message text for better readability */
-    [data-theme="dark"] .messageText, [data-theme="dark"] text.sequenceText {
+    .messageText, text.sequenceText {
       paint-order: stroke;
       stroke: #1a1a1a;
       stroke-width: 2px;
@@ -141,15 +96,6 @@ mermaid.initialize({
     .edgeLabel,
     .label,
     text {
-      fill: #777 !important;
-    }
-
-    [data-theme="dark"] text[text-anchor][dominant-baseline],
-    [data-theme="dark"] text[text-anchor][alignment-baseline],
-    [data-theme="dark"] .nodeLabel,
-    [data-theme="dark"] .edgeLabel,
-    [data-theme="dark"] .label,
-    [data-theme="dark"] text {
       fill: #f0f0f0 !important;
     }
 
@@ -235,7 +181,7 @@ const FullScreenModal: React.FC<{
       >
         {/* Modal header with controls */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
-          <div className="font-medium text-[var(--foreground)] font-serif">図表表示</div>
+          <div className="font-medium text-[var(--foreground)] font-serif">Chart display</div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <button
@@ -310,11 +256,6 @@ const Mermaid: React.FC<MermaidProps> = ({ chart, className = '', zoomingEnabled
   const mermaidRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const idRef = useRef(`mermaid-${Math.random().toString(36).substring(2, 9)}`);
-  const isDarkModeRef = useRef(
-    typeof window !== 'undefined' &&
-    window.matchMedia &&
-    window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
 
   // Initialize pan-zoom functionality when SVG is rendered
   useEffect(() => {
@@ -370,12 +311,7 @@ const Mermaid: React.FC<MermaidProps> = ({ chart, className = '', zoomingEnabled
 
         if (!isMounted) return;
 
-        let processedSvg = renderedSvg;
-        if (isDarkModeRef.current) {
-          processedSvg = processedSvg.replace('<svg ', '<svg data-theme="dark" ');
-        }
-
-        setSvg(processedSvg);
+        setSvg(renderedSvg);
 
         // Call mermaid.contentLoaded to ensure proper initialization
         setTimeout(() => {

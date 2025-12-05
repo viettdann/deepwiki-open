@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import ThemeToggle from '@/components/theme-toggle';
 import Mermaid from '../components/Mermaid';
 import ConfigurationModal from '@/components/ConfigurationModal';
 import ProcessedProjects from '@/components/ProcessedProjects';
@@ -111,7 +110,7 @@ export default function Home() {
     return key;
   };
 
-  const [repositoryInput, setRepositoryInput] = useState('https://github.com/AsyncFuncAI/deepwiki-open');
+  const [repositoryInput, setRepositoryInput] = useState('https://github.com/viettdann/deepwiki-open');
   const REPO_CONFIG_CACHE_KEY = 'deepwikiRepoConfigCache';
 
   // State management
@@ -356,8 +355,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Sticky Glassmorphism Header */}
-      <header className="sticky top-0 z-50 glass border-b border-[var(--glass-border)]">
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-50 bg-[var(--surface)] border-b border-[var(--glass-border)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo & Brand */}
@@ -391,12 +390,17 @@ export default function Home() {
 
             {/* CTA Button */}
             <div className="flex items-center gap-4">
-              <ThemeToggle />
               <button
                 onClick={() => {
-                  const input = document.getElementById('repo-input');
-                  input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  input?.focus();
+                  if (repositoryInput.trim()) {
+                    // If repo is already entered, open modal directly
+                    setIsConfigModalOpen(true);
+                  } else {
+                    // Otherwise scroll to input
+                    const input = document.getElementById('repo-input');
+                    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    input?.focus();
+                  }
                 }}
                 className="hidden md:block btn-japanese text-sm px-6 py-2"
               >
@@ -438,7 +442,7 @@ export default function Home() {
                       value={repositoryInput}
                       onChange={handleRepositoryInputChange}
                       placeholder="https://github.com/owner/repo or owner/repo"
-                      className="input-japanese flex-1"
+                      className="input-glass flex-1"
                     />
                     <button
                       type="submit"
@@ -508,7 +512,7 @@ export default function Home() {
                   Automatically generate architecture diagrams, flowcharts, and sequence diagrams using Mermaid
                 </p>
                 <div className="glass rounded-xl p-4 border border-[var(--border-subtle)]">
-                  <Mermaid chart={DEMO_FLOW_CHART} />
+                  <Mermaid chart={DEMO_FLOW_CHART} zoomingEnabled={false} />
                 </div>
               </div>
 
@@ -665,7 +669,7 @@ export default function Home() {
       />
 
       {/* Footer */}
-      <footer className="glass border-t border-[var(--glass-border)] mt-auto">
+      <footer className="bg-[var(--surface)] border-t border-[var(--glass-border)] mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-[var(--foreground-muted)]">
@@ -673,7 +677,7 @@ export default function Home() {
             </p>
             <div className="flex items-center gap-6">
               <a
-                href="https://github.com/AsyncFuncAI/deepwiki-open"
+                href="https://github.com/viettdann/deepwiki-open"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] transition-colors"

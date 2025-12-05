@@ -4,7 +4,6 @@ import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FaArrowLeft, FaSync, FaDownload } from 'react-icons/fa';
-import ThemeToggle from '@/components/theme-toggle';
 import Markdown from '@/components/Markdown';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
@@ -590,7 +589,6 @@ Estimated time: 20-30 minutes | Combines concepts from all exercises
             >
               <FaDownload />
             </button>
-            <ThemeToggle />
           </div>
         </div>
       </header>

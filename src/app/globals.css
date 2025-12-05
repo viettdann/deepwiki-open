@@ -1,25 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
-/* Define dark mode variant */
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
-
 :root {
-  /* Deep Space Knowledge Network - Light Mode (Fallback) */
-  --background: #f8f4e6;
-  --foreground: #333333;
-  --shadow-color: rgba(0, 0, 0, 0.05);
-  --accent-primary: #9b7cb9;
-  --accent-secondary: #d7c4bb;
-  --border-color: #e0d8c8;
-  --card-bg: #fffaf0;
-  --highlight: #e8927c;
-  --muted: #a59e8c;
-  --link-color: #7c5aa0;
-}
-
-html[data-theme='dark'] {
-  /* Deep Space Knowledge Network - Dark Mode (Primary) */
+  /* Deep Space Knowledge Network - Dark Mode */
   --background: #0a0a1f; /* Deep space navy */
   --surface: #13132b; /* Elevated surface */
   --surface-hover: #1a1a3e; /* Hover state */
@@ -49,8 +32,8 @@ html[data-theme='dark'] {
   --link-color: #a78bfa;
 }
 
-/* Fix for unreadable <select> options in Chrome's dark mode */
-[data-theme="dark"] select option {
+/* Fix for unreadable <select> options in Chrome */
+select option {
   background: var(--background);
 }
 
@@ -70,12 +53,12 @@ body {
 }
 
 /* Animated gradient mesh background */
-html[data-theme='dark'] body {
+body {
   position: relative;
   overflow-x: hidden;
 }
 
-html[data-theme='dark'] body::before {
+body::before {
   content: '';
   position: fixed;
   top: -50%;
@@ -104,7 +87,7 @@ html[data-theme='dark'] body::before {
 }
 
 /* Ensure content is above background */
-html[data-theme='dark'] body > * {
+body > * {
   position: relative;
   z-index: 1;
 }
@@ -120,9 +103,6 @@ html[data-theme='dark'] body > * {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
-}
-
-html[data-theme='dark'] .glass {
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
@@ -146,14 +126,8 @@ html[data-theme='dark'] .glass {
   background-clip: text;
 }
 
-/* Paper texture background (fallback for light mode) */
+/* Paper texture background */
 .paper-texture {
-  background-color: var(--card-bg);
-  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23e0d8c8' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
-}
-
-/* Dark mode removes texture for clean look */
-html[data-theme='dark'] .paper-texture {
   background-image: none;
   background-color: transparent;
 }
@@ -171,10 +145,6 @@ html[data-theme='dark'] .paper-texture {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
-}
-
-html[data-theme='dark'] .btn-japanese {
   box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
 }
 
@@ -203,8 +173,8 @@ html[data-theme='dark'] .btn-japanese {
 }
 
 /* Modern glass inputs */
-.input-japanese {
-  background: var(--glass-bg);
+.input-glass {
+  background: rgba(19, 19, 43, 0.5);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border-color);
@@ -216,34 +186,26 @@ html[data-theme='dark'] .btn-japanese {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-html[data-theme='dark'] .input-japanese {
-  background: rgba(19, 19, 43, 0.5);
-}
-
-.input-japanese:focus {
+.input-glass:focus {
   border-color: var(--accent-primary);
   background: rgba(19, 19, 43, 0.7);
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2), 0 4px 15px rgba(139, 92, 246, 0.2);
   outline: none;
 }
 
-.input-japanese::placeholder {
+.input-glass::placeholder {
   color: var(--muted);
 }
 
 /* Glass cards */
 .card-japanese {
-  background: var(--glass-bg);
+  background: rgba(19, 19, 43, 0.4);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-subtle);
   border-radius: 1.25rem;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-html[data-theme='dark'] .card-japanese {
-  background: rgba(19, 19, 43, 0.4);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
@@ -365,22 +327,22 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar for dark theme */
-html[data-theme='dark'] ::-webkit-scrollbar {
+/* Custom scrollbar */
+::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
-html[data-theme='dark'] ::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: var(--surface);
   border-radius: 5px;
 }
 
-html[data-theme='dark'] ::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   background: var(--accent-primary);
   border-radius: 5px;
 }
 
-html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb:hover {
   background: var(--accent-secondary);
 }
