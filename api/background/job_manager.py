@@ -278,12 +278,15 @@ class JobManager:
     async def get_pending_jobs() -> List[Dict[str, Any]]:
         """Get all pending/active jobs ordered by creation time."""
         db = await get_db()
+        # Explicitly exclude PAUSED and CANCELLED status
         return await db.fetch_all(
             """SELECT * FROM jobs
                WHERE status IN (?, ?, ?, ?)
+               AND status NOT IN (?, ?)
                ORDER BY created_at ASC""",
             (JobStatus.PENDING.value, JobStatus.PREPARING_EMBEDDINGS.value,
-             JobStatus.GENERATING_STRUCTURE.value, JobStatus.GENERATING_PAGES.value)
+             JobStatus.GENERATING_STRUCTURE.value, JobStatus.GENERATING_PAGES.value,
+             JobStatus.PAUSED.value, JobStatus.CANCELLED.value)
         )
 
     @staticmethod
@@ -310,15 +313,15 @@ class JobManager:
             conditions.append("status = ?")
             params.append(status.value)
 
-        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-
+        # Construct query with explicit parameter handling
+        query = "SELECT * FROM jobs"
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
-        rows = await db.fetch_all(
-            f"""SELECT * FROM jobs {where_clause}
-                ORDER BY created_at DESC LIMIT ? OFFSET ?""",
-            tuple(params)
-        )
+        rows = await db.fetch_all(query, tuple(params))
 
         return [JobManager._row_to_job_response(row) for row in rows]
 

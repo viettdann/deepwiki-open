@@ -1882,8 +1882,12 @@ IMPORTANT:
           const activeJob = await findActiveJob(effectiveRepoInfo.owner, effectiveRepoInfo.repo);
 
           if (activeJob) {
-            // Redirect to the job progress page
-            console.log(`Found active job ${activeJob.id}, redirecting to job page`);
+            // If job is paused, just return to let user decide (unless we want to redirect to paused job page)
+            // The user specifically asked NOT to auto-restart paused jobs.
+            // findActiveJob returns non-terminated jobs (including paused).
+            
+            // Redirect to the job progress page where they can resume if they want
+            console.log(`Found active/paused job ${activeJob.id}, redirecting to job page`);
             router.push(`/wiki/job/${activeJob.id}`);
             return;
           }

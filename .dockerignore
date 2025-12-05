@@ -58,3 +58,6 @@ LICENSE
 screenshots/
 *.md
 !api/README.md
+
+api/logs/*
+logs/*
