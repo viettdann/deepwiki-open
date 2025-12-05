@@ -1,8 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProcessedProjects from '@/components/ProcessedProjects';
+import ConfigurationModal from '@/components/ConfigurationModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const WikiIcon = () => (
@@ -17,8 +19,121 @@ const GitHubIcon = () => (
   </svg>
 );
 
+const RocketIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+    <path fillRule="evenodd" d="M9.315 7.584C12.195 3.883 16.695 1.5 21.75 1.5a.75.75 0 0 1 .75.75c0 5.056-2.383 9.555-6.084 12.436A6.75 6.75 0 0 1 9.75 22.5a.75.75 0 0 1-.75-.75v-4.131A15.838 15.838 0 0 1 6.382 15H2.25a.75.75 0 0 1-.75-.75 6.75 6.75 0 0 1 7.815-6.666ZM15 6.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" clipRule="evenodd" />
+    <path d="M5.26 17.242a.75.75 0 1 0-.897-1.203 5.243 5.243 0 0 0-2.05 5.022.75.75 0 0 0 .625.627 5.243 5.243 0 0 0 5.022-2.051.75.75 0 1 0-1.202-.897 3.744 3.744 0 0 1-3.008 1.51c0-1.23.592-2.323 1.51-3.008Z" />
+  </svg>
+);
+
 export default function WikiProjectsPage() {
-  const { messages } = useLanguage();
+  const router = useRouter();
+  const { language, setLanguage, messages, supportedLanguages } = useLanguage();
+
+  // State for modal
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [repositoryInput, setRepositoryInput] = useState('https://github.com/owner/repo');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
+  const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
+  const [provider, setProvider] = useState<string>('');
+  const [model, setModel] = useState<string>('');
+  const [isCustomModel, setIsCustomModel] = useState<boolean>(false);
+  const [customModel, setCustomModel] = useState<string>('');
+  const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket' | 'azure'>('github');
+  const [accessToken, setAccessToken] = useState('');
+  const [excludedDirs, setExcludedDirs] = useState('');
+  const [excludedFiles, setExcludedFiles] = useState('');
+  const [includedDirs, setIncludedDirs] = useState('');
+  const [includedFiles, setIncludedFiles] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authRequired, setAuthRequired] = useState<boolean>(false);
+  const [authCode, setAuthCode] = useState<string>('');
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    setLanguage(selectedLanguage);
+  }, [selectedLanguage, setLanguage]);
+
+  // Fetch authentication status
+  useEffect(() => {
+    const fetchAuthStatus = async () => {
+      try {
+        setIsAuthLoading(true);
+        const response = await fetch('/api/auth/status');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        setAuthRequired(data.auth_required);
+      } catch (err) {
+        console.error("Failed to fetch auth status:", err);
+        setAuthRequired(true);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+    fetchAuthStatus();
+  }, []);
+
+  const validateAuthCode = async () => {
+    try {
+      if(authRequired) {
+        if(!authCode) return false;
+        const response = await fetch('/api/auth/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({'code': authCode})
+        });
+        if (!response.ok) return false;
+        const data = await response.json();
+        return data.success || false;
+      }
+    } catch {
+      return false;
+    }
+    return true;
+  };
+
+  const handleGenerateWiki = async () => {
+    const validation = await validateAuthCode();
+    if(!validation) {
+      console.error(`Failed to validate the authorization code`);
+      setIsConfigModalOpen(false);
+      return;
+    }
+
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    const parseRepositoryInput = (input: string) => {
+      // Simplified parsing - add full logic if needed
+      const match = input.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+      if (match) return { owner: match[1], repo: match[2].replace('.git', ''), type: 'github' };
+      return null;
+    };
+
+    const parsedRepo = parseRepositoryInput(repositoryInput);
+    if (!parsedRepo) {
+      setIsSubmitting(false);
+      return;
+    }
+
+    const { owner, repo, type } = parsedRepo;
+    const params = new URLSearchParams();
+    if (accessToken) params.append('token', accessToken);
+    params.append('type', selectedPlatform || 'github');
+    params.append('repo_url', encodeURIComponent(repositoryInput));
+    params.append('provider', provider);
+    params.append('model', model);
+    if (isCustomModel && customModel) params.append('custom_model', customModel);
+    if (excludedDirs) params.append('excluded_dirs', excludedDirs);
+    if (excludedFiles) params.append('excluded_files', excludedFiles);
+    if (includedDirs) params.append('included_dirs', includedDirs);
+    if (includedFiles) params.append('included_files', includedFiles);
+    params.append('language', selectedLanguage);
+    params.append('comprehensive', isComprehensiveView.toString());
+
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    router.push(`/${owner}/${repo}${queryString}`);
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -57,12 +172,13 @@ export default function WikiProjectsPage() {
 
             {/* CTA Button */}
             <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="hidden md:block btn-japanese text-sm px-6 py-2"
+              <button
+                onClick={() => setIsConfigModalOpen(true)}
+                className="hidden md:flex items-center gap-2 btn-japanese text-sm px-6 py-2"
               >
+                <RocketIcon />
                 Generate Wiki
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -79,6 +195,44 @@ export default function WikiProjectsPage() {
         </div>
       </main>
 
+      {/* Configuration Modal */}
+      <ConfigurationModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        repositoryInput={repositoryInput}
+        selectedLanguage={selectedLanguage}
+        setSelectedLanguage={setSelectedLanguage}
+        supportedLanguages={supportedLanguages}
+        isComprehensiveView={isComprehensiveView}
+        setIsComprehensiveView={setIsComprehensiveView}
+        provider={provider}
+        setProvider={setProvider}
+        model={model}
+        setModel={setModel}
+        isCustomModel={isCustomModel}
+        setIsCustomModel={setIsCustomModel}
+        customModel={customModel}
+        setCustomModel={setCustomModel}
+        selectedPlatform={selectedPlatform}
+        setSelectedPlatform={setSelectedPlatform}
+        accessToken={accessToken}
+        setAccessToken={setAccessToken}
+        excludedDirs={excludedDirs}
+        setExcludedDirs={setExcludedDirs}
+        excludedFiles={excludedFiles}
+        setExcludedFiles={setExcludedFiles}
+        includedDirs={includedDirs}
+        setIncludedDirs={setIncludedDirs}
+        includedFiles={includedFiles}
+        setIncludedFiles={setIncludedFiles}
+        onSubmit={handleGenerateWiki}
+        isSubmitting={isSubmitting}
+        authRequired={authRequired}
+        authCode={authCode}
+        setAuthCode={setAuthCode}
+        isAuthLoading={isAuthLoading}
+      />
+
       {/* Footer */}
       <footer className="bg-[var(--surface)] border-t border-[var(--glass-border)] mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -88,7 +242,7 @@ export default function WikiProjectsPage() {
             </p>
             <div className="flex items-center gap-6">
               <a
-                href="https://github.com/AsyncFuncAI/deepwiki-open"
+                href="https://github.com/viettdann/deepwiki-open"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] transition-colors"

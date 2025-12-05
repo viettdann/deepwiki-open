@@ -110,7 +110,7 @@ export default function Home() {
     return key;
   };
 
-  const [repositoryInput, setRepositoryInput] = useState('https://github.com/AsyncFuncAI/deepwiki-open');
+  const [repositoryInput, setRepositoryInput] = useState('https://github.com/viettdann/deepwiki-open');
   const REPO_CONFIG_CACHE_KEY = 'deepwikiRepoConfigCache';
 
   // State management
@@ -392,9 +392,15 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => {
-                  const input = document.getElementById('repo-input');
-                  input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  input?.focus();
+                  if (repositoryInput.trim()) {
+                    // If repo is already entered, open modal directly
+                    setIsConfigModalOpen(true);
+                  } else {
+                    // Otherwise scroll to input
+                    const input = document.getElementById('repo-input');
+                    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    input?.focus();
+                  }
                 }}
                 className="hidden md:block btn-japanese text-sm px-6 py-2"
               >
@@ -671,7 +677,7 @@ export default function Home() {
             </p>
             <div className="flex items-center gap-6">
               <a
-                href="https://github.com/AsyncFuncAI/deepwiki-open"
+                href="https://github.com/viettdann/deepwiki-open"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] transition-colors"

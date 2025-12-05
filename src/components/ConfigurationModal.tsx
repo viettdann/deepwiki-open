@@ -63,7 +63,7 @@ interface ConfigurationModalProps {
 export default function ConfigurationModal({
   isOpen,
   onClose,
-  repositoryInput,
+  repositoryInput: initialRepositoryInput,
   selectedLanguage,
   setSelectedLanguage,
   supportedLanguages,
@@ -98,8 +98,25 @@ export default function ConfigurationModal({
 }: ConfigurationModalProps) {
   const { messages: t } = useLanguage();
 
-  // Show token section state
-  const [showTokenSection, setShowTokenSection] = useState(false);
+  // Repository input state (editable in modal)
+  const [repositoryInput, setRepositoryInput] = useState(initialRepositoryInput);
+  const [isEditingRepo, setIsEditingRepo] = useState(false);
+
+  // Is Private Repository toggle
+  const [isPrivateRepo, setIsPrivateRepo] = useState(false);
+
+  // Check if auth is enabled from environment
+  const isAuthEnabled = typeof window !== 'undefined' &&
+    (process.env.NEXT_PUBLIC_DEEPWIKI_AUTH_MODE === 'true' ||
+     process.env.NEXT_PUBLIC_DEEPWIKI_AUTH_MODE === '1');
+
+  // Update local state when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setRepositoryInput(initialRepositoryInput);
+      setIsPrivateRepo(!!accessToken);
+    }
+  }, [isOpen, initialRepositoryInput, accessToken]);
 
   if (!isOpen) return null;
 
@@ -130,9 +147,120 @@ export default function ConfigurationModal({
               <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                 {t.form?.repository || 'Repository'}
               </label>
-              <div className="bg-[var(--background)]/70 p-3 rounded-md border border-[var(--border-color)] text-sm text-[var(--foreground)]">
-                {repositoryInput}
-              </div>
+              <div className="relative">
+                  {isEditingRepo ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={repositoryInput}
+                        onChange={(e) => setRepositoryInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') setIsEditingRepo(false);
+                          if (e.key === 'Escape') {
+                            setRepositoryInput(initialRepositoryInput);
+                            setIsEditingRepo(false);
+                          }
+                        }}
+                        className="input-japanese flex-1 px-3 py-2 text-sm"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => setIsEditingRepo(false)}
+                        className="px-3 py-2 text-sm font-medium rounded-md bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90 transition-colors"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 bg-[var(--background)]/70 p-3 rounded-md border border-[var(--border-color)]">
+                      <span className="flex-1 text-sm text-[var(--foreground)] truncate">{repositoryInput}</span>
+                      <button
+                        onClick={() => setIsEditingRepo(true)}
+                        className="p-1.5 text-[var(--muted)] hover:text-[var(--accent-primary)] transition-colors"
+                        title="Edit repository"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+            </div>
+
+            {/* Is Private Repository Toggle */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between p-3 rounded-md border border-[var(--border-color)] bg-[var(--background)]/30">
+                    <div className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[var(--foreground-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span className="text-sm font-medium text-[var(--foreground)]">
+                        {t.form?.privateRepository || 'Private Repository'}
+                      </span>
+                    </div>
+                    <div
+                      className="relative flex items-center cursor-pointer"
+                      onClick={() => {
+                        const newValue = !isPrivateRepo;
+                        setIsPrivateRepo(newValue);
+                        if (!newValue) setAccessToken('');
+                      }}
+                    >
+                      <div className={`w-11 h-6 rounded-full transition-colors ${isPrivateRepo ? 'bg-[var(--accent-primary)]' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                      <div className={`absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white transition-transform transform ${isPrivateRepo ? 'translate-x-5' : ''}`}></div>
+                    </div>
+                  </div>
+
+                  {/* Access Token Input - with transition */}
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      isPrivateRepo ? 'max-h-[400px] opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'
+                    }`}
+                  >
+                    <div className="p-4 bg-[var(--background)]/50 rounded-md border border-[var(--border-color)]">
+                      <div className="mb-3">
+                        <label className="block text-xs font-medium text-[var(--foreground)] mb-2">
+                          {t.form?.selectPlatform || 'Platform'}
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(['github', 'gitlab', 'bitbucket', 'azure'] as const).map((platform) => (
+                            <button
+                              key={platform}
+                              type="button"
+                              onClick={() => setSelectedPlatform(platform)}
+                              className={`px-3 py-2 rounded-md border text-sm transition-all ${
+                                selectedPlatform === platform
+                                  ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)] text-[var(--accent-primary)]'
+                                  : 'border-[var(--border-color)] text-[var(--foreground)] hover:bg-[var(--background)]'
+                              }`}
+                            >
+                              {platform === 'azure' ? 'Azure DevOps' : platform.charAt(0).toUpperCase() + platform.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="access-token" className="block text-xs font-medium text-[var(--foreground)] mb-2">
+                          {t.form?.personalAccessToken || 'Personal Access Token (PAT)'}
+                        </label>
+                        <input
+                          id="access-token"
+                          type="password"
+                          value={accessToken}
+                          onChange={(e) => setAccessToken(e.target.value)}
+                          placeholder="Enter your access token"
+                          className="input-japanese block w-full px-3 py-2 text-sm"
+                        />
+                        <div className="flex items-center mt-2 text-xs text-[var(--muted)]">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {t.form?.tokenSecurityNote || 'Stored locally, never sent to our servers'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
             </div>
 
             {/* Language selection */}
@@ -144,7 +272,7 @@ export default function ConfigurationModal({
                 id="language-select"
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="input-japanese block w-full px-3 py-2 text-sm rounded-md bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
+                className="input-japanese block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors"
               >
                 {
                   Object.entries(supportedLanguages).map(([key, value])=> <option key={key} value={key}>{value}</option>)
@@ -152,7 +280,7 @@ export default function ConfigurationModal({
               </select>
             </div>
 
-            {/* Wiki Type Selector - more compact version */}
+            {/* Wiki Type Selector */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                 {t.form?.wikiType || 'Wiki Type'}
@@ -231,24 +359,13 @@ export default function ConfigurationModal({
               />
             </div>
 
-            {/* Access token section using TokenInput component */}
-            <TokenInput
-              selectedPlatform={selectedPlatform}
-              setSelectedPlatform={setSelectedPlatform}
-              accessToken={accessToken}
-              setAccessToken={setAccessToken}
-              showTokenSection={showTokenSection}
-              onToggleTokenSection={() => setShowTokenSection(!showTokenSection)}
-              allowPlatformChange={true}
-            />
-
-            {/* Authorization Code Input */}
-            {isAuthLoading && (
+            {/* Authorization Code Input - Only if auth mode is enabled */}
+            {isAuthEnabled && isAuthLoading && (
               <div className="mb-4 p-3 bg-[var(--background)]/50 rounded-md border border-[var(--border-color)] text-sm text-[var(--muted)]">
                 Loading authentication status...
               </div>
             )}
-            {!isAuthLoading && authRequired && (
+            {isAuthEnabled && !isAuthLoading && authRequired && (
               <div className="mb-4 p-4 bg-[var(--background)]/50 rounded-md border border-[var(--border-color)]">
                 <label htmlFor="authCode" className="block text-sm font-medium text-[var(--foreground)] mb-2">
                   {t.form?.authorizationCode || 'Authorization Code'}

@@ -116,21 +116,21 @@ export default function UserSelector({
     fetchModelConfig();
   }, [provider, setModel, setProvider]);
 
-  // Handler for changing provider
+  // Handler for changing provider - smooth transition without flash
   const handleProviderChange = (newProvider: string) => {
-    setProvider(newProvider);
-    setTimeout(() => {
-      // Reset custom model state when changing providers
-      setIsCustomModel(false);
+    // Reset custom model state when changing providers
+    setIsCustomModel(false);
 
-      // Set default model for the selected provider
-      if (modelConfig) {
-        const selectedProvider = modelConfig.providers.find((p: Provider) => p.id === newProvider);
-        if (selectedProvider && selectedProvider.models.length > 0) {
-          setModel(selectedProvider.models[0].id);
-        }
+    // Set provider and model simultaneously to prevent flash
+    if (modelConfig) {
+      const selectedProvider = modelConfig.providers.find((p: Provider) => p.id === newProvider);
+      if (selectedProvider && selectedProvider.models.length > 0) {
+        setProvider(newProvider);
+        setModel(selectedProvider.models[0].id);
       }
-    }, 10);
+    } else {
+      setProvider(newProvider);
+    }
   };
 
   // Default excluded directories from config.py
@@ -260,11 +260,18 @@ next.config.js
 *.docx
 *.pptx`;
 
-  // Display loading state
+  // Display loading spinner with message
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-2">
-        <div className="text-sm text-[var(--muted)]">Loading model configurations...</div>
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="relative w-12 h-12 mb-4">
+          <div className="absolute inset-0 border-4 border-[var(--surface)] rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-transparent border-t-[var(--accent-primary)] rounded-full animate-spin"></div>
+        </div>
+        <p className="text-sm text-[var(--muted)]">{t.form?.loadingModels || 'Loading model configurations...'}</p>
+        {error && (
+          <div className="text-sm text-red-500 mt-3">{error}</div>
+        )}
       </div>
     );
   }
@@ -285,7 +292,7 @@ next.config.js
             id="provider-dropdown"
             value={provider}
             onChange={(e) => handleProviderChange(e.target.value)}
-            className="input-japanese block w-full px-2.5 py-1.5 text-sm rounded-md bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
+            className="input-japanese block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors"
           >
             <option value="" disabled>{t.form?.selectProvider || 'Select Provider'}</option>
             {modelConfig?.providers.map((providerOption) => (
@@ -296,11 +303,52 @@ next.config.js
           </select>
         </div>
 
-        {/* Model Selection - consistent height regardless of type */}
+        {/* Model Selection - with improved custom model UX */}
         <div>
-          <label htmlFor={isCustomModel ? "custom-model-input" : "model-dropdown"} className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
-            {t.form?.modelSelection || 'Model Selection'}
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor={isCustomModel ? "custom-model-input" : "model-dropdown"} className="block text-xs font-medium text-[var(--foreground)]">
+              {t.form?.modelSelection || 'Model Selection'}
+            </label>
+
+            {/* Custom model toggle - segmented control style */}
+            {modelConfig?.providers.find((p: Provider) => p.id === provider)?.supportsCustomModel && (
+              <div className="flex items-center gap-1 bg-[var(--background)]/50 rounded-md p-0.5 border border-[var(--border-color)]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomModel(false);
+                    if (modelConfig) {
+                      const selectedProvider = modelConfig.providers.find((p: Provider) => p.id === provider);
+                      if (selectedProvider && selectedProvider.models.length > 0) {
+                        setModel(selectedProvider.models[0].id);
+                      }
+                    }
+                  }}
+                  className={`px-2 py-1 text-xs rounded transition-all ${
+                    !isCustomModel
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'text-[var(--muted)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  Preset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomModel(true);
+                    setCustomModel(model);
+                  }}
+                  className={`px-2 py-1 text-xs rounded transition-all ${
+                    isCustomModel
+                      ? 'bg-[var(--accent-primary)] text-white shadow-sm'
+                      : 'text-[var(--muted)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  Custom
+                </button>
+              </div>
+            )}
+          </div>
 
           {isCustomModel ? (
             <input
@@ -311,15 +359,15 @@ next.config.js
                 setCustomModel(e.target.value);
                 setModel(e.target.value);
               }}
-              placeholder={t.form?.customModelPlaceholder || 'Enter custom model name'}
-              className="input-japanese block w-full px-2.5 py-1.5 text-sm rounded-md bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
+              placeholder={t.form?.customModelPlaceholder || 'e.g., gpt-4, claude-3-opus'}
+              className="input-japanese block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors"
             />
           ) : (
             <select
               id="model-dropdown"
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              className="input-japanese block w-full px-2.5 py-1.5 text-sm rounded-md bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
+              className="input-japanese block w-full px-3 py-2.5 text-sm rounded-md border border-[var(--border-color)] bg-[var(--background)]/50 text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!provider || isLoading || !modelConfig?.providers.find(p => p.id === provider)?.models?.length}
             >
               {modelConfig?.providers.find((p: Provider) => p.id === provider)?.models.map((modelOption) => (
@@ -330,48 +378,6 @@ next.config.js
             </select>
           )}
         </div>
-
-        {/* Custom model toggle - only when provider supports it */}
-        {modelConfig?.providers.find((p: Provider) => p.id === provider)?.supportsCustomModel && (
-          <div className="mb-2">
-            <div className="flex items-center pb-1">
-              <div
-                className="relative flex items-center cursor-pointer"
-                onClick={() => {
-                  const newValue = !isCustomModel;
-                  setIsCustomModel(newValue);
-                  if (newValue) {
-                    setCustomModel(model);
-                  }
-                }}
-              >
-                <input
-                  id="use-custom-model"
-                  type="checkbox"
-                  checked={isCustomModel}
-                  onChange={() => {}}
-                  className="sr-only"
-                />
-                <div className={`w-10 h-5 rounded-full transition-colors ${isCustomModel ? 'bg-[var(--accent-primary)]' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
-                <div className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform transform ${isCustomModel ? 'translate-x-5' : ''}`}></div>
-              </div>
-              <label
-                htmlFor="use-custom-model"
-                className="ml-2 text-sm font-medium text-[var(--muted)] cursor-pointer"
-                onClick={(e) => {
-                  e.preventDefault();
-                  const newValue = !isCustomModel;
-                  setIsCustomModel(newValue);
-                  if (newValue) {
-                    setCustomModel(model);
-                  }
-                }}
-              >
-                {t.form?.useCustomModel || 'Use custom model'}
-              </label>
-            </div>
-          </div>
-        )}
 
         {showFileFilters && (
           <div className="mt-4">
