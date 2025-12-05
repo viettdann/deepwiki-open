@@ -1,26 +1,25 @@
 import type { Metadata } from "next";
-import { Noto_Sans_JP, Noto_Serif_JP, Geist_Mono } from "next/font/google";
+import { DM_Sans, JetBrains_Mono, Syne } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 
-// Japanese-friendly fonts
-const notoSansJP = Noto_Sans_JP({
-  variable: "--font-geist-sans",
+const dmSans = DM_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
   display: "swap",
+  variable: "--font-dm-sans",
 });
 
-const notoSerifJP = Noto_Serif_JP({
-  variable: "--font-serif-jp",
+const jetBrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
   display: "swap",
+  variable: "--font-jetbrains-mono",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const syne = Syne({
   subsets: ["latin"],
+  variable: "--font-syne",
 });
 
 export const metadata: Metadata = {
@@ -36,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body
-        className={`${notoSansJP.variable} ${notoSerifJP.variable} ${geistMono.variable} antialiased`}
+        className={`${dmSans.variable} ${jetBrainsMono.variable} ${syne.variable} antialiased`}
       >
         <LanguageProvider>
           {children}

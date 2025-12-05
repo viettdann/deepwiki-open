@@ -111,7 +111,7 @@ mermaid.initialize({
       filter: brightness(0.95);
     }
   `,
-  fontFamily: 'var(--font-geist-sans), var(--font-serif-jp), sans-serif',
+  fontFamily: 'var(--font-syne), var(--font-dm-sans), sans-serif',
   fontSize: 12,
 });
 
