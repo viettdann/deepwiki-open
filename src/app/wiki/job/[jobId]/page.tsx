@@ -78,7 +78,7 @@ export default function JobProgressPage() {
   const router = useRouter();
   // const { messages } = useLanguage();
 
-  const jobId = params.jobId as string;
+  const jobId = params?.jobId as string;
 
   const [jobDetail, setJobDetail] = useState<JobDetail | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
