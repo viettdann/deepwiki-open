@@ -161,6 +161,70 @@ const createGitlabHeaders = (gitlabToken: string): HeadersInit => {
   return headers;
 };
 
+const createAzureHeaders = (azureToken: string): HeadersInit => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (azureToken) {
+    const encoded = btoa(`:${azureToken}`);
+    headers['Authorization'] = `Basic ${encoded}`;
+  }
+
+  return headers;
+};
+
+interface AzureRepoInfo {
+  organization: string;
+  project: string;
+  repository: string;
+  baseUrl: string;
+}
+
+const parseAzureRepoUrl = (repoUrl: string | null): AzureRepoInfo | null => {
+  if (!repoUrl) return null;
+  try {
+    const url = new URL(repoUrl);
+    const segments = url.pathname.split('/').filter(Boolean);
+    let organization = '';
+    let project = '';
+    let repository = '';
+    if (url.hostname.includes('dev.azure.com')) {
+      organization = segments[0];
+      project = segments[1];
+      const repoIndex = segments.findIndex((seg) => seg.toLowerCase() === '_git');
+      repository = repoIndex >= 0 && segments[repoIndex + 1] ? segments[repoIndex + 1] : segments[3];
+      return organization && project && repository
+        ? {
+            organization,
+            project,
+            repository,
+            baseUrl: `${url.protocol}//${url.hostname}`,
+          }
+        : null;
+    }
+
+    if (url.hostname.includes('visualstudio.com')) {
+      organization = url.hostname.split('.')[0];
+      project = segments[0];
+      const repoIndex = segments.findIndex((seg) => seg.toLowerCase() === '_git');
+      repository = repoIndex >= 0 && segments[repoIndex + 1] ? segments[repoIndex + 1] : segments[2];
+      return organization && project && repository
+        ? {
+            organization,
+            project,
+            repository,
+            baseUrl: `${url.protocol}//${organization}.visualstudio.com`,
+          }
+        : null;
+    }
+    return null;
+  } catch (err) {
+    console.warn('Failed to parse Azure repo URL', err);
+    return null;
+  }
+};
+
 const createBitbucketHeaders = (bitbucketToken: string): HeadersInit => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -208,7 +272,9 @@ export default function RepoWikiPage() {
       ? 'gitlab'
       : repoHost?.includes('github')
         ? 'github'
-        : searchParams?.get('type') || 'github';
+        : repoHost?.includes('azure') || repoHost?.includes('visualstudio.com')
+          ? 'azure'
+          : searchParams?.get('type') || 'github';
 
   // Import language context for translations
   const { messages } = useLanguage();
@@ -309,6 +375,14 @@ export default function RepoWikiPage() {
       } else if (hostname === 'bitbucket.org' || hostname.includes('bitbucket')) {
         // Bitbucket URL format: https://bitbucket.org/owner/repo/src/branch/path
         return `${repoUrl}/src/${defaultBranch}/${filePath}`;
+      } else if (hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com')) {
+        // Azure DevOps URL format: https://dev.azure.com/org/project/_git/repo?path=/file&version=GBbranch
+        const repoInfo = parseAzureRepoUrl(repoUrl);
+        if (repoInfo) {
+          const encodedPath = encodeURIComponent(filePath.startsWith('/') ? filePath : `/${filePath}`);
+          const version = encodeURIComponent(`GB${defaultBranch}`);
+          return `${repoInfo.baseUrl}/${repoInfo.project}/_git/${repoInfo.repository}?path=${encodedPath}&version=${version}`;
+        }
       }
     } catch (error) {
       console.warn('Error generating file URL:', error);
@@ -1469,6 +1543,65 @@ IMPORTANT:
           }
         } catch (err) {
           console.warn('Could not fetch Bitbucket README.md, continuing with empty README', err);
+        }
+      }
+      else if (effectiveRepoInfo.type === 'azure') {
+        const azureInfo = parseAzureRepoUrl(effectiveRepoInfo.repoUrl);
+        if (!azureInfo) {
+          throw new Error('Invalid Azure DevOps repository URL. Expected format: https://dev.azure.com/{organization}/{project}/_git/{repository}');
+        }
+
+        const headers = createAzureHeaders(currentToken);
+        // Fetch repository info to determine default branch
+        const repoInfoUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}?api-version=7.1-preview.1`;
+        let defaultBranchLocal = 'main';
+        try {
+          const repoInfoRes = await fetch(repoInfoUrl, { headers });
+          const repoInfoText = await repoInfoRes.text();
+          if (!repoInfoRes.ok) {
+            throw new Error(`Azure repo info error: Status ${repoInfoRes.status}, Response: ${repoInfoText}`);
+          }
+          const repoInfoData = JSON.parse(repoInfoText);
+          if (repoInfoData.defaultBranch) {
+            defaultBranchLocal = repoInfoData.defaultBranch.replace('refs/heads/', '') || 'main';
+          }
+          setDefaultBranch(defaultBranchLocal);
+        } catch (err) {
+          console.warn('Could not fetch Azure default branch, using main', err);
+          setDefaultBranch(defaultBranchLocal);
+        }
+
+        // Fetch full file tree
+        const itemsUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}/items?recursionLevel=Full&includeContentMetadata=false&versionDescriptor.version=${encodeURIComponent(defaultBranchLocal)}&api-version=7.1-preview.1`;
+        const itemsRes = await fetch(itemsUrl, { headers });
+        const itemsText = await itemsRes.text();
+        if (!itemsRes.ok) {
+          throw new Error(`Error fetching Azure repository structure: Status ${itemsRes.status}, Response: ${itemsText}`);
+        }
+        const itemsData = JSON.parse(itemsText);
+        const values = Array.isArray(itemsData.value) ? itemsData.value : [];
+        if (values.length === 0) {
+          throw new Error('Could not fetch repository structure. Repository might be empty or inaccessible.');
+        }
+
+        fileTreeData = values
+          .filter((item: { gitObjectType?: string; path?: string }) => item.gitObjectType === 'blob' && item.path)
+          .map((item: { path: string }) => item.path.replace(/^\//, ''))
+          .join('\n');
+
+        // Fetch README.md content if available
+        try {
+          const readmeUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}/items?path=${encodeURIComponent('/README.md')}&includeContent=true&versionDescriptor.version=${encodeURIComponent(defaultBranchLocal)}&api-version=7.1-preview.1`;
+          const readmeRes = await fetch(readmeUrl, { headers });
+          const readmeText = await readmeRes.text();
+          if (readmeRes.ok) {
+            const readmeData = JSON.parse(readmeText);
+            readmeContent = readmeData.content || '';
+          } else {
+            console.warn(`Could not fetch Azure README.md status: ${readmeRes.status}`);
+          }
+        } catch (err) {
+          console.warn('Error fetching Azure README.md:', err);
         }
       }
 
