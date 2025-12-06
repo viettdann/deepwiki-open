@@ -285,7 +285,7 @@ DEFAULT_EXCLUDED_DIRS: List[str] = [
 ]
 
 DEFAULT_EXCLUDED_FILES: List[str] = [
-    "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "poetry.lock",
+    "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "poetry.lock", "uv.lock",
     "Pipfile.lock", "requirements.txt.lock", "Cargo.lock", "composer.lock",
     ".lock", ".DS_Store", "Thumbs.db", "desktop.ini", "*.lnk", ".env",
     ".env.*", "*.env", "*.cfg", "*.ini", ".flaskenv", ".gitignore",

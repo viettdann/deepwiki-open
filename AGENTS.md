@@ -16,8 +16,10 @@ yarn build            # Production build
 yarn lint             # ESLint check
 
 # Backend (Python/FastAPI)
-python -m pip install poetry==1.8.2 && poetry install -C api  # Install Python deps
-python -m api.main    # Start API server on port 8001
+# Make sure you have uv installed (curl -LsSf https://astral.sh/uv/install.sh | sh)
+source api/.venv/bin/activate
+cd api && uv venv && uv sync && cd ..
+uv run python -m api.main    # Start API server on port 8001
 
 # Docker
 docker-compose up     # Run full stack

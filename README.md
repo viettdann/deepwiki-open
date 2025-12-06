@@ -91,10 +91,15 @@ cp .env.example .env
 
 ```bash
 # Install Python stuff
-python -m pip install poetry==1.8.2 && poetry install -C api
+# Make sure you have uv installed (curl -LsSf https://astral.sh/uv/install.sh | sh)
+source api/.venv/bin/activate 
+cd api
+uv venv
+uv sync
 
 # Start the API
-python -m api.main
+source api/.venv/bin/activate
+uv run python -m api.main
 ```
 
 #### Step 3: Start the Frontend
