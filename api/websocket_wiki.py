@@ -55,6 +55,22 @@ async def handle_websocket_chat(websocket: WebSocket):
     """
     await websocket.accept()
 
+    # Validate API key if auth is enabled
+    from api.config import API_KEY_AUTH_ENABLED, API_KEYS
+
+    if API_KEY_AUTH_ENABLED:
+        api_key = websocket.query_params.get('api_key')
+
+        if not api_key:
+            await websocket.send_text("Error: Missing API key")
+            await websocket.close(code=1008, reason="Missing API key")
+            return
+
+        if api_key not in API_KEYS:
+            await websocket.send_text("Error: Invalid API key")
+            await websocket.close(code=1008, reason="Invalid API key")
+            return
+
     try:
         # Receive and parse the request data
         request_data = await websocket.receive_json()

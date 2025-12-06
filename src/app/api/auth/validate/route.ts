@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
+const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +12,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
       },
       body: JSON.stringify(body),
     });

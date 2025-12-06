@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 // The target backend server base URL, derived from environment variable or defaulted.
 const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
+const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
 
 export async function GET() {
   try {
@@ -12,6 +13,7 @@ export async function GET() {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
       }
     });
 
