@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
-from api.background.database import get_db
+from api.core.database import get_db
 from api.background.models import (
     JobStatus, PageStatus, CreateJobRequest,
     JobResponse, JobPageResponse, JobDetailResponse

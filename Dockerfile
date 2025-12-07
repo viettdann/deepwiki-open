@@ -30,17 +30,12 @@ RUN --mount=type=bind,source=package.json,target=/app/package.json \
     NODE_ENV=production yarn run build
 
 FROM python:3.11-slim AS py_deps
-ARG POETRY_VERSION="2.0.1"
-ARG POETRY_MAX_WORKERS="10"
 WORKDIR /api
-COPY api/pyproject.toml .
-COPY api/poetry.lock .
-RUN python -m pip install poetry==${POETRY_VERSION} --no-cache-dir && \
-    poetry config virtualenvs.create true --local && \
-    poetry config virtualenvs.in-project true --local && \
-    poetry config virtualenvs.options.always-copy --local true && \
-    POETRY_MAX_WORKERS=${POETRY_MAX_WORKERS} poetry install --no-interaction --no-ansi --only main && \
-    poetry cache clear --all .
+COPY --from=ghcr.io/astral-sh/uv:0.7.12 /uv /usr/local/bin/uv
+COPY api/pyproject.toml api/uv.lock ./
+ENV UV_PROJECT_ENVIRONMENT="/opt/venv" \
+    UV_COMPILE_BYTECODE=1
+RUN uv sync --frozen --no-dev
 
 # Use Python 3.11 as final image
 FROM python:3.11-slim
@@ -55,8 +50,16 @@ ENV API_PORT=${API_PORT} \
     NODE_ENV=${NODE_ENV} \
     SERVER_BASE_URL=${SERVER_BASE_URL}
 
+# Create a non-root user
+ARG UID=1000
+ARG GID=1000
+ARG APP_USER=viettdann
+RUN groupadd -g "${GID}" ${APP_USER} && \
+    useradd -l -u "${UID}" -g ${APP_USER} -s /bin/bash -m -d /home/${APP_USER} ${APP_USER}
+
 # Set working directory
 WORKDIR /app
+RUN chown ${APP_USER}:${APP_USER} /app
 
 # Set shell with pipefail for proper error handling in pipes
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -91,18 +94,20 @@ RUN if [ -n "${CUSTOM_CERT_DIR}" ]; then \
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy Python dependencies
-COPY --from=py_deps /api/.venv /opt/venv
-COPY api/ ./api/
+COPY --chown=${APP_USER}:${APP_USER} --from=py_deps /opt/venv /opt/venv
+COPY --chown=${APP_USER}:${APP_USER} api/ ./api/
 
 # Copy Node.js dependencies and built app
-COPY --from=node_builder /app/.next/standalone ./
-COPY --from=node_builder /app/.next/static ./.next/static
-COPY ./public ./public
+COPY --chown=${APP_USER}:${APP_USER} --from=node_builder /app/.next/standalone ./
+COPY --chown=${APP_USER}:${APP_USER} --from=node_builder /app/.next/static ./.next/static
+COPY --chown=${APP_USER}:${APP_USER} ./public ./public
 
 # Create a script to run both backend and frontend
 RUN touch .env \
+    && chown ${APP_USER}:${APP_USER} .env \
     && cat <<'EOF' > /app/start.sh \
-    && chmod +x /app/start.sh
+    && chmod +x /app/start.sh \
+    && chown ${APP_USER}:${APP_USER} /app/start.sh
 #!/bin/bash
 set -e
 
@@ -155,6 +160,9 @@ HEALTHCHECK --interval=60s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:3000 || exit 1
 
 ENTRYPOINT ["tini", "--"]
+
+# Switch to non-root user
+USER ${APP_USER}
 
 # Command to run the application
 CMD ["/app/start.sh"]

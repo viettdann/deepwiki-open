@@ -16,7 +16,9 @@ from adalflow.utils import get_adalflow_default_root_path
 logger = logging.getLogger(__name__)
 
 # Database path
-DB_PATH = os.path.join(get_adalflow_default_root_path(), "jobs.db")
+# Use a project-specific directory to avoid conflicts
+DB_DIR = os.path.join(get_adalflow_default_root_path(), "deepwiki")
+DB_PATH = os.path.join(DB_DIR, "deepwiki.db")
 
 
 class DatabaseManager:

@@ -15,7 +15,7 @@ import google.generativeai as genai
 from adalflow.components.model_client.ollama_client import OllamaClient
 from adalflow.core.types import ModelType
 
-from api.background.database import get_db
+from api.core.database import get_db
 from api.background.models import JobStatus, PageStatus, JobProgressUpdate
 from api.background.job_manager import JobManager
 import aiohttp

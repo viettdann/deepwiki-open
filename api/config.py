@@ -39,6 +39,15 @@ raw_auth_mode = os.environ.get('DEEPWIKI_AUTH_MODE', 'False')
 WIKI_AUTH_MODE = raw_auth_mode.lower() in ['true', '1', 't']
 WIKI_AUTH_CODE = os.environ.get('DEEPWIKI_AUTH_CODE', '')
 
+# API Key authentication settings
+raw_api_key_auth = os.environ.get('DEEPWIKI_API_KEY_AUTH_ENABLED', 'False')
+API_KEY_AUTH_ENABLED = raw_api_key_auth.lower() in ['true', '1', 't']
+API_KEYS_RAW = os.environ.get('DEEPWIKI_BACKEND_API_KEYS', '')
+API_KEYS = set(k.strip() for k in API_KEYS_RAW.split(',') if k.strip())
+
+if API_KEY_AUTH_ENABLED and len(API_KEYS) == 0:
+    logger.warning("API key auth enabled but no keys configured!")
+
 # Embedder settings
 EMBEDDER_TYPE = os.environ.get('DEEPWIKI_EMBEDDER_TYPE', 'openai').lower()
 
@@ -285,7 +294,7 @@ DEFAULT_EXCLUDED_DIRS: List[str] = [
 ]
 
 DEFAULT_EXCLUDED_FILES: List[str] = [
-    "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "poetry.lock",
+    "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "poetry.lock", "uv.lock",
     "Pipfile.lock", "requirements.txt.lock", "Cargo.lock", "composer.lock",
     ".lock", ".DS_Store", "Thumbs.db", "desktop.ini", "*.lnk", ".env",
     ".env.*", "*.env", "*.cfg", "*.ini", ".flaskenv", ".gitignore",

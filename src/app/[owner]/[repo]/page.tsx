@@ -161,6 +161,70 @@ const createGitlabHeaders = (gitlabToken: string): HeadersInit => {
   return headers;
 };
 
+const createAzureHeaders = (azureToken: string): HeadersInit => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (azureToken) {
+    const encoded = btoa(`:${azureToken}`);
+    headers['Authorization'] = `Basic ${encoded}`;
+  }
+
+  return headers;
+};
+
+interface AzureRepoInfo {
+  organization: string;
+  project: string;
+  repository: string;
+  baseUrl: string;
+}
+
+const parseAzureRepoUrl = (repoUrl: string | null): AzureRepoInfo | null => {
+  if (!repoUrl) return null;
+  try {
+    const url = new URL(repoUrl);
+    const segments = url.pathname.split('/').filter(Boolean);
+    let organization = '';
+    let project = '';
+    let repository = '';
+    if (url.hostname.includes('dev.azure.com')) {
+      organization = segments[0];
+      project = segments[1];
+      const repoIndex = segments.findIndex((seg) => seg.toLowerCase() === '_git');
+      repository = repoIndex >= 0 && segments[repoIndex + 1] ? segments[repoIndex + 1] : segments[3];
+      return organization && project && repository
+        ? {
+            organization,
+            project,
+            repository,
+            baseUrl: `${url.protocol}//${url.hostname}`,
+          }
+        : null;
+    }
+
+    if (url.hostname.includes('visualstudio.com')) {
+      organization = url.hostname.split('.')[0];
+      project = segments[0];
+      const repoIndex = segments.findIndex((seg) => seg.toLowerCase() === '_git');
+      repository = repoIndex >= 0 && segments[repoIndex + 1] ? segments[repoIndex + 1] : segments[2];
+      return organization && project && repository
+        ? {
+            organization,
+            project,
+            repository,
+            baseUrl: `${url.protocol}//${organization}.visualstudio.com`,
+          }
+        : null;
+    }
+    return null;
+  } catch (err) {
+    console.warn('Failed to parse Azure repo URL', err);
+    return null;
+  }
+};
+
 const createBitbucketHeaders = (bitbucketToken: string): HeadersInit => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -208,7 +272,9 @@ export default function RepoWikiPage() {
       ? 'gitlab'
       : repoHost?.includes('github')
         ? 'github'
-        : searchParams?.get('type') || 'github';
+        : repoHost?.includes('azure') || repoHost?.includes('visualstudio.com')
+          ? 'azure'
+          : searchParams?.get('type') || 'github';
 
   // Import language context for translations
   const { messages } = useLanguage();
@@ -309,6 +375,14 @@ export default function RepoWikiPage() {
       } else if (hostname === 'bitbucket.org' || hostname.includes('bitbucket')) {
         // Bitbucket URL format: https://bitbucket.org/owner/repo/src/branch/path
         return `${repoUrl}/src/${defaultBranch}/${filePath}`;
+      } else if (hostname.includes('dev.azure.com') || hostname.includes('visualstudio.com')) {
+        // Azure DevOps URL format: https://dev.azure.com/org/project/_git/repo?path=/file&version=GBbranch
+        const repoInfo = parseAzureRepoUrl(repoUrl);
+        if (repoInfo) {
+          const encodedPath = encodeURIComponent(filePath.startsWith('/') ? filePath : `/${filePath}`);
+          const version = encodeURIComponent(`GB${defaultBranch}`);
+          return `${repoInfo.baseUrl}/${repoInfo.project}/_git/${repoInfo.repository}?path=${encodedPath}&version=${version}`;
+        }
       }
     } catch (error) {
       console.warn('Error generating file URL:', error);
@@ -1471,6 +1545,65 @@ IMPORTANT:
           console.warn('Could not fetch Bitbucket README.md, continuing with empty README', err);
         }
       }
+      else if (effectiveRepoInfo.type === 'azure') {
+        const azureInfo = parseAzureRepoUrl(effectiveRepoInfo.repoUrl);
+        if (!azureInfo) {
+          throw new Error('Invalid Azure DevOps repository URL. Expected format: https://dev.azure.com/{organization}/{project}/_git/{repository}');
+        }
+
+        const headers = createAzureHeaders(currentToken);
+        // Fetch repository info to determine default branch
+        const repoInfoUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}?api-version=7.1-preview.1`;
+        let defaultBranchLocal = 'main';
+        try {
+          const repoInfoRes = await fetch(repoInfoUrl, { headers });
+          const repoInfoText = await repoInfoRes.text();
+          if (!repoInfoRes.ok) {
+            throw new Error(`Azure repo info error: Status ${repoInfoRes.status}, Response: ${repoInfoText}`);
+          }
+          const repoInfoData = JSON.parse(repoInfoText);
+          if (repoInfoData.defaultBranch) {
+            defaultBranchLocal = repoInfoData.defaultBranch.replace('refs/heads/', '') || 'main';
+          }
+          setDefaultBranch(defaultBranchLocal);
+        } catch (err) {
+          console.warn('Could not fetch Azure default branch, using main', err);
+          setDefaultBranch(defaultBranchLocal);
+        }
+
+        // Fetch full file tree
+        const itemsUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}/items?recursionLevel=Full&includeContentMetadata=false&versionDescriptor.version=${encodeURIComponent(defaultBranchLocal)}&api-version=7.1-preview.1`;
+        const itemsRes = await fetch(itemsUrl, { headers });
+        const itemsText = await itemsRes.text();
+        if (!itemsRes.ok) {
+          throw new Error(`Error fetching Azure repository structure: Status ${itemsRes.status}, Response: ${itemsText}`);
+        }
+        const itemsData = JSON.parse(itemsText);
+        const values = Array.isArray(itemsData.value) ? itemsData.value : [];
+        if (values.length === 0) {
+          throw new Error('Could not fetch repository structure. Repository might be empty or inaccessible.');
+        }
+
+        fileTreeData = values
+          .filter((item: { gitObjectType?: string; path?: string }) => item.gitObjectType === 'blob' && item.path)
+          .map((item: { path: string }) => item.path.replace(/^\//, ''))
+          .join('\n');
+
+        // Fetch README.md content if available
+        try {
+          const readmeUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}/items?path=${encodeURIComponent('/README.md')}&includeContent=true&versionDescriptor.version=${encodeURIComponent(defaultBranchLocal)}&api-version=7.1-preview.1`;
+          const readmeRes = await fetch(readmeUrl, { headers });
+          const readmeText = await readmeRes.text();
+          if (readmeRes.ok) {
+            const readmeData = JSON.parse(readmeText);
+            readmeContent = readmeData.content || '';
+          } else {
+            console.warn(`Could not fetch Azure README.md status: ${readmeRes.status}`);
+          }
+        } catch (err) {
+          console.warn('Error fetching Azure README.md:', err);
+        }
+      }
 
       // Now determine the wiki structure
       await determineWikiStructure(fileTreeData, readmeContent, owner, repo);
@@ -1725,6 +1858,9 @@ IMPORTANT:
               }
               if(cachedData.provider) {
                 setSelectedProviderState(cachedData.provider);
+              }
+              if (typeof cachedData.comprehensive === 'boolean') {
+                setIsComprehensiveView(cachedData.comprehensive);
               }
 
               // Update repoInfo
@@ -1997,22 +2133,63 @@ IMPORTANT:
   const [isModelSelectionModalOpen, setIsModelSelectionModalOpen] = useState(false);
 
   return (
-    <div className="h-screen paper-texture p-4 md:p-8 flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[var(--surface)]">
       <style>{wikiStyles}</style>
 
-      <header className="max-w-[90%] xl:max-w-[1400px] mx-auto mb-8 h-fit w-full">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-[var(--accent-primary)] hover:text-[var(--highlight)] flex items-center gap-1.5 transition-colors border-b border-[var(--border-color)] hover:border-[var(--accent-primary)] pb-0.5">
-              <FaHome /> {messages.repoPage?.home || 'Home'}
+      <header className="sticky top-0 z-40 bg-[var(--surface)]/90 backdrop-blur border-b border-[var(--glass-border)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded-lg blur opacity-50 group-hover:opacity-70 transition-opacity"></div>
+                <div className="relative bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] p-2 rounded-lg text-white shadow-sm">
+                  <FaBookOpen className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="leading-tight">
+                <p className="text-lg font-bold font-[family-name:var(--font-display)]">
+                  {messages.common?.appName || 'DeepWiki'}
+                </p>
+                <p className="text-[11px] text-[var(--foreground-muted)]">AI wiki generator</p>
+              </div>
             </Link>
+
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
+              <Link href="/" className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
+                {messages.common?.home || 'Home'}
+              </Link>
+              <Link href="/wiki/projects" className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
+                {messages.repoPage?.indexedWiki || 'Indexed Wiki'}
+              </Link>
+              <Link href="/jobs" className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
+                {messages.common?.jobs || 'Jobs'}
+                <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
+              </Link>
+            </nav>
+
+            <div className="flex items-center gap-3">
+              <Link
+                href="/"
+                className="md:hidden text-sm font-medium text-[var(--accent-primary)] hover:text-[var(--highlight)] transition-colors"
+              >
+                {messages.repoPage?.home || 'Home'}
+              </Link>
+              <button
+                onClick={() => setIsModelSelectionModalOpen(true)}
+                className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-sm font-medium shadow-sm hover:bg-[var(--accent-primary)]/90 transition-colors"
+              >
+                <FaSync className={isLoading ? 'animate-spin' : ''} />
+                {messages.repoPage?.refreshWiki || 'Refresh Wiki'}
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-[90%] xl:max-w-[1400px] mx-auto overflow-y-auto">
+      <main className="flex-1 w-full">
+        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-10 flex flex-col gap-6 h-full">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center p-8 bg-[var(--card-bg)] rounded-lg shadow-custom card-japanese">
+          <div className="flex flex-col items-center justify-center p-8 bg-[var(--background)]/70 rounded-2xl shadow-sm border border-[var(--glass-border)]">
             <div className="relative mb-6">
               <div className="absolute -inset-4 bg-[var(--accent-primary)]/10 rounded-full blur-md animate-pulse"></div>
               <div className="relative flex items-center justify-center">
@@ -2023,7 +2200,6 @@ IMPORTANT:
             </div>
             <p className="text-[var(--foreground)] text-center mb-3 font-serif">
               {loadingMessage || messages.common?.loading || 'Loading...'}
-              {isExporting && (messages.loading?.preparingDownload || ' Please wait while we prepare your download...')}
             </p>
 
             {/* Progress bar for page generation */}
@@ -2070,7 +2246,7 @@ IMPORTANT:
             )}
           </div>
         ) : error ? (
-          <div className="bg-[var(--highlight)]/5 border border-[var(--highlight)]/30 rounded-lg p-5 mb-4 shadow-sm">
+          <div className="bg-[var(--highlight)]/5 border border-[var(--highlight)]/30 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center text-[var(--highlight)] mb-3">
               <FaExclamationTriangle className="mr-2" />
               <span className="font-bold font-serif">{messages.repoPage?.errorTitle || messages.common?.error || 'Error'}</span>
@@ -2094,9 +2270,9 @@ IMPORTANT:
             </div>
           </div>
         ) : wikiStructure ? (
-          <div className="h-full overflow-y-auto flex flex-col lg:flex-row gap-4 w-full overflow-hidden bg-[var(--card-bg)] rounded-lg shadow-custom card-japanese">
+          <div className="flex flex-col lg:flex-row gap-6 w-full h-full">
             {/* Wiki Navigation */}
-            <div className="h-full w-full lg:w-[280px] xl:w-[320px] flex-shrink-0 bg-[var(--background)]/50 rounded-lg rounded-r-none p-5 border-b lg:border-b-0 lg:border-r border-[var(--border-color)] overflow-y-auto">
+            <div className="w-full lg:w-[280px] xl:w-[320px] flex-shrink-0 rounded-2xl p-5 bg-[var(--surface)]/70 backdrop-blur-sm shadow-sm overflow-y-auto">
               <h3 className="text-lg font-bold text-[var(--foreground)] mb-3 font-serif">{wikiStructure.title}</h3>
               <p className="text-[var(--muted)] text-sm mb-5 leading-relaxed">{wikiStructure.description}</p>
 
@@ -2145,7 +2321,7 @@ IMPORTANT:
                 <button
                   onClick={() => setIsModelSelectionModalOpen(true)}
                   disabled={isLoading}
-                  className="flex items-center w-full text-xs px-3 py-2 bg-[var(--background)] text-[var(--foreground)] rounded-md hover:bg-[var(--background)]/80 disabled:opacity-50 disabled:cursor-not-allowed border border-[var(--border-color)] transition-colors hover:cursor-pointer"
+                  className="btn-japanese w-full flex items-center justify-center text-xs px-3 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   <FaSync className={`mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                   {messages.repoPage?.refreshWiki || 'Refresh Wiki'}
@@ -2170,7 +2346,7 @@ IMPORTANT:
                     <button
                       onClick={() => exportWiki('json')}
                       disabled={isExporting}
-                      className="flex items-center text-xs px-3 py-2 bg-[var(--background)] text-[var(--foreground)] rounded-md hover:bg-[var(--background)]/80 disabled:opacity-50 disabled:cursor-not-allowed border border-[var(--border-color)] transition-colors"
+                      className="btn-japanese flex items-center text-xs px-3 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <FaFileExport className="mr-2" />
                       {messages.repoPage?.exportAsJson || 'Export as JSON'}
@@ -2196,9 +2372,9 @@ IMPORTANT:
             </div>
 
             {/* Wiki Content */}
-            <div id="wiki-content" className="w-full flex-grow p-6 lg:p-8 overflow-y-auto">
+            <div id="wiki-content" className="w-full flex-grow overflow-y-auto">
               {currentPageId && generatedPages[currentPageId] ? (
-                <div className="max-w-[900px] xl:max-w-[1000px] mx-auto">
+                <div className="max-w-5xl mx-auto px-2 sm:px-4 lg:px-6">
                   <h3 className="text-xl font-bold text-[var(--foreground)] mb-4 break-words font-serif">
                     {generatedPages[currentPageId].title}
                   </h3>
@@ -2247,13 +2423,16 @@ IMPORTANT:
             </div>
           </div>
         ) : null}
+        </div>
       </main>
 
-      <footer className="max-w-[90%] xl:max-w-[1400px] mx-auto mt-8 flex flex-col gap-4 w-full">
-        <div className="flex justify-center items-center gap-4 text-center text-[var(--muted)] text-sm h-fit w-full bg-[var(--card-bg)] rounded-lg p-3 shadow-sm border border-[var(--border-color)]">
-          <p className="font-serif">
-            {messages.footer?.copyright || 'DeepWiki - Generate Wiki from GitHub/Gitlab/Bitbucket repositories'}
-          </p>
+      <footer className="mt-auto bg-[var(--surface)] border-t border-[var(--glass-border)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex justify-center items-center text-center text-[var(--muted)] text-sm">
+            <p className="font-serif">
+              {messages.footer?.copyright || 'DeepWiki - Generate Wiki from GitHub/Gitlab/Bitbucket repositories'}
+            </p>
+          </div>
         </div>
       </footer>
 
@@ -2269,15 +2448,12 @@ IMPORTANT:
       )}
 
       {/* Ask Modal - Always render but conditionally show/hide */}
-      <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${isAskModalOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div className="bg-[var(--card-bg)] rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
-          <div className="flex items-center justify-end p-3 absolute top-0 right-0 z-10">
+      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${isAskModalOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} backdrop-blur-sm bg-black/70`}>
+        <div className="relative w-full max-w-4xl max-h-[80vh] bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--glass-border)] flex flex-col overflow-hidden">
+          <div className="flex items-center justify-end p-3 border-b border-[var(--glass-border)] bg-[var(--surface)]/80">
             <button
-              onClick={() => {
-                // Just close the modal without clearing the conversation
-                setIsAskModalOpen(false);
-              }}
-              className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors bg-[var(--card-bg)]/80 rounded-full p-2"
+              onClick={() => setIsAskModalOpen(false)}
+              className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors rounded-full p-2"
               aria-label="Close"
             >
               <FaTimes className="text-xl" />

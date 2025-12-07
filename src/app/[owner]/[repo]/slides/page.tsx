@@ -52,7 +52,6 @@ export default function SlidesPage() {
 
   // Extract tokens from search params
   const token = searchParams?.get('token') || '';
-  const repoType = searchParams?.get('type') || 'github';
   const localPath = searchParams?.get('local_path') ? decodeURIComponent(searchParams?.get('local_path') || '') : undefined;
   const repoUrl = searchParams?.get('repo_url') ? decodeURIComponent(searchParams?.get('repo_url') || '') : undefined;
   const providerParam = searchParams?.get('provider') || '';
@@ -60,6 +59,25 @@ export default function SlidesPage() {
   const isCustomModelParam = searchParams?.get('is_custom_model') === 'true';
   const customModelParam = searchParams?.get('custom_model') || '';
   const language = searchParams?.get('language') || 'en';
+
+  const repoHost = (() => {
+    if (!repoUrl) return '';
+    try {
+      return new URL(repoUrl).hostname.toLowerCase();
+    } catch (e) {
+      console.warn(`Invalid repoUrl provided: ${repoUrl}`);
+      return '';
+    }
+  })();
+  const repoType = repoHost?.includes('bitbucket')
+    ? 'bitbucket'
+    : repoHost?.includes('gitlab')
+      ? 'gitlab'
+      : repoHost?.includes('github')
+        ? 'github'
+        : repoHost?.includes('azure') || repoHost?.includes('visualstudio.com')
+          ? 'azure'
+          : searchParams?.get('type') || 'github';
 
   // Import language context for translations
   const { messages } = useLanguage();

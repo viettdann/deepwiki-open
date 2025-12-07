@@ -23,8 +23,8 @@
 
   --border-color: rgba(139, 92, 246, 0.2);
   --border-subtle: rgba(148, 163, 184, 0.1);
-  --card-bg: rgba(19, 19, 43, 0.6);
-  --glass-bg: rgba(19, 19, 43, 0.4);
+  --card-bg: rgb(19, 19, 43);
+  --glass-bg: rgb(19, 19, 43);
   --glass-border: rgba(139, 92, 246, 0.3);
   --highlight: #a78bfa;
   --muted: #64748b;
@@ -115,6 +115,24 @@ body > * {
   border-color: var(--accent-primary);
   box-shadow: 0 12px 40px 0 rgba(139, 92, 246, 0.2);
   transform: translateY(-2px);
+}
+
+/* Modal defaults: more opaque surfaces and backdrop */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 50;
+}
+
+.modal-surface,
+[role="dialog"],
+.dialog-surface {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
 }
 
 /* Gradient text */

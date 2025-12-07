@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_HOST || 'http://localhost:8001';
+const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
 
 interface RouteParams {
   params: Promise<{ jobId: string }>;
@@ -16,7 +17,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
+      },
     });
 
     if (!response.ok) {
