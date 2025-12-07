@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // The target backend server base URL, derived from environment variable or defaulted.
 // This should match the logic in your frontend's page.tsx for consistency.
 const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
+const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
 
 // HTTP streaming implementation for chat completions
 export async function POST(req: NextRequest) {
@@ -18,7 +19,8 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'text/event-stream', // Indicate that we expect a stream
+        'Accept': 'text/event-stream',
+        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
       },
       body: JSON.stringify(requestBody),
     });

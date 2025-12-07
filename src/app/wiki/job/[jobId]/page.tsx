@@ -136,8 +136,9 @@ export default function JobProgressPage() {
 
     // Connect directly to backend WebSocket
     const serverBaseUrl = process.env.NEXT_PUBLIC_SERVER_BASE_URL || 'http://localhost:8001';
+    const apiKey = process.env.NEXT_PUBLIC_DEEPWIKI_FRONTEND_API_KEY || '';
     const wsBaseUrl = serverBaseUrl.replace(/^http/, 'ws').replace(/^https/, 'wss');
-    const wsUrl = `${wsBaseUrl}/api/wiki/jobs/${jobId}/progress`;
+    const wsUrl = `${wsBaseUrl}/api/wiki/jobs/${jobId}/progress${apiKey ? `?api_key=${encodeURIComponent(apiKey)}` : ''}`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;

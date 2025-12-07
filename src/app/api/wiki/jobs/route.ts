@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       if (value) params.append(key, value);
     });
 
-    const url = `${JOBS_API_ENDPOINT}?${params}`;
+    const url = `${JOBS_API_ENDPOINT}?${params}${API_KEY ? `&api_key=${encodeURIComponent(API_KEY)}` : ''}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const response = await fetch(JOBS_API_ENDPOINT, {
+    const response = await fetch(`${JOBS_API_ENDPOINT}${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

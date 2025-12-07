@@ -38,7 +38,7 @@ const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
 
 export async function GET() {
   try {
-    const response = await fetch(PROJECTS_API_ENDPOINT, {
+    const response = await fetch(`${PROJECTS_API_ENDPOINT}${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -84,7 +84,7 @@ export async function DELETE(request: Request) {
     }
     const { owner, repo, repo_type, language } = body;
     const params = new URLSearchParams({ owner, repo, repo_type, language });
-    const response = await fetch(`${CACHE_API_ENDPOINT}?${params}`, {
+    const response = await fetch(`${CACHE_API_ENDPOINT}?${params}${API_KEY ? `&api_key=${encodeURIComponent(API_KEY)}` : ''}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
