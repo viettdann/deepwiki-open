@@ -23,8 +23,6 @@ VALID_API_KEYS: Set[str] = set(k.strip() for k in API_KEYS_RAW.split(',') if k.s
 EXEMPT_PATHS = {
     '/',
     '/health',
-    '/docs',
-    '/openapi.json',
     '/auth/status',
 }
 

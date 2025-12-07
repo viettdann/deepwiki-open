@@ -14,33 +14,13 @@ logger = logging.getLogger(__name__)
 
 # Configure watchfiles logger to show file paths
 watchfiles_logger = logging.getLogger("watchfiles.main")
-watchfiles_logger.setLevel(logging.DEBUG)  # Enable DEBUG to see file paths
+watchfiles_logger.setLevel(logging.WARNING)
 
 # Add the current directory to the path so we can import the api package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Apply watchfiles monkey patch BEFORE uvicorn import
-is_development = os.environ.get("NODE_ENV") != "production"
-if is_development:
-    import watchfiles
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    logs_dir = os.path.join(current_dir, "logs")
-    
-    original_watch = watchfiles.watch
-    def patched_watch(*args, **kwargs):
-        # Only watch the api directory but exclude logs subdirectory
-        # Instead of watching the entire api directory, watch specific subdirectories
-        api_subdirs = []
-        for item in os.listdir(current_dir):
-            item_path = os.path.join(current_dir, item)
-            if os.path.isdir(item_path) and item != "logs":
-                api_subdirs.append(item_path)
-        
-        # Also add Python files in the api root directory
-        api_subdirs.append(current_dir + "/*.py")
-        
-        return original_watch(*api_subdirs, **kwargs)
-    watchfiles.watch = patched_watch
+_env = os.environ.get("NODE_ENV", "production").strip().lower()
+is_development = _env not in ("production", "prod", "release")
 
 import uvicorn
 
@@ -84,5 +64,13 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         reload=is_development,
-        reload_excludes=["**/logs/*", "**/__pycache__/*", "**/*.pyc"] if is_development else None,
+        reload_dirs=[os.path.dirname(os.path.abspath(__file__))] if is_development else None,
+        reload_includes=["**/*.py"] if is_development else None,
+        reload_excludes=[
+            "**/logs/**",
+            "api/logs/**",
+            "**/*.log",
+            "**/__pycache__/**",
+            "**/*.pyc",
+        ] if is_development else None,
     )

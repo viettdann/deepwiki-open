@@ -34,7 +34,10 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(
     title="Simple Chat API",
-    description="Simplified API for streaming chat completions"
+    description="Simplified API for streaming chat completions",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
 )
 
 # Configure CORS
@@ -688,4 +691,4 @@ async def chat_completions_stream(request: ChatCompletionRequest):
 @app.get("/")
 async def root():
     """Root endpoint to check if the API is running"""
-    return {"status": "API is running", "message": "Navigate to /docs for API documentation"}
+    return {"status": "API is running"}
