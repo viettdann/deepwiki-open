@@ -16,7 +16,7 @@ DeepWiki is an AI-powered wiki generator for GitHub/GitLab/Bitbucket/Azure DevOp
 
 **Tech Stack:**
 - Frontend: Next.js 15 with React 19 and Tailwind CSS 4
-- Backend: FastAPI with async processing and HTTP streaming
+- Backend: FastAPI with async processing and HTTP streaming (no WebSocket)
 - Storage: SQLite + FAISS vector search + local filesystem cache
 
 ## Development Commands
@@ -104,16 +104,16 @@ docker-compose up     # Run full stack
 
 **Environment Variables**: All configs support `${ENV_VAR}` or `${ENV_VAR:-default}` placeholder substitution in JSON files.
 
-**HTTP Streaming**: Primary chat interface uses HTTP streaming (`POST /chat/completions/stream`) for real-time responses.
+**HTTP Streaming**: All real-time features use HTTP streaming for chat completions (`POST /chat/completions/stream`) and job progress tracking (`GET /api/wiki/jobs/{job_id}/progress/stream`).
 
-**Background Jobs**: Wiki generation uses async job system with checkpointing and progress tracking via WebSocket.
+**Background Jobs**: Wiki generation uses async job system with checkpointing and progress tracking via HTTP streaming.
 
 ## Common Tasks
 
 ### Working with API Endpoints
 - See AGENTS.api.md for complete API documentation
 - All `/api/*` endpoints require API key authentication
-- WebSocket endpoints for real-time updates
+- HTTP streaming endpoints for real-time updates (no WebSocket)
 
 ### Frontend Development
 - See AGENTS.frontend.md for component architecture
@@ -121,9 +121,9 @@ docker-compose up     # Run full stack
 - Dark theme with glassmorphism effects
 
 ### Streaming Integration
-- See AGENTS.streaming.md for HTTP streaming and WebSocket details
+- See AGENTS.streaming.md for HTTP streaming details
 - Chat completions via HTTP streaming (`POST /chat/completions/stream`)
-- Job progress via WebSocket (`WS /api/wiki/jobs/{job_id}/progress`)
+- Job progress via HTTP streaming (`GET /api/wiki/jobs/{job_id}/progress/stream`)
 
 ### Repository Processing
 - See AGENTS.workflow.md for pipeline details

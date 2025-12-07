@@ -174,3 +174,122 @@ export const createStreamingRequestPromise = (
   });
 };
 
+// Job progress types
+export interface JobProgressUpdate {
+  job_id: string;
+  status: string;
+  current_phase: number;
+  progress_percent: number;
+  message: string;
+  page_id?: string;
+  page_title?: string;
+  total_pages?: number;
+  completed_pages?: number;
+  failed_pages?: number;
+  error?: string;
+  heartbeat?: boolean;
+}
+
+/**
+ * Creates an HTTP streaming request for job progress updates
+ * @param jobId The job ID to stream progress for
+ * @param onUpdate Callback for progress updates
+ * @param onError Callback for errors
+ * @param onClose Callback for when the stream completes
+ * @returns Abort function to cancel the stream
+ */
+export const createJobProgressStream = (
+  jobId: string,
+  onUpdate: (update: JobProgressUpdate) => void,
+  onError: (error: Error) => void,
+  onClose: () => void
+): (() => void) => {
+  const controller = new AbortController();
+
+  const startStream = async () => {
+    try {
+      // Use Next.js API route proxy to handle API key on server side
+      const url = `/api/wiki/jobs/${jobId}/progress`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+        },
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorBody = await response.text();
+          if (errorBody) {
+            errorMessage += ` - ${errorBody}`;
+          }
+        } catch {
+          // Ignore errors reading error body
+        }
+        throw new Error(errorMessage);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('Failed to get response reader');
+      }
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          if (chunk) {
+            // Split by newlines in case multiple updates come in one chunk
+            const lines = chunk.split('\n').filter(line => line.trim());
+            for (const line of lines) {
+              try {
+                const update = JSON.parse(line) as JobProgressUpdate;
+                onUpdate(update);
+
+                // Close stream if job completed
+                if (update.status === 'completed' || update.status === 'failed' || update.status === 'cancelled') {
+                  reader.releaseLock();
+                  onClose();
+                  return;
+                }
+              } catch (parseError) {
+                console.error('Error parsing progress update:', parseError);
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+        onClose();
+      }
+
+    } catch (error) {
+      if (error instanceof Error) {
+        // Don't report abort errors as failures
+        if (error.name !== 'AbortError') {
+          onError(error);
+        }
+      } else {
+        onError(new Error('Unknown streaming error'));
+      }
+      onClose();
+    }
+  };
+
+  // Start streaming
+  startStream();
+
+  // Return abort function
+  return () => {
+    controller.abort();
+  };
+};
+

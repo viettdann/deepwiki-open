@@ -2,7 +2,7 @@
 
 ## Overview
 
-DeepWiki uses HTTP streaming for chat completions and WebSocket for job progress tracking. This hybrid approach was implemented in December 2025 (commit `f3d2105`) when the chat interface migrated from WebSocket to HTTP streaming for better compatibility and simpler architecture.
+DeepWiki uses HTTP streaming for all real-time features: chat completions and job progress tracking. This architecture provides better compatibility, simpler deployment, and consistent patterns across the application. The migration from WebSocket to HTTP streaming was completed in December 2025.
 
 ## HTTP Streaming for Chat Completions
 
@@ -192,20 +192,23 @@ await createStreamingRequest(
 );
 ```
 
-## WebSocket for Job Progress
+## HTTP Streaming for Job Progress
 
-WebSocket is still used for real-time job progress updates. This provides bidirectional communication for long-running wiki generation jobs.
+Job progress tracking uses HTTP streaming for real-time updates. This provides unidirectional server-to-client communication for long-running wiki generation jobs.
 
-### Backend WebSocket Endpoint
+### Backend HTTP Streaming Endpoint
 
-**Endpoint:** `WS /api/wiki/jobs/{job_id}/progress`
-**Location:** `api/routes/jobs.py` - `job_progress_websocket()`
+**Endpoint:** `GET /api/wiki/jobs/{job_id}/progress/stream`
+**Location:** `api/routes/jobs.py` - `job_progress_stream()`
 
 #### Authentication
-- Requires API key via query parameter: `?api_key=YOUR_API_KEY`
+- Requires API key via header: `X-API-Key: YOUR_API_KEY`
 - Validates job ownership implicitly
 
-#### Message Protocol
+#### Stream Protocol
+
+**Response Type:** `StreamingResponse` with `media_type="text/event-stream"`
+**Format:** Newline-delimited JSON objects
 
 **Progress Update Format:**
 ```json
@@ -244,78 +247,101 @@ WebSocket is still used for real-time job progress updates. This provides bidire
 }
 ```
 
-### Frontend WebSocket Usage
+### Frontend HTTP Streaming Client
 
-**Location:** `src/app/wiki/job/[jobId]/page.tsx`
+**API Route Proxy:** `src/app/api/wiki/jobs/[jobId]/progress/route.ts`
+
+The frontend uses a Next.js API route to proxy requests to the backend, handling API key authentication on the server side.
+
+**Client Function:** `src/utils/streamingClient.ts` - `createJobProgressStream()`
 
 ```typescript
-useEffect(() => {
-  if (!jobId) return;
-
-  const wsUrl = `ws://localhost:8001/api/wiki/jobs/${jobId}/progress?api_key=${apiKey}`;
-  const ws = new WebSocket(wsUrl);
-
-  ws.onmessage = (event) => {
-    const update = JSON.parse(event.data);
+const abortStream = createJobProgressStream(
+  jobId,
+  // onUpdate callback
+  (update: JobProgressUpdate) => {
     setJobProgress(update);
 
     if (update.status === 'completed' || update.status === 'failed') {
-      ws.close();
+      // Stream will auto-close
     }
-  };
+  },
+  // onError callback
+  (error: Error) => {
+    console.error('Progress streaming error:', error);
+  },
+  // onClose callback
+  () => {
+    console.log('Progress stream closed');
+  }
+);
 
-  ws.onerror = () => {
-    console.error('WebSocket error');
-  };
+// Cleanup function
+return () => abortStream();
+```
 
-  return () => {
-    ws.close();
-  };
-}, [jobId]);
+**Request Flow:**
+```
+Frontend → GET /api/wiki/jobs/{id}/progress (Next.js API Route)
+         → GET /api/wiki/jobs/{id}/progress/stream (Backend with API key)
+         → Stream response back to client
 ```
 
 ## Migration from WebSocket to HTTP Streaming
 
-### What Changed
+### Timeline
 
-**Commit:** `f3d2105` - "refactor(chat): replace websocket with http streaming implementation"
+1. **Commit `f3d2105`** (December 2025): Chat completions migrated to HTTP streaming
+2. **Commit `[current]`** (December 2025): Job progress migrated to HTTP streaming - **WebSocket fully removed**
+
+### Comparison
 
 | Aspect | WebSocket | HTTP Streaming |
 |--------|-----------|----------------|
 | **Protocol** | Bidirectional persistent connection | Unidirectional HTTP response |
-| **Connection Overhead** | Handshake + persistent connection | Single HTTP POST request |
+| **Connection Overhead** | Handshake + persistent connection | Single HTTP GET/POST request |
 | **Data Format** | Message-based (JSON) | Chunked text streaming |
 | **Error Recovery** | Manual reconnection logic | Automatic retry with backoff |
 | **Browser Support** | Requires WebSocket support | Universal HTTP support |
 | **Proxying** | Special proxy handling needed | Standard HTTP proxy |
 | **Complexity** | More event-driven handling | Simpler read/await patterns |
+| **Deployment** | Nginx WebSocket config required | Standard HTTP config |
 
 ### Removed Files/Functions
 
-**Previous WebSocket Chat Client** (deleted):
-- `createChatWebSocket()` function
-- WebSocket URL construction logic
-- WebSocket fallback mechanisms
+**Previous WebSocket Implementations** (deprecated/removed):
+- `api/routes/jobs.py` - `job_progress_websocket()` (removed)
+- `api/api.py` - `/ws/chat` endpoint (removed)
+- `api/websocket_wiki.py` - Legacy chat WebSocket (deprecated)
+- WebSocket imports from FastAPI (removed)
+
+**Frontend WebSocket Client** (removed):
+- `WebSocket` usage in `src/app/wiki/job/[jobId]/page.tsx`
+- WebSocket connection management code
+- Manual reconnection logic
 
 ### Updated Files
 
-1. **`src/utils/apiClient.ts`**
-   - `buildWebSocketUrl()` → repurposed for general API URLs
+**Backend:**
+1. **`api/routes/jobs.py`**
+   - Added `job_progress_stream()` - HTTP streaming endpoint
+   - Removed `job_progress_websocket()` - WebSocket endpoint
+   - Removed WebSocket imports
 
-2. **`src/utils/streamingClient.ts`** (NEW)
-   - Complete HTTP streaming implementation
-   - Replaces WebSocket client entirely
+2. **`api/api.py`**
+   - Removed `/ws/chat` WebSocket route
+   - Removed WebSocket imports
 
-3. **`src/components/Ask.tsx`**
-   - Removed WebSocket connection logic
-   - Now uses `createStreamingRequest()` directly
+**Frontend:**
+3. **`src/utils/streamingClient.ts`**
+   - Added `createJobProgressStream()` function
+   - Added `JobProgressUpdate` interface
+   - Consistent pattern with chat streaming
 
-4. **`src/app/[owner]/[repo]/page.tsx`**
-   - Removed 90+ lines of WebSocket + fallback logic
-   - Replaced with HTTP fetch + stream reading
-
-5. **`.env.example`**
-   - Added `NEXT_PUBLIC_DEEPWIKI_FRONTEND_API_KEY`
+4. **`src/app/wiki/job/[jobId]/page.tsx`**
+   - Replaced WebSocket connection with HTTP streaming
+   - Uses `createJobProgressStream()` client
+   - Simpler connection lifecycle management
 
 ## Streaming Protocol Details
 
@@ -395,15 +421,18 @@ Add `[DEEP RESEARCH]` prefix to message content:
    - Informative error messages
    - Missing API key detection
 
-### WebSocket Errors
+### Job Progress Streaming Errors
 
 1. **Authentication Failures**
-   - Status code: 1008 (Policy Violation)
-   - Messages: "Missing API key", "Invalid API key"
+   - HTTP 401: Missing or invalid API key
+   - Header-based authentication
 
-2. **Connection Timeouts**
-   - 30-second heartbeat intervals
-   - Automatic reconnection in some cases
+2. **Job Not Found**
+   - HTTP 404: Job ID not found
+
+3. **Stream Interruptions**
+   - Auto-reconnect on network errors
+   - Heartbeat every 30s to detect disconnections
 
 ## Performance Optimizations
 
@@ -434,17 +463,22 @@ Add `[DEEP RESEARCH]` prefix to message content:
 ### Environment Variables
 
 ```bash
-# Backend
-NEXT_PUBLIC_SERVER_BASE_URL=http://localhost:8001
+# Backend API Configuration (server-side only)
+SERVER_BASE_URL=http://localhost:8001
 DEEPWIKI_FRONTEND_API_KEY=your_frontend_api_key
 
-# Authentication
+# Backend Authentication
 DEEPWIKI_API_KEY_AUTH_ENABLED=true
 DEEPWIKI_BACKEND_API_KEYS=key1,key2,key3
 
 # CORS Origins
 DEEPWIKI_ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
+
+# Frontend Public URL (optional, for development)
+NEXT_PUBLIC_SERVER_BASE_URL=http://localhost:8001
 ```
+
+**Security Note:** `DEEPWIKI_FRONTEND_API_KEY` and `SERVER_BASE_URL` are server-side only (no `NEXT_PUBLIC_` prefix). The Next.js API routes proxy requests with the API key to keep it secure.
 
 ### Streaming Options
 
@@ -467,7 +501,7 @@ DEEPWIKI_ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 
 ### Protected Endpoints (API Key Required)
 - `POST /chat/completions/stream` - Chat streaming
-- `WS /api/wiki/jobs/{job_id}/progress` - Job progress
+- `GET /api/wiki/jobs/{job_id}/progress/stream` - Job progress streaming
 - All `/api/*` endpoints
 
 ## Troubleshooting
@@ -524,8 +558,17 @@ tail -f api/logs/application.log
 
 ## References
 
+**Chat Streaming:**
 - **Backend Implementation:** `api/simple_chat.py`
-- **Frontend Client:** `src/utils/streamingClient.ts`
+- **Frontend Client:** `src/utils/streamingClient.ts` - `createStreamingRequest()`
 - **API Proxy:** `src/app/api/chat/stream/route.ts`
 - **Chat Component:** `src/components/Ask.tsx`
-- **Job Progress WebSocket:** `api/routes/jobs.py`
+
+**Job Progress Streaming:**
+- **Backend Implementation:** `api/routes/jobs.py` - `job_progress_stream()`
+- **API Route Proxy:** `src/app/api/wiki/jobs/[jobId]/progress/route.ts`
+- **Frontend Client:** `src/utils/streamingClient.ts` - `createJobProgressStream()`
+- **Job Progress Page:** `src/app/wiki/job/[jobId]/page.tsx`
+
+**Migration Documentation:**
+- **Migration Guide:** `MIGRATION-WEBSOCKET-TO-HTTP-STREAMING.md`
