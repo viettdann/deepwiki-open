@@ -46,8 +46,6 @@ from api.config import GOOGLE_API_KEY
 
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-else:
-    logger.warning("GOOGLE_API_KEY not configured")
 
 if __name__ == "__main__":
     # Get port from environment variable or use default
