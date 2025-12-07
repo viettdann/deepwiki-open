@@ -7,7 +7,7 @@ Primary guidance for AI agents when working with code in this repository.
 
 - **API Details**: See AGENTS.api.md
 - **Frontend Guide**: See AGENTS.frontend.md
-- **WebSocket Protocol**: See AGENTS.websocket.md
+- **HTTP Streaming & Real-time Updates**: See AGENTS.streaming.md
 - **Workflow/Processing**: See AGENTS.workflow.md
 
 ## Project Overview
@@ -16,7 +16,7 @@ DeepWiki is an AI-powered wiki generator for GitHub/GitLab/Bitbucket/Azure DevOp
 
 **Tech Stack:**
 - Frontend: Next.js 15 with React 19 and Tailwind CSS 4
-- Backend: FastAPI with async processing and WebSocket support
+- Backend: FastAPI with async processing and HTTP streaming
 - Storage: SQLite + FAISS vector search + local filesystem cache
 
 ## Development Commands
@@ -77,8 +77,7 @@ docker-compose up     # Run full stack
 - `api/rag.py`: RAG implementation with FAISS retriever
 - `api/data_pipeline.py`: Repository cloning, document processing
 - `api/config.py`: Provider configuration loader
-- `api/websocket_wiki.py`: WebSocket chat endpoint
-- `api/simple_chat.py`: HTTP streaming chat endpoint
+- `api/simple_chat.py`: HTTP streaming chat endpoint (primary)
 
 **Background Job System (`api/background/`):**
 - `worker.py`: Async worker for wiki generation
@@ -105,7 +104,7 @@ docker-compose up     # Run full stack
 
 **Environment Variables**: All configs support `${ENV_VAR}` or `${ENV_VAR:-default}` placeholder substitution in JSON files.
 
-**Streaming Responses**: Both WebSocket (`/ws/chat`) and HTTP POST (`/chat/completions/stream`) endpoints support streaming.
+**HTTP Streaming**: Primary chat interface uses HTTP streaming (`POST /chat/completions/stream`) for real-time responses.
 
 **Background Jobs**: Wiki generation uses async job system with checkpointing and progress tracking via WebSocket.
 
@@ -121,10 +120,10 @@ docker-compose up     # Run full stack
 - Uses Next.js App Router with TypeScript
 - Dark theme with glassmorphism effects
 
-### WebSocket Integration
-- See AGENTS.websocket.md for protocol details
-- Chat completions via `/ws/chat`
-- Job progress via `/api/wiki/jobs/{job_id}/progress`
+### Streaming Integration
+- See AGENTS.streaming.md for HTTP streaming and WebSocket details
+- Chat completions via HTTP streaming (`POST /chat/completions/stream`)
+- Job progress via WebSocket (`WS /api/wiki/jobs/{job_id}/progress`)
 
 ### Repository Processing
 - See AGENTS.workflow.md for pipeline details
