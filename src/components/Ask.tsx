@@ -7,7 +7,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import RepoInfo from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
 import ModelSelectionModal from './ModelSelectionModal';
-import { createChatWebSocket, closeWebSocket, ChatCompletionRequest } from '@/utils/websocketClient';
+import { createStreamingRequest, ChatCompletionRequest } from '@/utils/streamingClient';
 
 interface Model {
   id: string;
@@ -100,13 +100,7 @@ const Ask: React.FC<AskProps> = ({
     }
   }, [response]);
 
-  // Close WebSocket when component unmounts
-  useEffect(() => {
-    return () => {
-      closeWebSocket(webSocketRef.current);
-    };
-  }, []);
-
+  
   useEffect(() => {
     providerRef.current = provider;
     modelRef.current = model;
@@ -274,9 +268,7 @@ const Ask: React.FC<AskProps> = ({
     }
   };
 
-  // WebSocket reference
-  const webSocketRef = useRef<WebSocket | null>(null);
-
+  
   // Function to continue research automatically
   const continueResearch = async () => {
     if (!deepResearch || researchComplete || !response || isLoading) return;
@@ -328,13 +320,10 @@ const Ask: React.FC<AskProps> = ({
         requestBody.token = repoInfo.token;
       }
 
-      // Close any existing WebSocket connection
-      closeWebSocket(webSocketRef.current);
-
       let fullResponse = '';
 
-      // Create a new WebSocket connection
-      webSocketRef.current = createChatWebSocket(
+      // Create a new HTTP streaming request
+      await createStreamingRequest(
         requestBody,
         // Message handler
         (message: string) => {
@@ -366,16 +355,15 @@ const Ask: React.FC<AskProps> = ({
           }
         },
         // Error handler
-        (error: Event) => {
-          console.error('WebSocket error:', error);
-          setResponse(prev => prev + '\n\nError: WebSocket connection failed. Falling back to HTTP...');
+        (error: Error) => {
+          console.error('Streaming error:', error);
+          setResponse(prev => prev + `\n\nError: ${error.message}`);
 
-          // Fallback to HTTP if WebSocket fails
-          fallbackToHttp(requestBody);
+          // No fallback needed since we're already using HTTP
         },
         // Close handler
         () => {
-          // Check if research is complete when the WebSocket closes
+          // Check if research is complete when the stream completes
           const isComplete = checkIfResearchComplete(fullResponse);
 
           // Force completion after a maximum number of iterations (5)
@@ -402,83 +390,7 @@ const Ask: React.FC<AskProps> = ({
     }
   };
 
-  // Fallback to HTTP if WebSocket fails
-  const fallbackToHttp = async (requestBody: ChatCompletionRequest) => {
-    try {
-      // Make the API call using HTTP
-      const apiResponse = await fetch(`/api/chat/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!apiResponse.ok) {
-        throw new Error(`API error: ${apiResponse.status}`);
-      }
-
-      // Process the streaming response
-      const reader = apiResponse.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) {
-        throw new Error('Failed to get response reader');
-      }
-
-      // Read the stream
-      let fullResponse = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        fullResponse += chunk;
-        setResponse(fullResponse);
-
-        // Extract research stage if this is a deep research response
-        if (deepResearch) {
-          const stage = extractResearchStage(fullResponse, researchIteration);
-          if (stage) {
-            // Add the stage to the research stages
-            setResearchStages(prev => {
-              const existingStageIndex = prev.findIndex(s => s.iteration === stage.iteration && s.type === stage.type);
-              if (existingStageIndex >= 0) {
-                const newStages = [...prev];
-                newStages[existingStageIndex] = stage;
-                return newStages;
-              } else {
-                return [...prev, stage];
-              }
-            });
-          }
-        }
-      }
-
-      // Check if research is complete
-      const isComplete = checkIfResearchComplete(fullResponse);
-
-      // Force completion after a maximum number of iterations (5)
-      const forceComplete = researchIteration >= 5;
-
-      if (forceComplete && !isComplete) {
-        // If we're forcing completion, append a comprehensive conclusion to the response
-        const completionNote = "\n\n## Final Conclusion\nAfter multiple iterations of deep research, we've gathered significant insights about this topic. This concludes our investigation process, having reached the maximum number of research iterations. The findings presented across all iterations collectively form our comprehensive answer to the original question.";
-        fullResponse += completionNote;
-        setResponse(fullResponse);
-        setResearchComplete(true);
-      } else {
-        setResearchComplete(isComplete);
-      }
-    } catch (error) {
-      console.error('Error during HTTP fallback:', error);
-      setResponse(prev => prev + '\n\nError: Failed to get a response. Please try again.');
-      setResearchComplete(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  
   // Effect to continue research when response is updated
   useEffect(() => {
     if (deepResearch && response && !isLoading && !researchComplete) {
@@ -570,13 +482,10 @@ const Ask: React.FC<AskProps> = ({
         requestBody.token = repoInfo.token;
       }
 
-      // Close any existing WebSocket connection
-      closeWebSocket(webSocketRef.current);
-
       let fullResponse = '';
 
-      // Create a new WebSocket connection
-      webSocketRef.current = createChatWebSocket(
+      // Create a new HTTP streaming request
+      await createStreamingRequest(
         requestBody,
         // Message handler
         (message: string) => {
@@ -594,12 +503,12 @@ const Ask: React.FC<AskProps> = ({
           }
         },
         // Error handler
-        (error: Event) => {
-          console.error('WebSocket error:', error);
-          setResponse(prev => prev + '\n\nError: WebSocket connection failed. Falling back to HTTP...');
+        (error: Error) => {
+          console.error('Streaming error:', error);
+          setResponse(prev => prev + `\n\nError: ${error.message}`);
 
-          // Fallback to HTTP if WebSocket fails
-          fallbackToHttp(requestBody);
+          // No fallback needed since we're already using HTTP
+          setIsLoading(false);
         },
         // Close handler
         () => {

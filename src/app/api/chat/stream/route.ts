@@ -4,16 +4,12 @@ import { NextRequest, NextResponse } from 'next/server';
 // This should match the logic in your frontend's page.tsx for consistency.
 const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
 
-// This is a fallback HTTP implementation that will be used if WebSockets are not available
-// or if there's an error with the WebSocket connection
+// HTTP streaming implementation for chat completions
 export async function POST(req: NextRequest) {
   try {
     const requestBody = await req.json(); // Assuming the frontend sends JSON
 
-    // Note: This endpoint now uses the HTTP fallback instead of WebSockets
-    // The WebSocket implementation is in src/utils/websocketClient.ts
-    // This HTTP endpoint is kept for backward compatibility
-    console.log('Using HTTP fallback for chat completion instead of WebSockets');
+    console.log('Using HTTP streaming for chat completion');
 
     const targetUrl = `${TARGET_SERVER_BASE_URL}/chat/completions/stream`;
 
