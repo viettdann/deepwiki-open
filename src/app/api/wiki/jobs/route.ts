@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_HOST || 'http://localhost:8001';
 const JOBS_API_ENDPOINT = `${PYTHON_BACKEND_URL}/api/wiki/jobs`;
+const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
 
 /**
  * GET /api/wiki/jobs - List jobs with optional filters
@@ -20,7 +21,10 @@ export async function GET(request: NextRequest) {
     const url = `${JOBS_API_ENDPOINT}?${params}`;
     const response = await fetch(url, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
+      },
       cache: 'no-store',
     });
 
@@ -54,7 +58,10 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(JOBS_API_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
+      },
       body: JSON.stringify(body),
     });
 

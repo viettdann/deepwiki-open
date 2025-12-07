@@ -179,6 +179,7 @@ yarn.lock
 pnpm-lock.yaml
 npm-shrinkwrap.json
 poetry.lock
+uv.lock
 Pipfile.lock
 requirements.txt.lock
 Cargo.lock

@@ -24,13 +24,22 @@ app = FastAPI(
 )
 
 # Configure CORS
+# Load allowed origins from environment
+ALLOWED_ORIGINS = os.environ.get('DEEPWIKI_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
+
+# Add API key authentication middleware
+from api.middleware.auth import APIKeyMiddleware, log_auth_config
+app.add_middleware(APIKeyMiddleware)
+log_auth_config()
 
 # Helper function to get adalflow root path
 def get_adalflow_default_root_path():
@@ -412,6 +421,9 @@ async def startup_event():
     """Initialize background worker on app startup."""
     try:
         from api.background.worker import start_worker
+        from api.middleware.auth import log_auth_config
+
+        log_auth_config()
         await start_worker()
         logger.info("Background worker started successfully")
     except Exception as e:

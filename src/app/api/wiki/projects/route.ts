@@ -34,6 +34,7 @@ function isDeleteProjectCachePayload(obj: unknown): obj is DeleteProjectCachePay
 const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_HOST || 'http://localhost:8001';
 const PROJECTS_API_ENDPOINT = `${PYTHON_BACKEND_URL}/api/processed_projects`;
 const CACHE_API_ENDPOINT = `${PYTHON_BACKEND_URL}/api/wiki_cache`;
+const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
 
 export async function GET() {
   try {
@@ -41,7 +42,7 @@ export async function GET() {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        // Add any other headers your Python backend might require, e.g., API keys
+        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
       },
       cache: 'no-store', // Ensure fresh data is fetched every time
     });
@@ -85,7 +86,10 @@ export async function DELETE(request: Request) {
     const params = new URLSearchParams({ owner, repo, repo_type, language });
     const response = await fetch(`${CACHE_API_ENDPOINT}?${params}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
+      },
     });
     if (!response.ok) {
       let errorBody = { error: response.statusText };
