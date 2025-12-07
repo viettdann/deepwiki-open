@@ -20,7 +20,10 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(
     title="Streaming API",
-    description="API for streaming chat completions"
+    description="API for streaming chat completions",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
 )
 
 # Configure CORS
