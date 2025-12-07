@@ -7,13 +7,10 @@ interface RouteParams {
   params: Promise<{ jobId: string }>;
 }
 
-/**
- * POST /api/wiki/jobs/[jobId]/pause - Pause a job
- */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { jobId } = await params;
-    const url = `${PYTHON_BACKEND_URL}/api/wiki/jobs/${jobId}/pause${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`;
+    const url = `${PYTHON_BACKEND_URL}/api/wiki/jobs/${jobId}/retry${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -24,22 +21,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     if (!response.ok) {
-      let errorBody = { error: `Failed to pause job: ${response.statusText}` };
+      let errorBody: unknown = { error: `Failed to retry job: ${response.statusText}` };
       try {
         errorBody = await response.json();
       } catch {}
-      return NextResponse.json(errorBody, { status: response.status });
+      return NextResponse.json(
+        typeof errorBody === 'string' ? { error: errorBody } : (errorBody as object),
+        { status: response.status }
+      );
     }
 
     const data = await response.json();
     return NextResponse.json(data);
-
   } catch (error: unknown) {
-    console.error('Error pausing job:', error);
+    console.error('Error retrying job:', error);
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
-    return NextResponse.json(
-      { error: `Failed to pause job: ${message}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: `Failed to retry job: ${message}` }, { status: 500 });
   }
 }

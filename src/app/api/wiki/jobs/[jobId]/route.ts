@@ -13,7 +13,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { jobId } = await params;
-    const url = `${PYTHON_BACKEND_URL}/api/wiki/jobs/${jobId}`;
+    const url = `${PYTHON_BACKEND_URL}/api/wiki/jobs/${jobId}${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { jobId } = await params;
-    const url = `${PYTHON_BACKEND_URL}/api/wiki/jobs/${jobId}`;
+    const url = `${PYTHON_BACKEND_URL}/api/wiki/jobs/${jobId}${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`;
 
     const response = await fetch(url, {
       method: 'DELETE',

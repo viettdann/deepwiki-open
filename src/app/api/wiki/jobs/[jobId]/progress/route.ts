@@ -1,41 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// The target backend server base URL, derived from environment variable or defaulted.
-// This should match the logic in your frontend's page.tsx for consistency.
+// Backend server configuration
 const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
 const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
 
-// HTTP streaming implementation for chat completions
-export async function POST(req: NextRequest) {
+/**
+ * GET handler for job progress streaming
+ * Proxies requests to backend with server-side API key
+ */
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { jobId: string } }
+) {
   try {
-    const requestBody = await req.json(); // Assuming the frontend sends JSON
+    const jobId = params.jobId;
 
-    console.log('Using HTTP streaming for chat completion');
+    if (!jobId) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Job ID is required' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
-    const targetUrl = `${TARGET_SERVER_BASE_URL}/chat/completions/stream`;
+    console.log(`Proxying job progress stream for job: ${jobId}`);
 
-    // Make the actual request to the backend service
+    const targetUrl = `${TARGET_SERVER_BASE_URL}/api/wiki/jobs/${jobId}/progress/stream`;
+
+    // Make the request to the backend
     const backendResponse = await fetch(targetUrl, {
-      method: 'POST',
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache',
         ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
       },
-      body: JSON.stringify(requestBody),
     });
 
-    // If the backend service returned an error, forward that error to the client
+    // If backend returned an error, forward it to the client
     if (!backendResponse.ok) {
       const errorBody = await backendResponse.text();
-      const errorHeaders = new Headers();
-      backendResponse.headers.forEach((value, key) => {
-        errorHeaders.set(key, value);
-      });
       return new NextResponse(errorBody, {
         status: backendResponse.status,
         statusText: backendResponse.statusText,
-        headers: errorHeaders,
+        headers: {
+          'Content-Type': backendResponse.headers.get('Content-Type') || 'application/json'
+        }
       });
     }
 
@@ -44,7 +56,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse('Stream body from backend is null', { status: 500 });
     }
 
-    // Create a new ReadableStream to pipe the data from the backend to the client
+    // Create a ReadableStream to pipe data from backend to client
     const stream = new ReadableStream({
       async start(controller) {
         const reader = backendResponse.body!.getReader();
@@ -57,35 +69,34 @@ export async function POST(req: NextRequest) {
             controller.enqueue(value);
           }
         } catch (error) {
-          console.error('Error reading from backend stream in proxy:', error);
+          console.error('Error reading from backend stream:', error);
           controller.error(error);
         } finally {
           controller.close();
-          reader.releaseLock(); // Important to release the lock on the reader
+          reader.releaseLock();
         }
       },
       cancel(reason) {
-        console.log('Client cancelled stream request:', reason);
+        console.log('Client cancelled job progress stream:', reason);
       }
     });
 
-    // Set up headers for the response to the client
+    // Set up response headers
     const responseHeaders = new Headers();
-    // Copy the Content-Type from the backend response (e.g., 'text/event-stream')
     const contentType = backendResponse.headers.get('Content-Type');
     if (contentType) {
       responseHeaders.set('Content-Type', contentType);
     }
-    // It's good practice for streams not to be cached or transformed by intermediaries.
     responseHeaders.set('Cache-Control', 'no-cache, no-transform');
+    responseHeaders.set('X-Accel-Buffering', 'no'); // Disable nginx buffering
 
     return new NextResponse(stream, {
-      status: backendResponse.status, // Should be 200 for a successful stream start
+      status: backendResponse.status,
       headers: responseHeaders,
     });
 
   } catch (error) {
-    console.error('Error in API proxy route (/api/chat/stream):', error);
+    console.error('Error in job progress stream proxy:', error);
     let errorMessage = 'Internal Server Error in proxy';
     if (error instanceof Error) {
       errorMessage = error.message;
@@ -97,15 +108,17 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Optional: Handle OPTIONS requests for CORS if you ever call this from a different origin
-// or use custom headers that trigger preflight requests. For same-origin, it's less critical.
+/**
+ * OPTIONS handler for CORS preflight
+ */
 export async function OPTIONS() {
   return new NextResponse(null, {
-    status: 204, // No Content
+    status: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*', // Be more specific in production if needed
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization', // Adjust as per client's request headers
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+      'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
     },
   });
 }

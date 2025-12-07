@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 // import { useLanguage } from '@/contexts/LanguageContext';
 import { FaPause, FaPlay, FaTimes, FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaRedo } from 'react-icons/fa';
+import { createJobProgressStream, JobProgressUpdate } from '@/utils/streamingClient';
 
 const WikiIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
@@ -97,7 +98,7 @@ export default function JobProgressPage() {
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const wsRef = useRef<WebSocket | null>(null);
+  const abortStreamRef = useRef<(() => void) | null>(null);
   const prevProgressRef = useRef<{ completed: number; failed: number } | null>(null);
 
   // Fetch initial job status
@@ -128,66 +129,66 @@ export default function JobProgressPage() {
     fetchJob();
   }, [fetchJob]);
 
-  // WebSocket for real-time updates
+  // HTTP streaming for real-time updates
   useEffect(() => {
     if (!jobDetail || ['completed', 'failed', 'cancelled'].includes(jobDetail.job.status)) {
       return;
     }
 
-    // Connect directly to backend WebSocket
-    const serverBaseUrl = process.env.NEXT_PUBLIC_SERVER_BASE_URL || 'http://localhost:8001';
-    const wsBaseUrl = serverBaseUrl.replace(/^http/, 'ws').replace(/^https/, 'wss');
-    const wsUrl = `${wsBaseUrl}/api/wiki/jobs/${jobId}/progress`;
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.error) {
-        setError(data.error);
-        return;
-      }
-
-      if (!data.heartbeat) {
-        setProgress(data);
-
-        // Refresh job detail when status changes
-        if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
-          fetchJob();
+    // Start HTTP streaming for progress updates
+    const abortStream = createJobProgressStream(
+      jobId,
+      // onUpdate callback
+      (update: JobProgressUpdate) => {
+        if (update.error) {
+          setError(update.error);
+          return;
         }
 
-        // Refresh job detail when page statuses change (completed/failed count changes)
-        if (data.completed_pages !== undefined || data.failed_pages !== undefined) {
-          const completed = data.completed_pages ?? 0;
-          const failed = data.failed_pages ?? 0;
+        if (!update.heartbeat) {
+          setProgress(update);
 
-          if (prevProgressRef.current) {
-            if (
-              prevProgressRef.current.completed !== completed ||
-              prevProgressRef.current.failed !== failed
-            ) {
-              fetchJob();
-            }
+          // Refresh job detail when status changes
+          if (update.status === 'completed' || update.status === 'failed' || update.status === 'cancelled') {
+            fetchJob();
           }
 
-          prevProgressRef.current = { completed, failed };
+          // Refresh job detail when page statuses change (completed/failed count changes)
+          if (update.completed_pages !== undefined || update.failed_pages !== undefined) {
+            const completed = update.completed_pages ?? 0;
+            const failed = update.failed_pages ?? 0;
+
+            if (prevProgressRef.current) {
+              if (
+                prevProgressRef.current.completed !== completed ||
+                prevProgressRef.current.failed !== failed
+              ) {
+                fetchJob();
+              }
+            }
+
+            prevProgressRef.current = { completed, failed };
+          }
         }
+      },
+      // onError callback
+      (error: Error) => {
+        console.error('Progress streaming error:', error);
+        setError(error.message);
+      },
+      // onClose callback
+      () => {
+        console.log('Progress stream closed');
       }
-    };
+    );
 
-    ws.onerror = () => {
-      console.error('WebSocket error');
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket closed');
-    };
+    abortStreamRef.current = abortStream;
 
     return () => {
-      ws.close();
-      wsRef.current = null;
+      if (abortStreamRef.current) {
+        abortStreamRef.current();
+        abortStreamRef.current = null;
+      }
     };
   }, [jobDetail, jobId, fetchJob]);
 

@@ -25,13 +25,13 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
 }
 
 /**
- * Build WebSocket URL with API key as query parameter
+ * Build API URL with API key as query parameter
  *
- * @param baseUrl - Base WebSocket URL
+ * @param baseUrl - Base API URL
  * @param apiKey - Optional API key (uses env var if not provided)
- * @returns WebSocket URL with api_key query parameter
+ * @returns API URL with api_key query parameter
  */
-export function buildWebSocketUrl(baseUrl: string, apiKey?: string): string {
+export function buildApiUrl(baseUrl: string, apiKey?: string): string {
   const key = apiKey || API_KEY;
 
   if (!key) {
@@ -41,3 +41,4 @@ export function buildWebSocketUrl(baseUrl: string, apiKey?: string): string {
   const separator = baseUrl.includes('?') ? '&' : '?';
   return `${baseUrl}${separator}api_key=${encodeURIComponent(key)}`;
 }
+

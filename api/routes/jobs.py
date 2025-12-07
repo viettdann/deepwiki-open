@@ -6,7 +6,8 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 
 from api.background.models import (
     CreateJobRequest, JobResponse, JobDetailResponse, JobListResponse,
@@ -133,97 +134,124 @@ async def retry_page(job_id: str, page_id: str):
     return {"message": "Page queued for retry"}
 
 
-@router.websocket("/{job_id}/progress")
-async def job_progress_websocket(websocket: WebSocket, job_id: str):
+@router.get("/{job_id}/progress/stream")
+async def job_progress_stream(job_id: str, request: Request):
     """
-    WebSocket endpoint for real-time job progress updates.
+    HTTP streaming endpoint for real-time job progress updates.
+    Replaces WebSocket with simpler HTTP streaming architecture.
     """
-    await websocket.accept()
-
-    # Validate API key if auth is enabled
     from api.config import API_KEY_AUTH_ENABLED, API_KEYS
 
+    # Validate API key if auth is enabled
     if API_KEY_AUTH_ENABLED:
-        api_key = websocket.query_params.get('api_key')
-
+        api_key = request.headers.get('x-api-key')
         if not api_key:
-            await websocket.send_text("Error: Missing API key")
-            await websocket.close(code=1008, reason="Missing API key")
-            return
-
+            raise HTTPException(status_code=401, detail="Missing API key")
         if api_key not in API_KEYS:
-            await websocket.send_text("Error: Invalid API key")
-            await websocket.close(code=1008, reason="Invalid API key")
-            return
+            raise HTTPException(status_code=401, detail="Invalid API key")
 
     # Get current job status
     job = await JobManager.get_job(job_id)
     if not job:
-        await websocket.send_json({"error": "Job not found"})
-        await websocket.close()
-        return
+        raise HTTPException(status_code=404, detail="Job not found")
 
-    # Send current status
-    await websocket.send_json({
-        "job_id": job_id,
-        "status": job.status.value,
-        "current_phase": job.current_phase,
-        "progress_percent": job.progress_percent,
-        "message": f"Status: {job.status.value}",
-        "total_pages": job.total_pages,
-        "completed_pages": job.completed_pages,
-        "failed_pages": job.failed_pages
-    })
-
-    # If job is already complete, close connection
-    if job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
-        await websocket.close()
-        return
-
-    # Register for progress updates
-    worker = await get_worker()
-
-    async def progress_callback(update: JobProgressUpdate):
+    async def stream_progress():
+        """Generator function that streams job progress updates."""
         try:
-            await websocket.send_json({
-                "job_id": update.job_id,
-                "status": update.status.value,
-                "current_phase": update.current_phase,
-                "progress_percent": update.progress_percent,
-                "message": update.message,
-                "page_id": update.page_id,
-                "page_title": update.page_title,
-                "total_pages": update.total_pages,
-                "completed_pages": update.completed_pages,
-                "failed_pages": update.failed_pages,
-                "error": update.error
-            })
+            # Send initial status
+            initial_update = {
+                "job_id": job_id,
+                "status": job.status.value,
+                "current_phase": job.current_phase,
+                "progress_percent": job.progress_percent,
+                "message": f"Status: {job.status.value}",
+                "total_pages": job.total_pages,
+                "completed_pages": job.completed_pages,
+                "failed_pages": job.failed_pages
+            }
+            yield json.dumps(initial_update) + "\n"
 
-            # Close if job completed
-            if update.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
-                await websocket.close()
-        except Exception:
-            pass
+            # If job is already complete, close stream
+            if job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
+                return
 
-    worker.register_progress_callback(job_id, progress_callback)
+            # Register for progress updates
+            worker = await get_worker()
+            update_queue = asyncio.Queue()
 
-    try:
-        # Keep connection alive until job completes or client disconnects
-        while True:
+            async def progress_callback(update: JobProgressUpdate):
+                """Callback that receives progress updates and queues them."""
+                try:
+                    await update_queue.put({
+                        "job_id": update.job_id,
+                        "status": update.status.value,
+                        "current_phase": update.current_phase,
+                        "progress_percent": update.progress_percent,
+                        "message": update.message,
+                        "page_id": update.page_id,
+                        "page_title": update.page_title,
+                        "total_pages": update.total_pages,
+                        "completed_pages": update.completed_pages,
+                        "failed_pages": update.failed_pages,
+                        "error": update.error
+                    })
+                except Exception as e:
+                    logger.error(f"Error in progress callback: {e}")
+
+            worker.register_progress_callback(job_id, progress_callback)
+
             try:
-                # Wait for any message from client (mostly for detecting disconnects)
-                # We don't expect data from client, but we need to listen to detect closure
-                await asyncio.wait_for(websocket.receive_text(), timeout=30)
-            except asyncio.TimeoutError:
-                # Send heartbeat and check job status
-                job = await JobManager.get_job(job_id)
-                if job and job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
-                    break
-                await websocket.send_json({"heartbeat": True})
+                # Stream updates until job completes or client disconnects
+                while True:
+                    try:
+                        # Wait for updates with timeout for heartbeat
+                        update = await asyncio.wait_for(update_queue.get(), timeout=30)
 
-    except WebSocketDisconnect:
-        logger.info(f"Client disconnected from job {job_id} progress")
-    except Exception as e:
-        logger.error(f"WebSocket error for job {job_id}: {e}")
-    finally:
-        worker.unregister_progress_callback(job_id)
+                        # Send the update
+                        yield json.dumps(update) + "\n"
+
+                        # Check if job completed
+                        if update["status"] in ["completed", "failed", "cancelled"]:
+                            break
+
+                    except asyncio.TimeoutError:
+                        # Send heartbeat and check job status
+                        current_job = await JobManager.get_job(job_id)
+                        if current_job and current_job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
+                            # Send final status update
+                            final_update = {
+                                "job_id": job_id,
+                                "status": current_job.status.value,
+                                "current_phase": current_job.current_phase,
+                                "progress_percent": current_job.progress_percent,
+                                "message": f"Status: {current_job.status.value}",
+                                "total_pages": current_job.total_pages,
+                                "completed_pages": current_job.completed_pages,
+                                "failed_pages": current_job.failed_pages
+                            }
+                            yield json.dumps(final_update) + "\n"
+                            break
+
+                        # Send heartbeat
+                        yield json.dumps({"heartbeat": True}) + "\n"
+
+            finally:
+                # Cleanup: unregister callback
+                worker.unregister_progress_callback(job_id)
+                logger.info(f"Client disconnected from job {job_id} progress stream")
+
+        except Exception as e:
+            logger.error(f"Error in progress stream for job {job_id}: {e}")
+            yield json.dumps({"error": str(e)}) + "\n"
+
+    return StreamingResponse(
+        stream_progress(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable buffering in nginx
+        }
+    )
+
+

@@ -64,15 +64,6 @@ const nextConfig: NextConfig = {
         source: '/api/lang/config',
         destination: `${TARGET_SERVER_BASE_URL}/lang/config`,
       },
-      // Background jobs API
-      {
-        source: '/api/wiki/jobs',
-        destination: `${TARGET_SERVER_BASE_URL}/api/wiki/jobs`,
-      },
-      {
-        source: '/api/wiki/jobs/:path*',
-        destination: `${TARGET_SERVER_BASE_URL}/api/wiki/jobs/:path*`,
-      },
     ];
   },
 };
