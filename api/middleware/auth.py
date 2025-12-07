@@ -1,7 +1,7 @@
 """
 API Key Authentication Middleware for DeepWiki
 
-Validates X-API-Key header (REST) or api_key query param (WebSocket)
+Validates X-API-Key header for all API requests
 """
 import os
 import logging
@@ -30,9 +30,8 @@ EXEMPT_PATHS = {
 class APIKeyMiddleware(BaseHTTPMiddleware):
     """
     Middleware to validate API keys for incoming requests
-    
-    - Checks X-API-Key header for REST endpoints
-    - Allows api_key query param for WebSocket (handled separately)
+
+    - Checks X-API-Key header for all endpoints
     - Skips authentication if disabled
     - Exempts certain paths from authentication
     """
@@ -49,13 +48,9 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         # Skip OPTIONS requests (CORS preflight)
         if request.method == "OPTIONS":
             return await call_next(request)
-        
-        # Skip WebSocket endpoints (auth handled in endpoint)
-        if request.url.path.startswith('/ws/'):
-            return await call_next(request)
-        
-        # Extract API key from header or query param
-        api_key = request.headers.get('X-API-Key') or request.query_params.get('api_key')
+
+        # Extract API key from header
+        api_key = request.headers.get('X-API-Key')
         
         # Check if API key is missing
         if not api_key:
@@ -64,7 +59,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={
                     "detail": "Missing API key",
-                    "error": "API key required in X-API-Key header or api_key query parameter"
+                    "error": "API key required in X-API-Key header"
                 }
             )
         

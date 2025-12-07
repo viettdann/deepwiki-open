@@ -60,9 +60,9 @@ src/
 └── utils/                     # Utility functions
     ├── apiClient.ts          # API client with authentication
     ├── backgroundJobClient.ts # Background job management
+    ├── streamingClient.ts    # HTTP streaming communication
     ├── getRepoUrl.tsx         # Repository URL parsing
-    ├── urlDecoder.tsx        # URL parsing utilities
-    └── websocketClient.ts    # WebSocket communication
+    └── urlDecoder.tsx        # URL parsing utilities
 ```
 
 ## Architecture
@@ -90,7 +90,7 @@ The application uses Next.js 15's App Router with the following key routes:
 - **Configuration Modal**: Repository settings and LLM configuration
 
 #### Reusable Components
-- **Ask Component**: Chat interface with WebSocket streaming
+- **Ask Component**: Chat interface with HTTP streaming
 - **WikiTreeView**: Interactive sidebar navigation
 - **Markdown**: Enhanced markdown renderer with syntax highlighting
 - **Mermaid**: Diagram rendering with zoom capabilities
@@ -135,10 +135,10 @@ const response = await fetch('/api/wiki/projects');
 const data = await response.json();
 ```
 
-#### 2. WebSocket for Real-time Chat
+#### 2. HTTP Streaming for Real-time Chat
 ```typescript
-// Pattern from websocketClient.ts
-const ws = createChatWebSocket(request, onMessage, onError, onClose);
+// Pattern from streamingClient.ts
+await createStreamingRequest(request, onMessage, onError, onClose);
 ```
 
 #### 3. API Client with Authentication
@@ -159,7 +159,7 @@ Frontend API routes proxy to backend:
 The frontend tracks background jobs through:
 - `/api/wiki/jobs` - Job listing
 - `/api/wiki/jobs/[jobId]` - Job status
-- WebSocket updates for real-time progress
+- HTTP streaming for real-time progress updates
 
 ## Styling Approach
 
@@ -304,7 +304,7 @@ webpack: (config) => {
 
 #### Data Fetching
 - **useProcessedProjects hook** with caching
-- **WebSocket streaming** for real-time updates
+- **HTTP streaming** for real-time updates
 - **Optimized API calls** with proper error handling
 
 ### Rendering Optimizations
@@ -314,7 +314,7 @@ webpack: (config) => {
 - **Virtual scrolling** for large lists (WikiTreeView)
 
 ### Memory Management
-- **WebSocket cleanup** on component unmount
+- **Stream cleanup** on component unmount
 - **Event listener removal** for proper cleanup
 - **localStorage size management** for cached configs
 
@@ -344,7 +344,7 @@ interface ModalProps {
 
 #### Chat Interface Pattern
 - **Message history** with role differentiation
-- **Streaming responses** with WebSocket
+- **Streaming responses** with HTTP streaming
 - **Input focus management**
 - **Scroll to bottom** on new messages
 

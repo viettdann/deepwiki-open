@@ -13,7 +13,7 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { jobId, pageId } = await params;
-    const url = `${PYTHON_BACKEND_URL}/api/wiki/jobs/${jobId}/pages/${pageId}/retry`;
+    const url = `${PYTHON_BACKEND_URL}/api/wiki/jobs/${jobId}/pages/${pageId}/retry${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`;
 
     const response = await fetch(url, {
       method: 'POST',

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The DeepWiki API is a comprehensive system designed to generate AI-powered wikis from GitHub/GitLab/Bitbucket repositories. Built with FastAPI, it provides both RESTful and WebSocket interfaces for wiki generation, chat completions, and repository analysis.
+The DeepWiki API is a comprehensive system designed to generate AI-powered wikis from GitHub/GitLab/Bitbucket repositories. Built with FastAPI, it provides RESTful endpoints and HTTP streaming for wiki generation, chat completions, and repository analysis.
 
 ## Architecture
 
@@ -11,12 +11,12 @@ The DeepWiki API is a comprehensive system designed to generate AI-powered wikis
 1. **FastAPI Application** (`api/api.py`)
    - Main API server with CORS and authentication middleware
    - RESTful endpoints for wiki operations
-   - WebSocket endpoint for real-time chat
+   - HTTP streaming endpoint for real-time chat
 
 2. **Background Job System** (`api/background/`)
    - Asynchronous worker for wiki generation
    - Job persistence with SQLite database
-   - Real-time progress tracking via WebSocket
+   - Real-time progress tracking via HTTP streaming
 
 3. **RAG (Retrieval-Augmented Generation)** Integration
    - Document embedding and retrieval
@@ -376,19 +376,16 @@ DELETE /api/wiki/jobs/{job_id}
 POST /api/wiki/jobs/{job_id}/pages/{page_id}/retry
 ```
 
-### WebSocket Progress Updates
+### HTTP Streaming Progress Updates
 
 ```
-WS /api/wiki/jobs/{job_id}/progress?api_key=your-api-key
+GET /api/wiki/jobs/{job_id}/progress/stream
+Headers: X-API-Key: your-api-key
 ```
 
-### Chat WebSocket
+**Response:** Server-sent events stream with newline-delimited JSON
 
-```
-WS /ws/chat?api_key=your-api-key
-```
-
-**Initial Message:**
+**Progress Update Format:**
 ```json
 {
   "job_id": "uuid-string",
@@ -401,6 +398,13 @@ WS /ws/chat?api_key=your-api-key
   "total_pages": 8,
   "completed_pages": 6,
   "failed_pages": 0
+}
+```
+
+**Heartbeat Message (every 30s):**
+```json
+{
+  "heartbeat": true
 }
 ```
 
@@ -516,36 +520,12 @@ The API loads configuration from `api/config/` directory:
 - Efficient file tree fetching
 - Batched page processing
 
-## WebSocket Chat Protocol
-
-### Connection Setup
-```javascript
-const ws = new WebSocket('ws://localhost:8001/ws/chat?api_key=your-key');
-```
-
-### Message Format
-```json
-{
-  "repo_url": "https://github.com/owner/repo",
-  "messages": [...],
-  "filePath": null,
-  "token": null,
-  "type": "github",
-  "provider": "google",
-  "model": "gemini-2.5-flash",
-  "language": "en"
-}
-```
-
-### Deep Research Mode
-Include `[DEEP RESEARCH]` in message content for multi-turn analysis.
-
 ## Integration Patterns
 
 ### Frontend Integration
 - Use `/models/config` to get available models
 - Create jobs via `/api/wiki/jobs`
-- Monitor progress via WebSocket
+- Monitor progress via HTTP streaming
 - Export wikis with `/export/wiki`
 
 ### Third-Party Systems
@@ -591,7 +571,6 @@ The API uses API key authentication that can be provided in two ways:
 - `POST /chat/completions/stream` - Chat completions
 - `POST /export/wiki` - Wiki export
 - `GET /local_repo/structure` - Local repository structure
-- All WebSocket endpoints
 
 
 1. **Authentication**
@@ -648,10 +627,10 @@ Returns API health status and timestamp.
    - Review server logs for error details
    - Verify LLM API credentials and quotas
 
-3. **WebSocket Connection Issues**
+3. **Streaming Connection Issues**
    - Ensure API key is provided
    - Check CORS settings
-   - Verify WebSocket endpoint availability
+   - Verify streaming endpoint availability
 
 ### Debug Mode
 Set `LOG_LEVEL=DEBUG` for detailed logging.

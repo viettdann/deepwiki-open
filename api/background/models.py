@@ -118,7 +118,7 @@ class JobListResponse(BaseModel):
 
 
 class JobProgressUpdate(BaseModel):
-    """WebSocket progress update message."""
+    """HTTP streaming progress update message."""
     job_id: str
     status: JobStatus
     current_phase: int
