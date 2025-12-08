@@ -20,11 +20,14 @@ from api.background.models import JobStatus, PageStatus, JobProgressUpdate
 from api.background.job_manager import JobManager
 import aiohttp
 
-from api.config import get_model_config, configs, OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY
+from api.config import get_model_config, configs, OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY, ENABLE_RERANKING
 from api.openai_client import OpenAIClient
 from api.openrouter_client import OpenRouterClient
 from api.deepseek_client import DeepSeekClient
-from api.rag import RAG
+if ENABLE_RERANKING:
+    from api.rerank_rag import RerankRAG as RAG
+else:
+    from api.rag import RAG
 
 logger = logging.getLogger(__name__)
 

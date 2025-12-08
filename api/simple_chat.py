@@ -16,7 +16,11 @@ from api.data_pipeline import count_tokens, get_file_content
 from api.openai_client import OpenAIClient
 from api.openrouter_client import OpenRouterClient
 from api.deepseek_client import DeepSeekClient
-from api.rag import RAG
+from api.config import ENABLE_RERANKING
+if ENABLE_RERANKING:
+    from api.rerank_rag import RerankRAG as RAG
+else:
+    from api.rag import RAG
 from api.prompts import (
     DEEP_RESEARCH_FIRST_ITERATION_PROMPT,
     DEEP_RESEARCH_FINAL_ITERATION_PROMPT,

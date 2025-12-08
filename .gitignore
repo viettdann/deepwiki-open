@@ -78,3 +78,6 @@ next-env.d.ts
 # logs
 api/logs/
 logs/
+
+# model cache (reranker models)
+api/.cache/

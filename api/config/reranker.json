@@ -1,0 +1,41 @@
+{
+  "enable_reranking": true,
+  "enable_deduplication": true,
+  "rerank_model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+  "similarity_threshold": 0.95,
+  "top_k_initial": 25,
+  "top_k_after_rerank": 10,
+  "relevance_threshold": 0.3,
+  "batch_size_rerank": 32,
+  "fallback_models": [
+    "cross-encoder/ms-marco-TinyBERT-L-2-v2",
+    "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+  ],
+  "model_settings": {
+    "cross-encoder/ms-marco-MiniLM-L-6-v2": {
+      "description": "Compact cross-encoder, ~22M params, fast on CPU",
+      "batch_size": 32,
+      "max_length": 512
+    },
+    "cross-encoder/ms-marco-TinyBERT-L-2-v2": {
+      "description": "Ultra-light cross-encoder, ~4M params, very fast on CPU",
+      "batch_size": 64,
+      "max_length": 512
+    },
+    "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1": {
+      "description": "Multilingual cross-encoder, ~118M params, slower but more accurate",
+      "batch_size": 16,
+      "max_length": 512
+    }
+  },
+  "deduplication_settings": {
+    "method": "cosine_similarity",
+    "threshold": 0.95,
+    "keep_first": true
+  },
+  "performance": {
+    "enable_caching": true,
+    "cache_size": 1000,
+    "use_half_precision": false
+  }
+}

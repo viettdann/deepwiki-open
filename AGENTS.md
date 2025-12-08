@@ -9,6 +9,7 @@ Primary guidance for AI agents when working with code in this repository.
 - **Frontend Guide**: See AGENTS.frontend.md
 - **HTTP Streaming & Real-time Updates**: See AGENTS.streaming.md
 - **Workflow/Processing**: See AGENTS.workflow.md
+- **Enhanced RAG (Re-ranking)**: See AGENTS.reranking.md
 
 ## Project Overview
 
@@ -55,6 +56,10 @@ docker-compose up     # Run full stack
 
 ### Embedder Configuration
 - `DEEPWIKI_EMBEDDER_TYPE`: `openai` (default), `google`, `ollama`, or `openrouter`
+
+### Enhanced RAG (Optional)
+- `DEEPWIKI_ENABLE_RERANKING`: Enable re-ranking and deduplication (`true` or `1`, default: `false`)
+- `DEEPWIKI_RERANKER_CACHE_DIR`: Custom model cache directory (default: `api/.cache/huggingface`)
 
 ### Authorization
 - `DEEPWIKI_AUTH_MODE`: Enable authorization (`true` or `1`, default: `false`)

@@ -51,6 +51,10 @@ if API_KEY_AUTH_ENABLED and len(API_KEYS) == 0:
 # Embedder settings
 EMBEDDER_TYPE = os.environ.get('DEEPWIKI_EMBEDDER_TYPE', 'openai').lower()
 
+# Enhanced RAG settings
+ENABLE_RERANKING = os.environ.get('DEEPWIKI_ENABLE_RERANKING', 'False').lower() in ['true', '1', 't']
+RERANKER_CACHE_DIR = os.environ.get('DEEPWIKI_RERANKER_CACHE_DIR', None)
+
 # Get configuration directory from environment variable, or use default if not set
 CONFIG_DIR = os.environ.get('DEEPWIKI_CONFIG_DIR', None)
 
@@ -274,6 +278,11 @@ def load_lang_config():
 
     return loaded_config
 
+# Load reranker configuration
+def load_reranker_config():
+    """Load reranker configuration from reranker.json"""
+    return load_json_config("reranker.json")
+
 # Default excluded directories and files
 DEFAULT_EXCLUDED_DIRS: List[str] = [
     # Virtual environments and package managers
@@ -323,6 +332,7 @@ generator_config = load_generator_config()
 embedder_config = load_embedder_config()
 repo_config = load_repo_config()
 lang_config = load_lang_config()
+reranker_config = load_reranker_config()
 
 # Update configuration
 if generator_config:
@@ -344,6 +354,10 @@ if repo_config:
 # Update language configuration
 if lang_config:
     configs["lang_config"] = lang_config
+
+# Load reranker configuration
+if reranker_config:
+    configs["reranker"] = reranker_config
 
 
 def get_model_config(provider="google", model=None):

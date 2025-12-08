@@ -417,12 +417,22 @@ app.include_router(jobs_router)
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize background worker on app startup."""
+    """Initialize background worker and preload models on app startup."""
     try:
         from api.background.worker import start_worker
         from api.middleware.auth import log_auth_config
+        from api.config import ENABLE_RERANKING
 
         log_auth_config()
+
+        # Preload reranker model if reranking is enabled
+        if ENABLE_RERANKING:
+            logger.info("Reranking enabled - preloading reranker model...")
+            loop = asyncio.get_event_loop()
+            from api.reranker import Reranker
+            await loop.run_in_executor(None, Reranker.get_instance().preload)
+            logger.info("Reranker model preloaded successfully")
+
         await start_worker()
         logger.info("Background worker started successfully")
     except Exception as e:
