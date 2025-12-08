@@ -429,16 +429,16 @@ export default function JobProgressPage() {
               <h2 className="text-lg font-semibold text-foreground">Page Generation</h2>
               {isRunning && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-[var(--foreground-muted)] hidden sm:inline">AI Provider:</span>
+                  <span className="text-xs text-(--foreground-muted) hidden sm:inline">AI Provider:</span>
                   <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
                     progress?.page_status === 'failed' || progress?.error
-                      ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800'
-                      : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800'
+                      ? 'bg-(--accent-danger)/10 text-(--accent-danger) border-(--accent-danger)/30'
+                      : 'bg-(--accent-success)/10 text-(--accent-success) border-(--accent-success)/30'
                   }`}>
                     <div className={`w-2 h-2 rounded-full ${
                       progress?.page_status === 'failed' || progress?.error
-                        ? 'bg-[var(--accent-danger)]'
-                        : 'bg-[var(--accent-success)] animate-pulse'
+                        ? 'bg-(--accent-danger)'
+                        : 'bg-(--accent-success) animate-pulse'
                     }`} />
                     {progress?.page_status === 'failed' || progress?.error ? 'Issues Detected' : 'Operational'}
                   </div>

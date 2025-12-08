@@ -79,6 +79,7 @@ class WikiGenerationWorker:
         message: str,
         page_id: Optional[str] = None,
         page_title: Optional[str] = None,
+        page_status: Optional[PageStatus] = None,
         total_pages: Optional[int] = None,
         completed_pages: Optional[int] = None,
         failed_pages: Optional[int] = None,
@@ -96,6 +97,7 @@ class WikiGenerationWorker:
                     message=message,
                     page_id=page_id,
                     page_title=page_title,
+                    page_status=page_status,
                     total_pages=total_pages,
                     completed_pages=completed_pages,
                     failed_pages=failed_pages,
@@ -373,6 +375,7 @@ class WikiGenerationWorker:
                 f"Generating: {page['title']}",
                 page_id=page['id'],
                 page_title=page['title'],
+                page_status=PageStatus.IN_PROGRESS,
                 total_pages=total_pages,
                 completed_pages=completed_count,
                 failed_pages=failed_count

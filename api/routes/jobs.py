@@ -15,6 +15,7 @@ from api.background.models import (
 )
 from api.background.job_manager import JobManager
 from api.background.worker import get_worker
+from api.core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -155,16 +156,45 @@ async def job_progress_stream(job_id: str, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    async def get_status_message(current_job):
+        """Generate a meaningful status message based on job state."""
+        # If generating pages, try to get the current page being processed
+        if current_job.status == JobStatus.GENERATING_PAGES:
+            db = await get_db()
+            # Get the most recently started in-progress page
+            page = await db.fetch_one(
+                """SELECT title FROM job_pages
+                   WHERE job_id = ? AND status = ?
+                   ORDER BY started_at DESC LIMIT 1""",
+                (job_id, "in_progress")
+            )
+            if page:
+                return f"Generating: {page['title']}"
+
+        # Default message for other statuses
+        status_messages = {
+            JobStatus.PENDING: "Waiting to start",
+            JobStatus.PREPARING_EMBEDDINGS: "Preparing repository embeddings",
+            JobStatus.GENERATING_STRUCTURE: "Generating wiki structure",
+            JobStatus.GENERATING_PAGES: "Generating pages",
+            JobStatus.PAUSED: "Job paused",
+            JobStatus.COMPLETED: "Job completed",
+            JobStatus.FAILED: "Job failed",
+            JobStatus.CANCELLED: "Job cancelled"
+        }
+        return status_messages.get(current_job.status, f"Status: {current_job.status.value}")
+
     async def stream_progress():
         """Generator function that streams job progress updates."""
         try:
             # Send initial status
+            initial_message = await get_status_message(job)
             initial_update = {
                 "job_id": job_id,
                 "status": job.status.value,
                 "current_phase": job.current_phase,
                 "progress_percent": job.progress_percent,
-                "message": f"Status: {job.status.value}",
+                "message": initial_message,
                 "total_pages": job.total_pages,
                 "completed_pages": job.completed_pages,
                 "failed_pages": job.failed_pages
@@ -190,6 +220,7 @@ async def job_progress_stream(job_id: str, request: Request):
                         "message": update.message,
                         "page_id": update.page_id,
                         "page_title": update.page_title,
+                        "page_status": update.page_status.value if update.page_status else None,
                         "total_pages": update.total_pages,
                         "completed_pages": update.completed_pages,
                         "failed_pages": update.failed_pages,
@@ -219,12 +250,13 @@ async def job_progress_stream(job_id: str, request: Request):
                         current_job = await JobManager.get_job(job_id)
                         if current_job and current_job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
                             # Send final status update
+                            final_message = await get_status_message(current_job)
                             final_update = {
                                 "job_id": job_id,
                                 "status": current_job.status.value,
                                 "current_phase": current_job.current_phase,
                                 "progress_percent": current_job.progress_percent,
-                                "message": f"Status: {current_job.status.value}",
+                                "message": final_message,
                                 "total_pages": current_job.total_pages,
                                 "completed_pages": current_job.completed_pages,
                                 "failed_pages": current_job.failed_pages
@@ -232,13 +264,22 @@ async def job_progress_stream(job_id: str, request: Request):
                             yield json.dumps(final_update) + "\n"
                             break
 
-                        # Send heartbeat
-                        yield json.dumps({"heartbeat": True}) + "\n"
+                        # Send heartbeat with current status (including current page if generating)
+                        if current_job:
+                            heartbeat_message = await get_status_message(current_job)
+                            yield json.dumps({
+                                "heartbeat": True,
+                                "message": heartbeat_message,
+                                "status": current_job.status.value,
+                                "progress_percent": current_job.progress_percent
+                            }) + "\n"
+                        else:
+                            yield json.dumps({"heartbeat": True}) + "\n"
 
             finally:
                 # Cleanup: unregister callback
                 worker.unregister_progress_callback(job_id)
-                logger.info(f"Client disconnected from job {job_id} progress stream")
+                logger.debug(f"[Job {job_id}] Client disconnected from progress stream (normal)")
 
         except Exception as e:
             logger.error(f"Error in progress stream for job {job_id}: {e}")

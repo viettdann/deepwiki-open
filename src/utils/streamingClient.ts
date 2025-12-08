@@ -183,6 +183,7 @@ export interface JobProgressUpdate {
   message: string;
   page_id?: string;
   page_title?: string;
+  page_status?: string;
   total_pages?: number;
   completed_pages?: number;
   failed_pages?: number;
