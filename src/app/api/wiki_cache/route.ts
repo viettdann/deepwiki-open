@@ -71,9 +71,8 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const params = await request.json();
-    const query = new URLSearchParams(params);
-    const url = `${PYTHON_BACKEND_URL}/api/wiki_cache?${query.toString()}${API_KEY ? `&api_key=${encodeURIComponent(API_KEY)}` : ''}`;
+    const params = request.nextUrl.searchParams;
+    const url = `${PYTHON_BACKEND_URL}/api/wiki_cache?${params.toString()}${API_KEY ? `&api_key=${encodeURIComponent(API_KEY)}` : ''}`;
 
     const response = await fetch(url, {
       method: 'DELETE',
@@ -86,7 +85,7 @@ export async function DELETE(request: NextRequest) {
     if (!response.ok) {
       let errorBody: unknown = await response.text();
       try {
-        errorBody = await response.json();
+        errorBody = JSON.parse(errorBody as string);
       } catch {}
       return NextResponse.json(
         typeof errorBody === 'string' ? { error: errorBody } : errorBody as object,
