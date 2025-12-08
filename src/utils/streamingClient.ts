@@ -2,18 +2,9 @@
  * HTTP streaming client for chat completions
  */
 
-import { buildApiUrl } from './apiClient';
-
-// Get the server base URL from environment or use default
-const SERVER_BASE_URL = process.env.NEXT_PUBLIC_SERVER_BASE_URL || 'http://localhost:8001';
-
-const API_KEY = typeof window === 'undefined'
-  ? process.env.DEEPWIKI_FRONTEND_API_KEY || ''
-  : '';
-
-// Build streaming API URL
+// Build streaming API URL - use Next.js API route proxy
 const getStreamingUrl = () => {
-  return buildApiUrl(`${SERVER_BASE_URL}/chat/completions/stream`, API_KEY);
+  return '/api/chat/stream';
 };
 
 export interface ChatMessage {
