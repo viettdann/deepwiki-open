@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ConfigurationModal from '@/components/ConfigurationModal';
-import { FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaSync } from 'react-icons/fa';
+import { FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaSync, FaTrash } from 'react-icons/fa';
 
 interface Job {
   id: string;
@@ -43,6 +43,7 @@ const statusFilters = [
   { value: 'generating_pages', label: 'Generating' },
   { value: 'paused', label: 'Paused' },
   { value: 'completed', label: 'Completed' },
+  { value: 'partially_completed', label: 'Partial' },
   { value: 'failed', label: 'Failed' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
@@ -178,6 +179,23 @@ export default function JobsPage() {
     }
   };
 
+  const handleDelete = async (jobId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to permanently delete this job? This action cannot be undone.')) return;
+    try {
+      const response = await fetch(`/api/wiki/jobs/${jobId}/delete`, { method: 'POST' });
+      if (response.ok) {
+        fetchJobs();
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete job: ${error.detail || 'Unknown error'}`);
+      }
+    } catch (e) {
+      console.error('Failed to delete job:', e);
+      alert('Failed to delete job. Please try again.');
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -215,6 +233,8 @@ export default function JobsPage() {
     switch (status) {
       case 'completed':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'partially_completed':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
       case 'failed':
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       case 'cancelled':
@@ -475,7 +495,7 @@ export default function JobsPage() {
                         <FaPlay className="text-sm" />
                       </button>
                     )}
-                    {!['completed', 'failed', 'cancelled'].includes(job.status) && (
+                    {!['completed', 'partially_completed', 'failed', 'cancelled'].includes(job.status) && (
                       <button
                         onClick={(e) => handleCancel(job.id, e)}
                         className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
@@ -484,15 +504,24 @@ export default function JobsPage() {
                         <FaTimes className="text-sm" />
                       </button>
                     )}
-                    {job.status === 'completed' && (
+                    {(job.status === 'completed' || job.status === 'partially_completed') && (
                       <Link
                         href={`/${job.owner}/${job.repo}?type=${job.repo_type}`}
                         onClick={(e) => e.stopPropagation()}
                         className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded"
-                        title="View Wiki"
+                        title={job.status === 'partially_completed' ? 'View Partial Wiki (some pages failed)' : 'View Wiki'}
                       >
                         <FaEye className="text-sm" />
                       </Link>
+                    )}
+                    {['completed', 'partially_completed', 'failed', 'cancelled'].includes(job.status) && (
+                      <button
+                        onClick={(e) => handleDelete(job.id, e)}
+                        className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
+                        title="Delete Job"
+                      >
+                        <FaTrash className="text-sm" />
+                      </button>
                     )}
                   </div>
                 </div>

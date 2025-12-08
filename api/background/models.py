@@ -15,6 +15,7 @@ class JobStatus(str, Enum):
     GENERATING_PAGES = "generating_pages"
     PAUSED = "paused"
     COMPLETED = "completed"
+    PARTIALLY_COMPLETED = "partially_completed"  # Completed with some failed pages
     FAILED = "failed"
     CANCELLED = "cancelled"
 

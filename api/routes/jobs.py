@@ -69,6 +69,8 @@ async def list_jobs(
 async def cancel_job(job_id: str):
     """
     Cancel a running job.
+    Note: This CANCELS the job (changes status to 'cancelled'), it does not delete it.
+    Use POST /{job_id}/delete for permanent deletion.
     """
     success = await JobManager.cancel_job(job_id)
     if not success:
@@ -77,6 +79,36 @@ async def cancel_job(job_id: str):
             detail="Job cannot be cancelled (already completed or not found)"
         )
     return {"message": "Job cancelled successfully"}
+
+
+@router.post("/{job_id}/delete")
+async def delete_job_permanently(job_id: str):
+    """
+    Permanently delete a job and all its pages from the database.
+    Only allowed for completed, failed, or cancelled jobs.
+    This action is irreversible.
+    """
+    # Get job to check status
+    job = await JobManager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Only allow deletion of completed, partially_completed, failed, or cancelled jobs
+    allowed_statuses = [JobStatus.COMPLETED, JobStatus.PARTIALLY_COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]
+    if job.status not in allowed_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job cannot be deleted in '{job.status.value}' status. Only completed, partially_completed, failed, or cancelled jobs can be deleted."
+        )
+
+    success = await JobManager.delete_job(job_id)
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete job"
+        )
+
+    return {"message": "Job permanently deleted"}
 
 
 @router.post("/{job_id}/pause")
@@ -179,6 +211,7 @@ async def job_progress_stream(job_id: str, request: Request):
             JobStatus.GENERATING_PAGES: "Generating pages",
             JobStatus.PAUSED: "Job paused",
             JobStatus.COMPLETED: "Job completed",
+            JobStatus.PARTIALLY_COMPLETED: "Job partially completed (some pages failed)",
             JobStatus.FAILED: "Job failed",
             JobStatus.CANCELLED: "Job cancelled"
         }
@@ -202,7 +235,7 @@ async def job_progress_stream(job_id: str, request: Request):
             yield json.dumps(initial_update) + "\n"
 
             # If job is already complete, close stream
-            if job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
+            if job.status in [JobStatus.COMPLETED, JobStatus.PARTIALLY_COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
                 return
 
             # Register for progress updates
@@ -242,13 +275,13 @@ async def job_progress_stream(job_id: str, request: Request):
                         yield json.dumps(update) + "\n"
 
                         # Check if job completed
-                        if update["status"] in ["completed", "failed", "cancelled"]:
+                        if update["status"] in ["completed", "partially_completed", "failed", "cancelled"]:
                             break
 
                     except asyncio.TimeoutError:
                         # Send heartbeat and check job status
                         current_job = await JobManager.get_job(job_id)
-                        if current_job and current_job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
+                        if current_job and current_job.status in [JobStatus.COMPLETED, JobStatus.PARTIALLY_COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
                             # Send final status update
                             final_message = await get_status_message(current_job)
                             final_update = {

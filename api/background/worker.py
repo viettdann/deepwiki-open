@@ -155,10 +155,28 @@ class WikiGenerationWorker:
         try:
             logger.info(f"Processing job {job_id} for {job['owner']}/{job['repo']}")
 
+            # CRITICAL: Double-check job status from database before starting ANY work
+            # This prevents race conditions where a job was cancelled between query and processing
+            fresh_job = await JobManager.get_job_raw(job_id)
+            if not fresh_job:
+                logger.warning(f"Job {job_id} no longer exists, skipping")
+                return
+
+            current_status = fresh_job.get('status')
+
             # Check for paused status
-            current_status = job.get('status')
             if current_status == JobStatus.PAUSED.value:
                 logger.info(f"Job {job_id} is paused, skipping")
+                return
+
+            # Check for cancelled status
+            if current_status == JobStatus.CANCELLED.value:
+                logger.info(f"Job {job_id} is cancelled, skipping")
+                return
+
+            # Check if job is already completed or failed
+            if current_status in (JobStatus.COMPLETED.value, JobStatus.FAILED.value):
+                logger.info(f"Job {job_id} is already {current_status}, skipping")
                 return
 
             # Resume from current phase
@@ -186,19 +204,38 @@ class WikiGenerationWorker:
             if job and job['current_phase'] <= 2 and job['status'] != JobStatus.PAUSED.value:
                 await self._phase_generate_pages(job)
 
-            # Mark job as completed
-            await JobManager.update_job_status(job_id, JobStatus.COMPLETED, phase=2, progress=100.0)
-
-            # Get final stats
+            # Determine final status based on failed pages
             job_detail = await JobManager.get_job_detail(job_id)
-            if job_detail:
-                await self._notify_progress(
-                    job_id, JobStatus.COMPLETED, 2, 100.0,
-                    "Wiki generation completed",
-                    total_pages=job_detail.job.total_pages,
-                    completed_pages=job_detail.job.completed_pages,
-                    failed_pages=job_detail.job.failed_pages
-                )
+            if not job_detail:
+                logger.error(f"Failed to get job details for {job_id} after completion")
+                return
+
+            # Check if there are any failed or permanent_failed pages
+            failed_count = job_detail.job.failed_pages
+            total_count = job_detail.job.total_pages
+
+            if failed_count > 0:
+                # Some pages failed - mark as partially completed
+                final_status = JobStatus.PARTIALLY_COMPLETED
+                final_message = f"Wiki generation partially completed ({job_detail.job.completed_pages}/{total_count} pages successful, {failed_count} failed)"
+                logger.info(f"Job {job_id} completed with {failed_count} failed pages out of {total_count}")
+            else:
+                # All pages succeeded - mark as completed
+                final_status = JobStatus.COMPLETED
+                final_message = "Wiki generation completed"
+                logger.info(f"Job {job_id} completed successfully with all {total_count} pages")
+
+            # Mark job as completed or partially_completed
+            await JobManager.update_job_status(job_id, final_status, phase=2, progress=100.0)
+
+            # Notify final status
+            await self._notify_progress(
+                job_id, final_status, 2, 100.0,
+                final_message,
+                total_pages=job_detail.job.total_pages,
+                completed_pages=job_detail.job.completed_pages,
+                failed_pages=job_detail.job.failed_pages
+            )
 
             # Save to wiki cache for compatibility
             await self._save_to_wiki_cache(job_id)

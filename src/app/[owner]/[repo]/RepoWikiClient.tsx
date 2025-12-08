@@ -1020,27 +1020,28 @@ Return your analysis in the specified XML format.`
     }
   }, [wikiStructure, generatedPages, effectiveRepoInfo, language]);
 
-  const confirmRefresh = useCallback(async (newToken?: string) => {
+  const confirmRefresh = useCallback(async (newToken?: string, config?: {provider: string, model: string, isCustomModel: boolean, customModel: string, isComprehensiveView: boolean}) => {
     setLoadingMessage(messages.loading?.clearingCache || 'Clearing server cache...');
     setIsLoading(true);
+
+    // Use config values if provided, otherwise fall back to state
+    const provider = config?.provider ?? selectedProviderState;
+    const model = config?.model ?? selectedModelState;
+    const isCustomModel = config?.isCustomModel ?? isCustomSelectedModelState;
+    const customModel = config?.customModel ?? customSelectedModelState;
+    const comprehensive = config?.isComprehensiveView ?? isComprehensiveView;
+
     try {
+      // DELETE only needs: owner, repo, repo_type, language, authorization_code
+      // Cache filename doesn't include provider/model/comprehensive/filters
       const params = new URLSearchParams({
         owner: effectiveRepoInfo.owner,
         repo: effectiveRepoInfo.repo,
         repo_type: effectiveRepoInfo.type,
         language: language,
-        provider: selectedProviderState,
-        model: selectedModelState,
-        is_custom_model: isCustomSelectedModelState.toString(),
-        custom_model: customSelectedModelState,
-        comprehensive: isComprehensiveView.toString(),
-        authorization_code: authCode,
       });
-      if (modelExcludedDirs) {
-        params.append('excluded_dirs', modelExcludedDirs);
-      }
-      if (modelExcludedFiles) {
-        params.append('excluded_files', modelExcludedFiles);
+      if (authCode) {
+        params.append('authorization_code', authCode);
       }
       if(authRequired && !authCode) {
         setIsLoading(false);
@@ -1068,7 +1069,7 @@ Return your analysis in the specified XML format.`
       currentUrl.searchParams.set('token', newToken);
       window.history.replaceState({}, '', currentUrl.toString());
     }
-    const localStorageCacheKey = getCacheKey(effectiveRepoInfo.owner, effectiveRepoInfo.repo, effectiveRepoInfo.type, language, isComprehensiveView);
+    const localStorageCacheKey = getCacheKey(effectiveRepoInfo.owner, effectiveRepoInfo.repo, effectiveRepoInfo.type, language, comprehensive);
     localStorage.removeItem(localStorageCacheKey);
     cacheLoadedSuccessfully.current = false;
     effectRan.current = false;
@@ -1090,10 +1091,10 @@ Return your analysis in the specified XML format.`
         effectiveRepoInfo.type,
         effectiveRepoInfo.owner,
         effectiveRepoInfo.repo,
-        selectedProviderState,
-        isCustomSelectedModelState ? customSelectedModelState : selectedModelState,
+        provider,
+        isCustomModel ? customModel : model,
         language,
-        isComprehensiveView,
+        comprehensive,
         newToken || currentToken || undefined,
         modelExcludedDirs ? modelExcludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
         modelExcludedFiles ? modelExcludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,

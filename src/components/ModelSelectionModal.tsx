@@ -17,7 +17,7 @@ interface ModelSelectionModalProps {
   setIsCustomModel: (value: boolean) => void;
   customModel: string;
   setCustomModel: (value: string) => void;
-  onApply: (token?: string) => void;
+  onApply: (token?: string, config?: {provider: string, model: string, isCustomModel: boolean, customModel: string, isComprehensiveView: boolean}) => void;
 
   // Wiki type options
   isComprehensiveView: boolean;
@@ -123,12 +123,20 @@ export default function ModelSelectionModal({
     if (setExcludedFiles) setExcludedFiles(localExcludedFiles);
     if (setIncludedDirs) setIncludedDirs(localIncludedDirs);
     if (setIncludedFiles) setIncludedFiles(localIncludedFiles);
-    
-    // Pass token to onApply if needed
+
+    // Pass token and config to onApply
+    const config = {
+      provider: localProvider,
+      model: localModel,
+      isCustomModel: localIsCustomModel,
+      customModel: localCustomModel,
+      isComprehensiveView: localIsComprehensiveView
+    };
+
     if (showTokenInput) {
-      onApply(localAccessToken);
+      onApply(localAccessToken, config);
     } else {
-      onApply();
+      onApply(undefined, config);
     }
     onClose();
   };
