@@ -12,20 +12,21 @@ DeepWiki started as a fork but became much more. What began as small fixes turne
 - **Live Progress**: Watch your wiki being made in real-time with a simple dashboard.
 
 **Better User Experience**
-- Works great on phones and tablets
-- Cleaner design throughout
-- Support for many AI providers (Google Gemini, OpenAI, DeepSeek, OpenRouter, Ollama)
+- **Modern UI**: Next.js 15 with React 19, Tailwind CSS 4, and glassmorphism design.
+- **Works great on phones and tablets**
+- **Cleaner design throughout**
+- **Support for many AI providers**: Google Gemini, OpenAI, DeepSeek, OpenRouter, Ollama.
 
 **More Stuff You Can Do**
-- Use different embedding models
-- Support for Azure DevOps
-- Flexible setup for big companies
+- **Use different embedding models**: OpenAI, Google, OpenRouter, or local Ollama.
+- **Support for Azure DevOps**: Works with GitHub, GitLab, Bitbucket, and Azure DevOps.
+- **Flexible setup for big companies**
 
 This is a real-world version that solves actual problems: generate docs for huge projects without worrying about your browser crashing, see exactly what's happening, and pick which AI provider you want to use.
 
 ---
 
-**DeepWiki** turns any GitHub, GitLab, or Bitbucket repository into a searchable wiki automatically! Just give it a repo URL and it will:
+**DeepWiki** turns any GitHub, GitLab, Bitbucket, or Azure DevOps repository into a searchable wiki automatically! Just give it a repo URL and it will:
 
 1. Look at your code structure
 2. Write documentation
@@ -39,10 +40,10 @@ This is a real-world version that solves actual problems: generate docs for huge
 - **Smart Code Reading**: AI understands your code and how it fits together
 - **Auto Diagrams**: Get Mermaid diagrams that show how your code works
 - **Easy Search**: Simple way to find and read your documentation
-- **Chat With Your Code**: Ask questions and get answers about your repository using RAG
-- **Deep Research**: Ask complex questions and get thorough answers that look at multiple parts of your code
+- **Chat With Your Code**: Ask questions and get answers about your repository using RAG with HTTP streaming
+- **Deep Research**: Ask complex questions and get thorough answers that look at multiple parts of your code (multi-step reasoning)
 - **Pick Your AI**: Choose between Google Gemini, OpenAI, DeepSeek, OpenRouter, or run models locally
-- **Flexible Embeddings**: Use OpenAI, Google, or local models for finding similar code
+- **Flexible Embeddings**: Use OpenAI, Google, OpenRouter, or local models for finding similar code
 
 ## 🚀 Quick Start
 
@@ -64,10 +65,7 @@ cp .env.example .env
 # Run it with Docker
 docker compose up
 ```
-
-For Ollama + Docker, see [Ollama Instructions](Ollama-instruction.md)
-
-Discaimer: I don't use Ollama myself, so I can't provide support for it (these file from old forks)
+Disclaimer: I don't use Ollama, do it by yourself
 
 > 💡 **Where to get your keys:**
 >
@@ -92,13 +90,12 @@ cp .env.example .env
 ```bash
 # Install Python stuff
 # Make sure you have uv installed (curl -LsSf https://astral.sh/uv/install.sh | sh)
-source api/.venv/bin/activate 
 cd api
 uv venv
+source .venv/bin/activate
 uv sync
 
 # Start the API
-source api/.venv/bin/activate
 uv run python -m api.main
 ```
 
@@ -106,13 +103,9 @@ uv run python -m api.main
 
 ```bash
 # Install JavaScript packages
-npm install
-# or
 yarn install
 
 # Start the app
-npm run dev
-# or
 yarn dev
 ```
 
@@ -177,18 +170,22 @@ graph TD
 
 ```
 deepwiki/
-├── api/                  # Backend API server
+├── api/                  # Backend API server (FastAPI)
 │   ├── main.py           # API entry point
 │   ├── api.py            # FastAPI implementation
 │   ├── rag.py            # Retrieval Augmented Generation
 │   ├── data_pipeline.py  # Data processing utilities
+│   ├── simple_chat.py    # HTTP streaming chat endpoint
+│   ├── background/       # Background job system
 │   └── pyproject.toml    # Python packages
 │
 ├── src/                  # Frontend Next.js app
-│   ├── app/              # Next.js app directory
+│   ├── app/              # Next.js App Router
 │   │   └── page.tsx      # Main application page
-│   └── components/       # React components
-│       └── Mermaid.tsx   # Mermaid diagram renderer
+│   ├── components/       # React components
+│   │   └── Mermaid.tsx   # Mermaid diagram renderer
+│   ├── utils/            # Utilities (streaming, API client)
+│   └── public/           # Static assets
 │
 ├── public/               # Static assets
 ├── package.json          # JavaScript dependencies
@@ -207,7 +204,7 @@ DeepWiki includes a robust background job system for long-running wiki generatio
   3. **Phase 2**: Generate individual page content with RAG (50-100% progress)
 - **Per-Page Checkpointing**: If processing is interrupted, it resumes from the last completed page
 - **Job Tracking**: Monitor active generation jobs via the jobs dashboard at `/jobs`
-- **Progress Updates**: Real-time progress notifications with page generation details
+- **Progress Updates**: Real-time progress notifications with page generation details via HTTP streaming
 - **Error Handling**: Automatic retry mechanism (up to 3 attempts per page) for transient failures
 - **Graceful Shutdown**: Pause/resume/cancel jobs at any time
 
@@ -223,7 +220,7 @@ The background job system uses:
 - **SQLite async database** (`api/background/database.py`) for job persistence
 - **WikiGenerationWorker** (`api/background/worker.py`) - single async worker processing jobs sequentially
 - **Job API** (`api/routes/jobs.py`) - REST endpoints for job management
-- **WebSocket notifications** - real-time progress updates to connected clients
+- **HTTP Streaming** - real-time progress updates to connected clients (replaced WebSocket)
 
 This system handles large repositories efficiently by processing pages concurrently with timeout protection (10 minutes max per page, 5 minutes max for LLM generation).
 
@@ -270,7 +267,6 @@ DeepWiki uses JSON files to set up models:
    - Temperature, top_p, top_k and other settings
 
 2. **`embedder.json`**: Configuration for embedding models and text processing
-
    - Which embedding model to use for vector stor
    - How to split up text
    - Specifies text splitter settings for document chunki
@@ -306,6 +302,7 @@ DeepWiki supports custom API endpoints through flexible base URL configuration:
 - Route traffic through proxy servers
 - Access special DeepSeek endpoints (reasoning, etc.)
 - Point OpenAI clients to OpenRouter by setting `OPENAI_BASE_URL=https://openrouter.ai/api/v1`
+- Configure OpenAI-compatible embedders (using `OPENAI_BASE_URL` with `DEEPWIKI_EMBEDDER_TYPE=openai`)
 
 **Priority Order:**
 1. Provider-specific URL (e.g., `DEEPSEEK_BASE_URL`)
@@ -364,6 +361,7 @@ docker compose up
 | `openai` | OpenAI embeddings (default) | `OPENAI_API_KEY` | Uses `text-embedding-3-small` model |
 | `google` | Google AI embeddings        | `GOOGLE_API_KEY` | Uses `text-embedding-004` model     |
 | `ollama` | Local Ollama embeddings     | None             | Requires local Ollama installation  |
+| `openrouter` | OpenRouter embeddings   | `OPENROUTER_API_KEY` | Supports multiple models          |
 
 ### Why Use Google AI Embeddings?
 
@@ -414,6 +412,8 @@ DeepWiki uses Python's built-in `logging` module for diagnostic output. You can 
 | --------------- | ---------------------------------------------------------------- | -------------------------- |
 | `LOG_LEVEL`     | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).           | INFO                       |
 | `LOG_FILE_PATH` | Path to the log file. If set, logs will be written to this file. | `api/logs/application.log` |
+| `LOG_MAX_SIZE`  | Max log file size (in MB) before rotation                        | 10                         |
+| `LOG_BACKUP_COUNT` | Number of backup log files to keep                            | 5                          |
 
 To enable debug logging and direct logs to a custom file:
 
@@ -472,13 +472,25 @@ cp .env.example .env
 | `DEEPSEEK_BASE_URL`      | DeepSeek API base URL (falls back to OPENAI_BASE_URL)    | No            | `https://api.deepseek.com` |
 | `DEEPWIKI_EMBEDDER_TYPE` | Embedder type: `openai`, `google`, `ollama`, `openrouter` | No            | `openai`                   |
 | `OLLAMA_HOST`            | Ollama host URL                                           | No            | `http://localhost:11434`   |
+| `OPENAI_EMBEDDING_MODEL` | OpenAI embedding model name                               | No            | `text-embedding-3-large`   |
+| `GOOGLE_EMBEDDING_MODEL` | Google embedding model name                               | No            | `text-embedding-004`       |
+| `OLLAMA_EMBEDDING_MODEL` | Ollama embedding model name                               | No            | `nomic-embed-text`         |
+| `OPENROUTER_EMBEDDING_MODEL` | OpenRouter embedding model name                       | No            | `openai/text-embedding-3-small` |
 | `PORT`                   | API server port                                           | No            | `8001`                     |
 | `SERVER_BASE_URL`        | Base URL for API server                                   | No            | `http://localhost:8001`    |
+| `NEXT_PUBLIC_SERVER_BASE_URL` | Frontend-accessible API URL                          | No            | `http://localhost:8001`    |
 | `DEEPWIKI_AUTH_MODE`     | Enable authorization mode (`true` or `1`)                 | No            | `false`                    |
 | `DEEPWIKI_AUTH_CODE`     | Authorization code (when auth mode is enabled)            | No            | -                          |
+| `DEEPWIKI_API_KEY_AUTH_ENABLED` | Enable API key authentication (`true` or `1`)      | No            | `false`                    |
+| `DEEPWIKI_BACKEND_API_KEYS` | Comma-separated API keys for backend access            | Conditional   | -                          |
+| `DEEPWIKI_FRONTEND_API_KEY` | API key for frontend server-side requests              | Conditional   | -                          |
+| `NEXT_PUBLIC_DEEPWIKI_FRONTEND_API_KEY` | API key exposed to client (use with caution) | No        | -                          |
+| `DEEPWIKI_ALLOWED_ORIGINS` | Comma-separated CORS origins                            | No            | `http://localhost:3000`    |
 | `DEEPWIKI_CONFIG_DIR`    | Custom configuration directory path                        | No            | `api/config/`              |
 | `LOG_LEVEL`              | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)     | No            | `INFO`                     |
 | `LOG_FILE_PATH`          | Path to log file                                          | No            | `api/logs/application.log` |
+| `LOG_MAX_SIZE`           | Max log file size (MB)                                    | No            | `10`                       |
+| `LOG_BACKUP_COUNT`       | Number of backup log files                                | No            | `5`                        |
 
 *You need at least one of: `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`, or local Ollama.
 
@@ -590,7 +602,7 @@ The API does:
 
 - Repository cloning and indexing
 - RAG (Retrieval Augmented Generation) - Search code and generate answers
-- Stream responses back to you
+- Stream responses back to you via HTTP streaming
 
 See [API README](./api/README.md) for more.
 
@@ -628,7 +640,7 @@ OpenRouter is particularly useful if you want to:
 Chat with your code using RAG (finds relevant code and answers questions):
 
 - **Gets The Right Answers**: Finds actual code to answer your question
-- **Real-time Typing**: Watch the answer appear as it's being written
+- **Real-time Typing**: Watch the answer appear as it's being written (HTTP Streaming)
 - **Remembers Context**: Keeps track of what you've asked before
 - **Finds Related Code**: Shows you which parts of your code it used
 
@@ -640,6 +652,10 @@ For harder questions, turn on "Deep Research":
 - **Follows A Plan**: Shows you what it's researching
 - **Keeps Going**: Does up to 5 rounds of research
 - **Gives Full Answer**: Combines everything into one answer
+- **How it works**:
+  1. **Plan**: Creates a research plan based on your question
+  2. **Investigate**: Iteratively explores the codebase, following the plan
+  3. **Synthesize**: Combines findings from all steps into a final comprehensive answer
 
 ## ❓ Troubleshooting
 
@@ -666,6 +682,7 @@ For harder questions, turn on "Deep Research":
 - **"Invalid repository format"**: Make sure you're using a valid GitHub, GitLab or Bitbucket URL format
 - **"Could not fetch repository structure"**: For private repositories, ensure you've entered a valid personal access token with appropriate permissions
 - **"Diagram rendering error"**: The app will automatically try to fix broken diagrams
+- **"Token limit exceeded"**: If you see this during chat, the app will automatically retry with a simplified prompt (without RAG context) to fit within limits.
 
 ### Common Solutions
 

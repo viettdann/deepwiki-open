@@ -9,11 +9,11 @@ const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
  * Proxies requests to backend with server-side API key
  */
 export async function GET(
-  req: NextRequest,
-  { params }: { params: { jobId: string } }
+  _req: NextRequest,
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
-    const jobId = params.jobId;
+    const { jobId } = await params;
 
     if (!jobId) {
       return new NextResponse(
@@ -60,24 +60,64 @@ export async function GET(
     const stream = new ReadableStream({
       async start(controller) {
         const reader = backendResponse.body!.getReader();
+        let isClosed = false;
+
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
               break;
             }
-            controller.enqueue(value);
+
+            // Only enqueue if stream is still open
+            if (!isClosed) {
+              try {
+                controller.enqueue(value);
+              } catch (error) {
+                // Controller closed by client - this is normal, stop reading
+                if (error instanceof TypeError &&
+                    'code' in error && error.code === 'ERR_INVALID_STATE') {
+                  isClosed = true;
+                  break;
+                }
+                throw error; // Re-throw other errors
+              }
+            }
           }
         } catch (error) {
-          console.error('Error reading from backend stream:', error);
-          controller.error(error);
+          // Only log unexpected errors, not client disconnections or controller state issues
+          if (error instanceof Error &&
+              error.name !== 'AbortError' &&
+              !('code' in error && error.code === 'ERR_INVALID_STATE')) {
+            console.error(`[Job ${jobId}] Stream error:`, error.message);
+          }
+
+          // Try to signal error to client if controller is still open
+          if (!isClosed) {
+            try {
+              controller.error(error);
+              isClosed = true;
+            } catch {
+              // Controller already closed, ignore
+            }
+          }
         } finally {
-          controller.close();
+          // Clean up reader
           reader.releaseLock();
+
+          // Only close if not already closed
+          if (!isClosed) {
+            try {
+              controller.close();
+            } catch {
+              // Controller already closed, ignore silently
+            }
+          }
         }
       },
-      cancel(reason) {
-        console.log('Client cancelled job progress stream:', reason);
+      cancel() {
+        // Client disconnected (e.g., closed browser tab) - this is normal behavior
+        console.log(`[Job ${jobId}] Client disconnected from progress stream`);
       }
     });
 

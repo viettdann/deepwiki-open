@@ -165,11 +165,7 @@ class OpenRouterClient(ModelClient):
         if not self.async_client.get("api_key"):
             error_msg = "OPENROUTER_API_KEY not configured. Please set this environment variable to use OpenRouter."
             log.error(error_msg)
-            # Instead of raising an exception, return a generator that yields the error message
-            # This allows the error to be displayed to the user in the streaming response
-            async def error_generator():
-                yield error_msg
-            return error_generator()
+            raise ValueError(error_msg)
 
         api_kwargs = api_kwargs or {}
 
@@ -202,11 +198,7 @@ class OpenRouterClient(ModelClient):
                             if response.status != 200:
                                 error_text = await response.text()
                                 log.error(f"OpenRouter API error ({response.status}): {error_text}")
-
-                                # Return a generator that yields the error message
-                                async def error_response_generator():
-                                    yield f"OpenRouter API error ({response.status}): {error_text}"
-                                return error_response_generator()
+                                raise Exception(f"OpenRouter API error ({response.status}): {error_text}")
 
                             # Get the full response
                             data = await response.json()
@@ -361,38 +353,23 @@ class OpenRouterClient(ModelClient):
                                             yield content
                                     else:
                                         log.error(f"Unexpected response format: {data}")
-                                        yield "Error: Unexpected response format from OpenRouter API"
+                                        raise Exception("Unexpected response format from OpenRouter API")
                                 else:
                                     log.error(f"No choices in response: {data}")
-                                    yield "Error: No response content from OpenRouter API"
+                                    raise Exception("No response content from OpenRouter API")
 
                             return content_generator()
                     except aiohttp.ClientError as e:
-                        e_client = e
-                        log.error(f"Connection error with OpenRouter API: {str(e_client)}")
-
-                        # Return a generator that yields the error message
-                        async def connection_error_generator():
-                            yield f"Connection error with OpenRouter API: {str(e_client)}. Please check your internet connection and that the OpenRouter API is accessible."
-                        return connection_error_generator()
+                        log.error(f"Connection error with OpenRouter API: {str(e)}")
+                        raise Exception(f"Connection error with OpenRouter API: {str(e)}. Please check your internet connection and that the OpenRouter API is accessible.")
 
             except RequestException as e:
-                e_req = e
-                log.error(f"Error calling OpenRouter API asynchronously: {str(e_req)}")
-
-                # Return a generator that yields the error message
-                async def request_error_generator():
-                    yield f"Error calling OpenRouter API: {str(e_req)}"
-                return request_error_generator()
+                log.error(f"Error calling OpenRouter API asynchronously: {str(e)}")
+                raise Exception(f"Error calling OpenRouter API: {str(e)}")
 
             except Exception as e:
-                e_unexp = e
-                log.error(f"Unexpected error calling OpenRouter API asynchronously: {str(e_unexp)}")
-
-                # Return a generator that yields the error message
-                async def unexpected_error_generator():
-                    yield f"Unexpected error calling OpenRouter API: {str(e_unexp)}"
-                return unexpected_error_generator()
+                log.error(f"Unexpected error calling OpenRouter API asynchronously: {str(e)}")
+                raise
 
         elif model_type == ModelType.EMBEDDER:
             # Handle embeddings
@@ -431,11 +408,7 @@ class OpenRouterClient(ModelClient):
         else:
             error_msg = f"Unsupported model type: {model_type}"
             log.error(error_msg)
-
-            # Return a generator that yields the error message
-            async def model_type_error_generator():
-                yield error_msg
-            return model_type_error_generator()
+            raise ValueError(error_msg)
 
     def call(self, api_kwargs: Dict = None, model_type: ModelType = None) -> Any:
         """Make a synchronous call to the OpenRouter API."""
@@ -636,10 +609,10 @@ class OpenRouterClient(ModelClient):
                                 continue
                 except Exception as e_chunk:
                     log.error(f"Error processing streaming chunk: {str(e_chunk)}")
-                    yield f"Error processing response chunk: {str(e_chunk)}"
+                    raise Exception(f"Error processing response chunk: {str(e_chunk)}")
         except Exception as e_stream:
             log.error(f"Error in streaming response: {str(e_stream)}")
-            yield f"Error in streaming response: {str(e_stream)}"
+            raise
 
     async def _process_async_streaming_response(self, response):
         """Process an asynchronous streaming response from OpenRouter."""
@@ -704,7 +677,7 @@ class OpenRouterClient(ModelClient):
                                 continue
                 except Exception as e_chunk:
                     log.error(f"Error processing streaming chunk: {str(e_chunk)}")
-                    yield f"Error processing response chunk: {str(e_chunk)}"
+                    raise Exception(f"Error processing response chunk: {str(e_chunk)}")
         except Exception as e_stream:
             log.error(f"Error in async streaming response: {str(e_stream)}")
-            yield f"Error in streaming response: {str(e_stream)}"
+            raise
