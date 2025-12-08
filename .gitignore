@@ -16,23 +16,27 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-api/logs/
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
 .eggs/
-/lib/
-/lib64/
-parts/
-sdist/
-var/
-wheels/
+.venv*/lib/
+.venv*/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.venv/
 *.venv
+venv/
+env/
+.pytest_cache/
+
 # testing
 /coverage
 
@@ -40,12 +44,11 @@ wheels/
 /.next/
 /out/
 
-# production
-/build
-
 # misc
 .DS_Store
 *.pem
+*.swp
+*.swo
 
 # debug
 npm-debug.log*
@@ -56,6 +59,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+
 # vercel
 .vercel
 
@@ -63,10 +67,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# IDE
 .idea/
+.vscode/
+.trae/
 
 # ignore adding self-signed certs
-certs/
+/certs/
 
-api/logs/*
-logs/*
+# logs
+api/logs/
+logs/

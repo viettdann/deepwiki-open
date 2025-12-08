@@ -4,42 +4,55 @@
 .github
 
 # Node.js
-node_modules
+node_modules/
 npm-debug.log
 yarn-debug.log
 yarn-error.log
 
 # Next.js
-.next
-out
+.next/
+out/
 
 # Python cache files (but keep api/ directory)
+.venv/
+venv/
+env/
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
 .eggs/
-/lib/
-/lib64/
-parts/
-sdist/
-var/
+.venv*/lib/
+.venv*/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
+/pyproject.toml
+/uv.lock
 # Keep api/ directory but exclude cache
 api/__pycache__/
 api/*.pyc
 
+# IDE
+.idea/
+.vscode/
+.trae/
+
 # Environment variables
-# .env is now allowed to be included in the build
+.env
+.env*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
@@ -59,5 +72,5 @@ screenshots/
 *.md
 !api/README.md
 
-api/logs/*
-logs/*
+api/logs/
+logs/
