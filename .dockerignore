@@ -37,6 +37,8 @@ var/
 # Keep api/ directory but exclude cache
 api/__pycache__/
 api/*.pyc
+# Exclude only top-level lib directories, not src/lib
+!src/lib/
 
 # Environment variables
 # .env is now allowed to be included in the build
