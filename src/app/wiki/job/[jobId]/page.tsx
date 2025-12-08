@@ -243,10 +243,18 @@ export default function JobProgressPage() {
     try {
       const response = await fetch(`/api/wiki/jobs/${jobId}/pages/${pageId}/retry`, { method: 'POST' });
       if (response.ok) {
+        // Refresh job data to show updated status
         fetchJob();
+        // Optional: Show success message
+        console.log('Page queued for retry');
+      } else {
+        const error = await response.json();
+        console.error('Failed to retry page:', error);
+        alert(`Failed to retry page: ${error.detail || error.error || 'Unknown error'}`);
       }
     } catch (e) {
       console.error('Failed to retry page:', e);
+      alert('Failed to retry page. Please try again.');
     }
   };
 
@@ -329,7 +337,7 @@ export default function JobProgressPage() {
 
   const isRunning = ['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(currentStatus);
   const isPaused = currentStatus === 'paused';
-  const isFinished = ['completed', 'failed', 'cancelled'].includes(currentStatus);
+  const isFinished = ['completed', 'partially_completed', 'failed', 'cancelled'].includes(currentStatus);
 
   return (
     <div className="min-h-screen bg-background">
@@ -385,6 +393,7 @@ export default function JobProgressPage() {
         <div className="mb-6 flex items-center gap-2">
           <span className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
             currentStatus === 'completed' ? 'bg-(--accent-success)/10 text-(--accent-success) border-(--accent-success)/30' :
+            currentStatus === 'partially_completed' ? 'bg-(--accent-warning)/10 text-(--accent-warning) border-(--accent-warning)/30' :
             currentStatus === 'failed' ? 'bg-(--accent-danger)/10 text-(--accent-danger) border-(--accent-danger)/30' :
             currentStatus === 'cancelled' ? 'bg-(--foreground-muted)/10 text-(--foreground-muted) border-(--foreground-muted)/30' :
             currentStatus === 'paused' ? 'bg-(--accent-warning)/10 text-(--accent-warning) border-(--accent-warning)/30' :
@@ -563,12 +572,12 @@ export default function JobProgressPage() {
               <FaRedo /> Retry Job
             </button>
           )}
-          {currentStatus === 'completed' && (
+          {(currentStatus === 'completed' || currentStatus === 'partially_completed') && (
             <Link
               href={`/${jobDetail.job.owner}/${jobDetail.job.repo}?type=${jobDetail.job.repo_type}`}
               className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-(--gradient-from) to-(--gradient-to) text-white rounded-lg hover:opacity-90 transition-all shadow-lg hover:shadow-xl"
             >
-              View Wiki
+              View Wiki {currentStatus === 'partially_completed' && '(Partial)'}
             </Link>
           )}
           {isFinished && (

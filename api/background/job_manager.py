@@ -458,19 +458,49 @@ class JobManager:
         if page['status'] not in [PageStatus.FAILED.value, PageStatus.PERMANENT_FAILED.value]:
             return False
 
+        # Get the job to check its status
+        job = await db.fetch_one(
+            "SELECT * FROM jobs WHERE id = ?", (page['job_id'],)
+        )
+
+        if not job:
+            return False
+
+        # Reset page to PENDING and reset retry_count to allow fresh retry
         result = await db.execute(
-            """UPDATE job_pages SET status = ?, content = NULL, last_error = NULL
+            """UPDATE job_pages
+               SET status = ?,
+                   content = NULL,
+                   last_error = NULL,
+                   retry_count = 0,
+                   started_at = NULL,
+                   completed_at = NULL
                WHERE id = ?""",
             (PageStatus.PENDING.value, page_id)
         )
 
-        # Also update the job's failed_pages count
+        # Update the job's failed_pages count and status
         if result > 0:
-            await db.execute(
-                """UPDATE jobs SET failed_pages = failed_pages - 1, updated_at = datetime('now')
-                   WHERE id = ?""",
-                (page['job_id'],)
-            )
+            # If job is COMPLETED or FAILED, restart it to GENERATING_PAGES
+            # so the worker will pick up the retried page
+            if job['status'] in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
+                await db.execute(
+                    """UPDATE jobs
+                       SET failed_pages = failed_pages - 1,
+                           status = ?,
+                           current_phase = 2,
+                           error_message = NULL,
+                           updated_at = datetime('now')
+                       WHERE id = ?""",
+                    (JobStatus.GENERATING_PAGES.value, page['job_id'])
+                )
+            else:
+                # Job is still active, just decrement failed_pages count
+                await db.execute(
+                    """UPDATE jobs SET failed_pages = failed_pages - 1, updated_at = datetime('now')
+                       WHERE id = ?""",
+                    (page['job_id'],)
+                )
 
         return result > 0
 
