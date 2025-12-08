@@ -20,15 +20,17 @@ interface ProcessedProjectsProps {
   maxItems?: number;
   className?: string;
   messages?: Record<string, Record<string, string>>; // Translation messages with proper typing
+  initialProjects?: ProcessedProject[];
 }
 
 export default function ProcessedProjects({ 
   showHeader = true, 
   maxItems, 
   className = "",
-  messages 
+  messages,
+  initialProjects
 }: ProcessedProjectsProps) {
-  const [projects, setProjects] = useState<ProcessedProject[]>([]);
+  const [projects, setProjects] = useState<ProcessedProject[]>(initialProjects ?? []);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,6 +56,10 @@ export default function ProcessedProjects({
   };
 
   useEffect(() => {
+    if (initialProjects && initialProjects.length >= 0) {
+      setIsLoading(false);
+      return;
+    }
     const fetchProjects = async () => {
       setIsLoading(true);
       setError(null);
@@ -76,9 +82,8 @@ export default function ProcessedProjects({
         setIsLoading(false);
       }
     };
-
     fetchProjects();
-  }, []);
+  }, [initialProjects]);
 
   // Filter projects based on search query
   const filteredProjects = useMemo(() => {

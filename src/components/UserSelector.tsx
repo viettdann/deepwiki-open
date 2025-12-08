@@ -114,7 +114,7 @@ export default function UserSelector({
     };
 
     fetchModelConfig();
-  }, []);
+  }, [provider, setProvider, setModel]);
 
   // Handler for changing provider - smooth transition without flash
   const handleProviderChange = (newProvider: string) => {

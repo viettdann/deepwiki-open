@@ -448,10 +448,11 @@ class WikiGenerationWorker:
             # Generate content using LLM
             # Add timeout to prevent hanging indefinitely
             try:
-                content = await asyncio.wait_for(self._call_llm(job, prompt), timeout=300)
+                # Increase timeout to 10 minutes (600 seconds) for large models/prompts
+                content = await asyncio.wait_for(self._call_llm(job, prompt), timeout=600)
             except asyncio.TimeoutError:
                 logger.error(f"LLM generation timed out for page {page_id}")
-                raise ValueError("LLM generation timeout (exceeded 5 minutes)")
+                raise ValueError("LLM generation timeout (exceeded 10 minutes)")
 
             if not content:
                 raise ValueError("Empty response from LLM")

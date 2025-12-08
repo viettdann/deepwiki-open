@@ -1,4 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+
+// Force dynamic rendering to skip static generation for this page
+export const dynamic = 'force-dynamic';
 
 import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -446,14 +450,14 @@ Estimated time: 20-30 minutes | Combines concepts from all exercises
 
       setWorkshopContent(content);
 
-    } catch (err) {
-      console.error('Error generating workshop content:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+    } catch (error) {
+      console.error('Error generating workshop content:', error);
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);
       setLoadingMessage(undefined);
     }
-  }, [owner, repo, repoInfo, token, providerParam, modelParam, isCustomModelParam, customModelParam, language, isLoading, messages.loading, cachedWikiContent, fetchCachedWikiContent]);
+  }, [owner, repo, repoInfo, token, providerParam, modelParam, isCustomModelParam, customModelParam, language, isLoading, messages.loading?.generatingWorkshop, cachedWikiContent, fetchCachedWikiContent]);
 
   // Export workshop content
   const exportWorkshop = useCallback(async () => {
