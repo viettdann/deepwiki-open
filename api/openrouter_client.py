@@ -193,7 +193,8 @@ class OpenRouterClient(ModelClient):
                             f"{self.async_client['base_url']}/chat/completions",
                             headers=headers,
                             json=api_kwargs,
-                            timeout=60
+                            # Increase timeout to 10 minutes (600 seconds)
+                            timeout=600
                         ) as response:
                             if response.status != 200:
                                 error_text = await response.text()
@@ -445,7 +446,8 @@ class OpenRouterClient(ModelClient):
                     f"{self.sync_client['base_url']}/embeddings",
                     headers=headers,
                     json=api_kwargs,
-                    timeout=60
+                    # Increase timeout to 10 minutes (600 seconds)
+                    timeout=600
                 )
 
                 if response.status_code != 200:
