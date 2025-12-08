@@ -220,6 +220,7 @@ async def job_progress_stream(job_id: str, request: Request):
                         "message": update.message,
                         "page_id": update.page_id,
                         "page_title": update.page_title,
+                        "page_status": update.page_status.value if update.page_status else None,
                         "total_pages": update.total_pages,
                         "completed_pages": update.completed_pages,
                         "failed_pages": update.failed_pages,
