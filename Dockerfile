@@ -24,7 +24,6 @@ RUN --mount=type=bind,source=package.json,target=/app/package.json \
     --mount=type=bind,source=yarn.lock,target=/app/yarn.lock \
     --mount=type=bind,source=next.config.ts,target=/app/next.config.ts \
     --mount=type=bind,source=tsconfig.json,target=/app/tsconfig.json \
-    --mount=type=bind,source=tailwind.config.js,target=/app/tailwind.config.js \
     --mount=type=bind,source=postcss.config.mjs,target=/app/postcss.config.mjs \
     --mount=type=bind,source=src,target=/app/src \
     NODE_ENV=production yarn run build
