@@ -238,7 +238,7 @@ async def job_progress_stream(job_id: str, request: Request):
             finally:
                 # Cleanup: unregister callback
                 worker.unregister_progress_callback(job_id)
-                logger.info(f"Client disconnected from job {job_id} progress stream")
+                logger.debug(f"[Job {job_id}] Client disconnected from progress stream (normal)")
 
         except Exception as e:
             logger.error(f"Error in progress stream for job {job_id}: {e}")
