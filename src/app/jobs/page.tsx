@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ConfigurationModal from '@/components/ConfigurationModal';
-import { FaHome, FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaSync } from 'react-icons/fa';
+import { FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaSync } from 'react-icons/fa';
 
 interface Job {
   id: string;
@@ -68,7 +68,7 @@ export default function JobsPage() {
 
   // Modal state
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [repositoryInput, setRepositoryInput] = useState('https://github.com/owner/repo');
+  const [repositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
   const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
   const [provider, setProvider] = useState<string>('');

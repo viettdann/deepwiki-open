@@ -32,7 +32,7 @@ export default function WikiProjectsPage() {
 
   // State for modal
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [repositoryInput, setRepositoryInput] = useState('https://github.com/owner/repo');
+  const [repositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
   const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
   const [provider, setProvider] = useState<string>('');

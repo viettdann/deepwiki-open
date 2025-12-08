@@ -55,7 +55,7 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
   const limit = 20;
 
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [repositoryInput, setRepositoryInput] = useState('https://github.com/owner/repo');
+  const [repositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
   const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
   const [provider, setProvider] = useState<string>('');
@@ -69,9 +69,9 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
   const [includedDirs, setIncludedDirs] = useState('');
   const [includedFiles, setIncludedFiles] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authRequired, setAuthRequired] = useState<boolean>(authRequiredInitial);
+  const [authRequired] = useState<boolean>(authRequiredInitial);
   const [authCode, setAuthCode] = useState<string>('');
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
+  const [isAuthLoading] = useState<boolean>(false);
 
   useEffect(() => {
     setLanguage(selectedLanguage);
@@ -393,4 +393,3 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
     </div>
   );
 }
-

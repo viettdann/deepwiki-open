@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import Ask from '@/components/Ask';
@@ -277,7 +278,7 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   const [pagesInProgress, setPagesInProgress] = useState(new Set<string>());
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [originalMarkdown, setOriginalMarkdown] = useState<Record<string, string>>({});
+  const [originalMarkdown] = useState<Record<string, string>>({});
   const [requestInProgress, setRequestInProgress] = useState(false);
   const [currentToken, setCurrentToken] = useState(token);
   const [effectiveRepoInfo, setEffectiveRepoInfo] = useState(repoInfo);
@@ -287,7 +288,7 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   const [selectedModelState, setSelectedModelState] = useState(modelParam);
   const [isCustomSelectedModelState, setIsCustomSelectedModelState] = useState(isCustomModelParam);
   const [customSelectedModelState, setCustomSelectedModelState] = useState(customModelParam);
-  const [showModelOptions, setShowModelOptions] = useState(false);
+  const [showModelOptions] = useState(false);
   const excludedDirs = searchParams?.get('excluded_dirs') || '';
   const excludedFiles = searchParams?.get('excluded_files') || '';
   const [modelExcludedDirs, setModelExcludedDirs] = useState(excludedDirs);
@@ -306,9 +307,9 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   const [isAskModalOpen, setIsAskModalOpen] = useState(false);
   const askComponentRef = useRef<{ clearConversation: () => void } | null>(null);
 
-  const [authRequired, setAuthRequired] = useState<boolean>(authRequiredInitial);
+  const [authRequired] = useState<boolean>(authRequiredInitial);
   const [authCode, setAuthCode] = useState<string>('');
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
+  const [isAuthLoading] = useState<boolean>(false);
 
   const [defaultBranch, setDefaultBranch] = useState<string>('main');
 
@@ -385,7 +386,6 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
           ...prev,
           [page.id]: { ...page, content: 'Loading...' }
         }));
-        setOriginalMarkdown(prev => ({ ...prev, [page.id]: '' }));
         const repoUrlResolved = getRepoUrl(effectiveRepoInfo);
         const promptContent =
 `You are a senior software architect (10+ years experience) and technical writer.
@@ -495,7 +495,7 @@ IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Vi
         });
         if (!response.ok) {
           const errorText = await response.text().catch(() => 'No error details available');
-          throw new Error(`Error generating page content: ${response.status} - ${response.statusText}`);
+          throw new Error(`Error generating page content: ${response.status} - ${response.statusText} - ${errorText}`);
         }
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
@@ -515,7 +515,6 @@ IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Vi
         content = content.replace(/^```markdown\s*/i, '').replace(/```\s*$/i, '');
         const updatedPage = { ...page, content };
         setGeneratedPages(prev => ({ ...prev, [page.id]: updatedPage }));
-        setOriginalMarkdown(prev => ({ ...prev, [page.id]: content }));
         resolve();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -535,7 +534,7 @@ IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Vi
         setLoadingMessage(undefined);
       }
     });
-  }, [generatedPages, currentToken, effectiveRepoInfo, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, language, activeContentRequests, generateFileUrl]);
+  }, [generatedPages, currentToken, effectiveRepoInfo, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, language, activeContentRequests, generateFileUrl]);
 
   const determineWikiStructure = useCallback(async (fileTree: string, readme: string, ownerLocal: string, repoLocal: string) => {
     if (!ownerLocal || !repoLocal) {
@@ -714,7 +713,7 @@ Return your analysis in the specified XML format.`
     } finally {
       setStructureRequestInProgress(false);
     }
-  }, [generatePageContent, currentToken, effectiveRepoInfo, pagesInProgress.size, structureRequestInProgress, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, language, messages.loading, isComprehensiveView]);
+  }, [generatePageContent, currentToken, effectiveRepoInfo, pagesInProgress.size, structureRequestInProgress, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, language, messages.loading?.determiningStructure, isComprehensiveView]);
 
   const fetchRepositoryStructure = useCallback(async () => {
     if (requestInProgress) {
@@ -965,7 +964,7 @@ Return your analysis in the specified XML format.`
     } finally {
       setRequestInProgress(false);
     }
-  }, [owner, repo, determineWikiStructure, currentToken, effectiveRepoInfo, requestInProgress, messages.loading]);
+  }, [owner, repo, determineWikiStructure, currentToken, effectiveRepoInfo, requestInProgress, messages.loading?.fetchingStructure]);
 
   const exportWiki = useCallback(async (format: 'markdown' | 'json') => {
     if (!wikiStructure || Object.keys(generatedPages).length === 0) {
@@ -1022,7 +1021,6 @@ Return your analysis in the specified XML format.`
   }, [wikiStructure, generatedPages, effectiveRepoInfo, language]);
 
   const confirmRefresh = useCallback(async (newToken?: string) => {
-    setShowModelOptions(false);
     setLoadingMessage(messages.loading?.clearingCache || 'Clearing server cache...');
     setIsLoading(true);
     try {
@@ -1108,7 +1106,7 @@ Return your analysis in the specified XML format.`
       setIsLoading(false);
       setLoadingMessage(undefined);
     }
-  }, [effectiveRepoInfo, language, messages.loading, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, isComprehensiveView, authCode, authRequired, currentToken, router]);
+  }, [effectiveRepoInfo, language, messages.loading?.initializing, messages.loading?.clearingCache, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, isComprehensiveView, authCode, authRequired, currentToken, router]);
 
   useEffect(() => {
     if (effectRan.current === false) {
@@ -1252,7 +1250,7 @@ Return your analysis in the specified XML format.`
       };
       loadData();
     }
-  }, [effectiveRepoInfo, effectiveRepoInfo.owner, effectiveRepoInfo.repo, effectiveRepoInfo.type, language, messages.loading?.fetchingCache, isComprehensiveView, router, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, currentToken, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles]);
+  }, [effectiveRepoInfo, language, messages.loading?.fetchingCache, isComprehensiveView, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, currentToken, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles]);
 
   useEffect(() => {
     const saveCache = async () => {
@@ -1279,7 +1277,7 @@ Return your analysis in the specified XML format.`
       }
     };
     saveCache();
-  }, [isLoading, error, wikiStructure, generatedPages, effectiveRepoInfo.owner, effectiveRepoInfo.repo, effectiveRepoInfo.type, effectiveRepoInfo.repoUrl, language, isComprehensiveView]);
+  }, [isLoading, error, wikiStructure, generatedPages, effectiveRepoInfo, language, isComprehensiveView, selectedProviderState, selectedModelState]);
 
   const handlePageSelect = (pageId: string) => {
     if (currentPageId != pageId) {

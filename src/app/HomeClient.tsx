@@ -114,9 +114,9 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
-  const [authRequired, setAuthRequired] = useState<boolean>(authRequiredInitial);
+  const [authRequired] = useState<boolean>(authRequiredInitial);
   const [authCode, setAuthCode] = useState<string>('');
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
+  const [isAuthLoading] = useState<boolean>(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
   const t = (key: string, params: Record<string, string | number> = {}): string => {
@@ -366,7 +366,7 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
               <form onSubmit={handleFormSubmit} className="max-w-2xl mx-auto mb-8">
                 <div className="glass-hover rounded-2xl p-6 border border-[var(--glass-border)]">
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <input id="repo-input" type="text" value={repositoryInput} onChange={(e) => setRepositoryInput(e.target.value)} placeholder="https://github.com/owner/repo or owner/repo" className="input-glass flex-1" />
+                    <input id="repo-input" type="text" value={repositoryInput} onChange={(e) => setRepositoryInput(e.target.value)} placeholder="http://github.com/viettdann/deepwiki-open or owner/repo" className="input-glass flex-1" />
                     <button type="submit" className="btn-japanese whitespace-nowrap" disabled={isSubmitting}>
                       <span className="flex items-center gap-2 justify-center">
                         <RocketIcon />
@@ -489,4 +489,3 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
     </div>
   );
 }
-

@@ -441,7 +441,7 @@ export default function Home() {
                       type="text"
                       value={repositoryInput}
                       onChange={handleRepositoryInputChange}
-                      placeholder="https://github.com/owner/repo or owner/repo"
+                      placeholder="http://github.com/viettdann/deepwiki-open or owner/repo"
                       className="input-glass flex-1"
                     />
                     <button
