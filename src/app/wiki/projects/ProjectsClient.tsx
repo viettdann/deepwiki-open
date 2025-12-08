@@ -7,6 +7,16 @@ import ProcessedProjects from '@/components/ProcessedProjects';
 import ConfigurationModal from '@/components/ConfigurationModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+type ProcessedProject = {
+  id: string;
+  owner: string;
+  repo: string;
+  name: string;
+  repo_type: string;
+  submittedAt: number;
+  language: string;
+};
+
 const WikiIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
     <path d="M11.25 4.533A9.707 9.707 0 0 0 6 3a9.735 9.735 0 0 0-3.25.555.75.75 0 0 0-.5.707v14.25a.75.75 0 0 0 1 .707A8.237 8.237 0 0 1 6 18.75c1.995 0 3.823.707 5.25 1.886V4.533ZM12.75 20.636A8.214 8.214 0 0 1 18 18.75c.966 0 1.89.166 2.75.47a.75.75 0 0 0 1-.708V4.262a.75.75 0 0 0-.5-.707A9.735 9.735 0 0 0 18 3a9.707 9.707 0 0 0-5.25 1.533v16.103Z" />
@@ -26,11 +36,10 @@ const RocketIcon = () => (
   </svg>
 );
 
-export default function WikiProjectsPage() {
+export default function ProjectsClient({ initialProjects, authRequiredInitial }: { initialProjects: ProcessedProject[]; authRequiredInitial: boolean }) {
   const router = useRouter();
   const { language, setLanguage, messages, supportedLanguages } = useLanguage();
 
-  // State for modal
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [repositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
@@ -46,41 +55,22 @@ export default function WikiProjectsPage() {
   const [includedDirs, setIncludedDirs] = useState('');
   const [includedFiles, setIncludedFiles] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authRequired, setAuthRequired] = useState<boolean>(false);
+  const [authRequired] = useState<boolean>(authRequiredInitial);
   const [authCode, setAuthCode] = useState<string>('');
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [isAuthLoading] = useState<boolean>(false);
 
   useEffect(() => {
     setLanguage(selectedLanguage);
   }, [selectedLanguage, setLanguage]);
 
-  // Fetch authentication status
-  useEffect(() => {
-    const fetchAuthStatus = async () => {
-      try {
-        setIsAuthLoading(true);
-        const response = await fetch('/api/auth/status');
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        setAuthRequired(data.auth_required);
-      } catch (err) {
-        console.error("Failed to fetch auth status:", err);
-        setAuthRequired(true);
-      } finally {
-        setIsAuthLoading(false);
-      }
-    };
-    fetchAuthStatus();
-  }, []);
-
   const validateAuthCode = async () => {
     try {
-      if(authRequired) {
-        if(!authCode) return false;
+      if (authRequired) {
+        if (!authCode) return false;
         const response = await fetch('/api/auth/validate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({'code': authCode})
+          body: JSON.stringify({ code: authCode })
         });
         if (!response.ok) return false;
         const data = await response.json();
@@ -94,28 +84,22 @@ export default function WikiProjectsPage() {
 
   const handleGenerateWiki = async () => {
     const validation = await validateAuthCode();
-    if(!validation) {
-      console.error(`Failed to validate the authorization code`);
+    if (!validation) {
       setIsConfigModalOpen(false);
       return;
     }
-
     if (isSubmitting) return;
-
     setIsSubmitting(true);
     const parseRepositoryInput = (input: string) => {
-      // Simplified parsing - add full logic if needed
       const match = input.match(/github\.com\/([^\/]+)\/([^\/]+)/);
       if (match) return { owner: match[1], repo: match[2].replace('.git', ''), type: 'github' };
       return null;
     };
-
     const parsedRepo = parseRepositoryInput(repositoryInput);
     if (!parsedRepo) {
       setIsSubmitting(false);
       return;
     }
-
     const { owner, repo } = parsedRepo;
     const params = new URLSearchParams();
     if (accessToken) params.append('token', accessToken);
@@ -130,18 +114,15 @@ export default function WikiProjectsPage() {
     if (includedFiles) params.append('included_files', includedFiles);
     params.append('language', selectedLanguage);
     params.append('comprehensive', isComprehensiveView.toString());
-
     const queryString = params.toString() ? `?${params.toString()}` : '';
     router.push(`/${owner}/${repo}${queryString}`);
   };
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
       <header className="sticky top-0 z-50 bg-(--surface) border-b border-(--glass-border)">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo & Brand */}
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="absolute inset-0 bg-linear-to-r from-(--gradient-from) to-(--gradient-to) rounded-lg blur opacity-50"></div>
@@ -150,32 +131,16 @@ export default function WikiProjectsPage() {
                 </div>
               </div>
               <div>
-                <h1 className="text-xl font-bold font-display gradient-text">
-                  DeepWiki
-                </h1>
+                <h1 className="text-xl font-bold font-display gradient-text">DeepWiki</h1>
               </div>
             </div>
-
-            {/* Navigation */}
             <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors">
-                Home
-              </Link>
-              <Link href="/wiki/projects" className="text-sm font-medium text-(--accent-primary) hover:text-foreground transition-colors flex items-center gap-2">
-                Indexed Wiki
-              </Link>
-              <Link href="/jobs" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors flex items-center gap-2">
-                Jobs
-                <span className="w-2 h-2 bg-(--accent-emerald) rounded-full pulse-glow"></span>
-              </Link>
+              <Link href="/" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors">Home</Link>
+              <Link href="/wiki/projects" className="text-sm font-medium text-(--accent-primary) hover:text-foreground transition-colors flex items-center gap-2">Indexed Wiki</Link>
+              <Link href="/jobs" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors flex items-center gap-2">Jobs<span className="w-2 h-2 bg-(--accent-emerald) rounded-full pulse-glow"></span></Link>
             </nav>
-
-            {/* CTA Button */}
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsConfigModalOpen(true)}
-                className="hidden md:flex items-center gap-2 btn-japanese text-sm px-6 py-2"
-              >
+              <button onClick={() => setIsConfigModalOpen(true)} className="hidden md:flex items-center gap-2 btn-japanese text-sm px-6 py-2">
                 <RocketIcon />
                 Generate Wiki
               </button>
@@ -183,19 +148,11 @@ export default function WikiProjectsPage() {
           </div>
         </div>
       </header>
-
-      {/* Main Content */}
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <ProcessedProjects
-            showHeader={true}
-            messages={messages}
-            className=""
-          />
+          <ProcessedProjects showHeader={true} messages={messages} className="" initialProjects={initialProjects} />
         </div>
       </main>
-
-      {/* Configuration Modal */}
       <ConfigurationModal
         isOpen={isConfigModalOpen}
         onClose={() => setIsConfigModalOpen(false)}
@@ -232,21 +189,12 @@ export default function WikiProjectsPage() {
         setAuthCode={setAuthCode}
         isAuthLoading={isAuthLoading}
       />
-
-      {/* Footer */}
       <footer className="bg-(--surface) border-t border-(--glass-border) mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-(--foreground-muted)">
-              {messages.footer?.copyright || '© 2024 DeepWiki. All rights reserved.'}
-            </p>
+            <p className="text-sm text-(--foreground-muted)">{messages.footer?.copyright || '© 2024 DeepWiki. All rights reserved.'}</p>
             <div className="flex items-center gap-6">
-              <a
-                href="https://github.com/viettdann/deepwiki-open"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-(--foreground-muted) hover:text-(--accent-primary) transition-colors"
-              >
+              <a href="https://github.com/viettdann/deepwiki-open" target="_blank" rel="noopener noreferrer" className="text-(--foreground-muted) hover:text-(--accent-primary) transition-colors">
                 <GitHubIcon />
               </a>
             </div>

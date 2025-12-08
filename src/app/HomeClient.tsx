@@ -7,10 +7,8 @@ import Mermaid from '../components/Mermaid';
 import ConfigurationModal from '@/components/ConfigurationModal';
 import ProcessedProjects from '@/components/ProcessedProjects';
 import { extractUrlPath, extractUrlDomain } from '@/utils/urlDecoder';
-import { useProcessedProjects } from '@/hooks/useProcessedProjects';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-// SVG Icons - Inline to avoid external dependencies
 const WikiIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
     <path d="M11.25 4.533A9.707 9.707 0 0 0 6 3a9.735 9.735 0 0 0-3.25.555.75.75 0 0 0-.5.707v14.25a.75.75 0 0 0 1 .707A8.237 8.237 0 0 1 6 18.75c1.995 0 3.823.707 5.25 1.886V4.533ZM12.75 20.636A8.214 8.214 0 0 1 18 18.75c.966 0 1.89.166 2.75.47a.75.75 0 0 0 1-.708V4.262a.75.75 0 0 0-.5-.707A9.735 9.735 0 0 0 18 3a9.707 9.707 0 0 0-5.25 1.533v16.103Z" />
@@ -71,7 +69,6 @@ const RocketIcon = () => (
   </svg>
 );
 
-// Demo mermaid charts
 const DEMO_FLOW_CHART = `graph TD
   A[Code Repository] --> B[DeepWiki]
   B --> C[Architecture Diagrams]
@@ -86,12 +83,42 @@ const DEMO_FLOW_CHART = `graph TD
   style E fill:#f9a9d3,stroke:#d81f6c
   style F fill:#d3f9a9,stroke:#6cd81f`;
 
-export default function Home() {
+type ProcessedProject = {
+  id: string;
+  owner: string;
+  repo: string;
+  name: string;
+  repo_type: string;
+  submittedAt: number;
+  language: string;
+};
+
+export default function HomeClient({ initialProjects, authRequiredInitial }: { initialProjects: ProcessedProject[]; authRequiredInitial: boolean }) {
   const router = useRouter();
   const { language, setLanguage, messages, supportedLanguages } = useLanguage();
-  const { projects, isLoading: projectsLoading } = useProcessedProjects();
 
-  // Translation helper
+  const [repositoryInput, setRepositoryInput] = useState('https://github.com/viettdann/deepwiki-open');
+  const REPO_CONFIG_CACHE_KEY = 'deepwikiRepoConfigCache';
+
+  const [provider, setProvider] = useState<string>('');
+  const [model, setModel] = useState<string>('');
+  const [isCustomModel, setIsCustomModel] = useState<boolean>(false);
+  const [customModel, setCustomModel] = useState<string>('');
+  const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
+  const [excludedDirs, setExcludedDirs] = useState('');
+  const [excludedFiles, setExcludedFiles] = useState('');
+  const [includedDirs, setIncludedDirs] = useState('');
+  const [includedFiles, setIncludedFiles] = useState('');
+  const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket' | 'azure'>('github');
+  const [accessToken, setAccessToken] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
+  const [authRequired] = useState<boolean>(authRequiredInitial);
+  const [authCode, setAuthCode] = useState<string>('');
+  const [isAuthLoading] = useState<boolean>(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+
   const t = (key: string, params: Record<string, string | number> = {}): string => {
     const keys = key.split('.');
     let value: unknown = messages;
@@ -110,67 +137,28 @@ export default function Home() {
     return key;
   };
 
-  const [repositoryInput, setRepositoryInput] = useState('https://github.com/viettdann/deepwiki-open');
-  const REPO_CONFIG_CACHE_KEY = 'deepwikiRepoConfigCache';
-
-  // State management
-  const [provider, setProvider] = useState<string>('');
-  const [model, setModel] = useState<string>('');
-  const [isCustomModel, setIsCustomModel] = useState<boolean>(false);
-  const [customModel, setCustomModel] = useState<string>('');
-  const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
-  const [excludedDirs, setExcludedDirs] = useState('');
-  const [excludedFiles, setExcludedFiles] = useState('');
-  const [includedDirs, setIncludedDirs] = useState('');
-  const [includedFiles, setIncludedFiles] = useState('');
-  const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket' | 'azure'>('github');
-  const [accessToken, setAccessToken] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
-  const [authRequired, setAuthRequired] = useState<boolean>(false);
-  const [authCode, setAuthCode] = useState<string>('');
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
-  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-
-  // Load config from cache
-  const loadConfigFromCache = (repoUrl: string) => {
-    if (!repoUrl) return;
-    try {
-      const cachedConfigs = localStorage.getItem(REPO_CONFIG_CACHE_KEY);
-      if (cachedConfigs) {
-        const configs = JSON.parse(cachedConfigs);
-        const config = configs[repoUrl.trim()];
-        if (config) {
-          setSelectedLanguage(config.selectedLanguage || language);
-          setIsComprehensiveView(config.isComprehensiveView === undefined ? true : config.isComprehensiveView);
-          setProvider(config.provider || '');
-          setModel(config.model || '');
-          setIsCustomModel(config.isCustomModel || false);
-          setCustomModel(config.customModel || '');
-          setSelectedPlatform(config.selectedPlatform || 'github');
-          setExcludedDirs(config.excludedDirs || '');
-          setExcludedFiles(config.excludedFiles || '');
-          setIncludedDirs(config.includedDirs || '');
-          setIncludedFiles(config.includedFiles || '');
-        }
-      }
-    } catch (error) {
-      console.error('Error loading config from localStorage:', error);
-    }
-  };
-
-  const handleRepositoryInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newRepoUrl = e.target.value;
-    setRepositoryInput(newRepoUrl);
-    if (newRepoUrl.trim() !== "") {
-      loadConfigFromCache(newRepoUrl);
-    }
-  };
-
   useEffect(() => {
     if (repositoryInput) {
-      loadConfigFromCache(repositoryInput);
+      try {
+        const cachedConfigs = localStorage.getItem(REPO_CONFIG_CACHE_KEY);
+        if (cachedConfigs) {
+          const configs = JSON.parse(cachedConfigs);
+          const config = configs[repositoryInput.trim()];
+          if (config) {
+            setSelectedLanguage(config.selectedLanguage || language);
+            setIsComprehensiveView(config.isComprehensiveView === undefined ? true : config.isComprehensiveView);
+            setProvider(config.provider || '');
+            setModel(config.model || '');
+            setIsCustomModel(config.isCustomModel || false);
+            setCustomModel(config.customModel || '');
+            setSelectedPlatform(config.selectedPlatform || 'github');
+            setExcludedDirs(config.excludedDirs || '');
+            setExcludedFiles(config.excludedFiles || '');
+            setIncludedDirs(config.includedDirs || '');
+            setIncludedFiles(config.includedFiles || '');
+          }
+        }
+      } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -179,26 +167,6 @@ export default function Home() {
     setLanguage(selectedLanguage);
   }, [selectedLanguage, setLanguage]);
 
-  // Fetch authentication status
-  useEffect(() => {
-    const fetchAuthStatus = async () => {
-      try {
-        setIsAuthLoading(true);
-        const response = await fetch('/api/auth/status');
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        setAuthRequired(data.auth_required);
-      } catch (err) {
-        console.error("Failed to fetch auth status:", err);
-        setAuthRequired(true);
-      } finally {
-        setIsAuthLoading(false);
-      }
-    };
-    fetchAuthStatus();
-  }, []);
-
-  // Parse repository input
   const parseRepositoryInput = (input: string): {
     owner: string,
     repo: string,
@@ -244,31 +212,16 @@ export default function Home() {
         owner = parts[parts.length - 2] || '';
       }
     } else {
-      console.error('Unsupported URL format:', input);
       return null;
     }
 
     if (!owner || !repo) return null;
-
     owner = owner.trim();
     repo = repo.trim();
-
     if (repo.endsWith('.git')) {
       repo = repo.slice(0, -4);
     }
-
     return { owner, repo, type, fullPath, localPath };
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsedRepo = parseRepositoryInput(repositoryInput);
-    if (!parsedRepo) {
-      setError('Invalid repository format. Use "owner/repo", GitHub/GitLab/BitBucket URL, or a local folder path like "/path/to/folder" or "C:\\path\\to\\folder".');
-      return;
-    }
-    setError(null);
-    setIsConfigModalOpen(true);
   };
 
   const validateAuthCode = async () => {
@@ -290,17 +243,22 @@ export default function Home() {
     return true;
   };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedRepo = parseRepositoryInput(repositoryInput);
+    if (!parsedRepo) {
+      setError('Invalid repository format. Use "owner/repo", GitHub/GitLab/BitBucket URL, or a local folder path like "/path/to/folder" or "C:\\path\\to\\folder".');
+      return;
+    }
+    setError(null);
+    setIsConfigModalOpen(true);
+  };
+
   const handleGenerateWiki = async () => {
     const validation = await validateAuthCode();
     if(!validation) {
       setError(`Failed to validate the authorization code`);
-      console.error(`Failed to validate the authorization code`);
       setIsConfigModalOpen(false);
-      return;
-    }
-
-    if (isSubmitting) {
-      console.log('Form submission already in progress, ignoring duplicate click');
       return;
     }
 
@@ -316,22 +274,18 @@ export default function Home() {
         existingConfigs[currentRepoUrl] = configToSave;
         localStorage.setItem(REPO_CONFIG_CACHE_KEY, JSON.stringify(existingConfigs));
       }
-    } catch (error) {
-      console.error('Error saving config to localStorage:', error);
-    }
+    } catch {}
 
     setIsSubmitting(true);
     const parsedRepo = parseRepositoryInput(repositoryInput);
-
     if (!parsedRepo) {
-      setError('Invalid repository format. Use "owner/repo", GitHub/GitLab/BitBucket URL, or a local folder path like "/path/to/folder" or "C:\\path\\to\\folder".');
+      setError('Invalid repository format.');
       setIsSubmitting(false);
       return;
     }
 
     const { owner, repo, type, localPath } = parsedRepo;
     const params = new URLSearchParams();
-
     if (accessToken) params.append('token', accessToken);
     params.append('type', (type == 'local' ? type : selectedPlatform) || 'github');
     if (localPath) {
@@ -348,18 +302,15 @@ export default function Home() {
     if (includedFiles) params.append('included_files', includedFiles);
     params.append('language', selectedLanguage);
     params.append('comprehensive', isComprehensiveView.toString());
-
     const queryString = params.toString() ? `?${params.toString()}` : '';
     router.push(`/${owner}/${repo}${queryString}`);
   };
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Sticky Header */}
       <header className="sticky top-0 z-50 bg-[var(--surface)] border-b border-[var(--glass-border)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo & Brand */}
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded-lg blur opacity-50"></div>
@@ -369,34 +320,21 @@ export default function Home() {
               </div>
               <div>
                 <h1 className="text-xl font-bold font-[family-name:var(--font-display)] gradient-text">
-                  {t('common.appName')}
+                  {messages.common?.appName || 'DeepWiki'}
                 </h1>
               </div>
             </div>
-
-            {/* Navigation */}
             <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
-                Home
-              </Link>
-              <Link href="/wiki/projects" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
-                Indexed Wiki
-              </Link>
-              <Link href="/jobs" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
-                Jobs
-                <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
-              </Link>
+              <Link href="/" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">Home</Link>
+              <Link href="/wiki/projects" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">Indexed Wiki</Link>
+              <Link href="/jobs" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">Jobs<span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span></Link>
             </nav>
-
-            {/* CTA Button */}
             <div className="flex items-center gap-4">
               <button
                 onClick={() => {
                   if (repositoryInput.trim()) {
-                    // If repo is already entered, open modal directly
                     setIsConfigModalOpen(true);
                   } else {
-                    // Otherwise scroll to input
                     const input = document.getElementById('repo-input');
                     input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     input?.focus();
@@ -411,44 +349,25 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1">
-        {/* Hero Section */}
         <section className="relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
           <div className="max-w-5xl mx-auto">
-            {/* Hero Text */}
             <div className="text-center mb-12 fade-in-up">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-[var(--glass-border)] mb-6">
                 <SparklesIcon />
                 <span className="text-sm font-medium text-[var(--foreground-muted)]">AI-Powered Documentation Generator</span>
               </div>
-
               <h2 className="text-5xl md:text-6xl font-bold font-[family-name:var(--font-display)] mb-6 leading-tight">
-                Transform Your Code into{' '}
-                <span className="gradient-text">Interactive Wikis</span>
+                Transform Your Code into <span className="gradient-text">Interactive Wikis</span>
               </h2>
-
               <p className="text-lg text-[var(--foreground-muted)] max-w-2xl mx-auto mb-12">
                 {t('home.description')}
               </p>
-
-              {/* Repository Input */}
               <form onSubmit={handleFormSubmit} className="max-w-2xl mx-auto mb-8">
                 <div className="glass-hover rounded-2xl p-6 border border-[var(--glass-border)]">
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <input
-                      id="repo-input"
-                      type="text"
-                      value={repositoryInput}
-                      onChange={handleRepositoryInputChange}
-                      placeholder="http://github.com/viettdann/deepwiki-open or owner/repo"
-                      className="input-glass flex-1"
-                    />
-                    <button
-                      type="submit"
-                      className="btn-japanese whitespace-nowrap"
-                      disabled={isSubmitting}
-                    >
+                    <input id="repo-input" type="text" value={repositoryInput} onChange={(e) => setRepositoryInput(e.target.value)} placeholder="http://github.com/viettdann/deepwiki-open or owner/repo" className="input-glass flex-1" />
+                    <button type="submit" className="btn-japanese whitespace-nowrap" disabled={isSubmitting}>
                       <span className="flex items-center gap-2 justify-center">
                         <RocketIcon />
                         {isSubmitting ? t('common.processing') : 'Generate Wiki'}
@@ -456,181 +375,70 @@ export default function Home() {
                     </button>
                   </div>
                   {error && (
-                    <div className="mt-3 text-sm text-[var(--highlight)] text-left">
-                      {error}
-                    </div>
+                    <div className="mt-3 text-sm text-[var(--highlight)] text-left">{error}</div>
                   )}
                 </div>
               </form>
-
-              {/* Platform Support Badges */}
               <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-[var(--foreground-muted)]">
                 <span>Supports:</span>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
-                  <GitHubIcon />
-                  <span>GitHub</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
-                  <GitLabIcon />
-                  <span>GitLab</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
-                  <BitbucketIcon />
-                  <span>Bitbucket</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
-                  <AzureIcon />
-                  <span>Azure Repos</span>
-                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]"><GitHubIcon /><span>GitHub</span></div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]"><GitLabIcon /><span>GitLab</span></div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]"><BitbucketIcon /><span>Bitbucket</span></div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]"><AzureIcon /><span>Azure Repos</span></div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Features Bento Grid */}
         <section className="py-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
-              <h3 className="text-3xl md:text-4xl font-bold font-[family-name:var(--font-display)] mb-4">
-                Powerful Features for Documentation
-              </h3>
-              <p className="text-[var(--foreground-muted)] max-w-2xl mx-auto">
-                Generate comprehensive documentation with AI-powered analysis, visual diagrams, and intelligent code understanding
-              </p>
+              <h3 className="text-3xl md:text-4xl font-bold font-[family-name:var(--font-display)] mb-4">Powerful Features for Documentation</h3>
+              <p className="text-[var(--foreground-muted)] max-w-2xl mx-auto">Generate comprehensive documentation with AI-powered analysis, visual diagrams, and intelligent code understanding</p>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Feature 1: Mermaid Diagrams */}
               <div className="lg:col-span-2 glass-hover rounded-2xl p-8 border border-[var(--border-subtle)] fade-in-up stagger-1">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)]">
-                    <ChartIcon />
-                  </div>
-                  <h4 className="text-xl font-bold font-[family-name:var(--font-display)]">Visual Diagrams</h4>
-                </div>
-                <p className="text-[var(--foreground-muted)] mb-6">
-                  Automatically generate architecture diagrams, flowcharts, and sequence diagrams using Mermaid
-                </p>
-                <div className="glass rounded-xl p-4 border border-[var(--border-subtle)]">
-                  <Mermaid chart={DEMO_FLOW_CHART} zoomingEnabled={false} />
-                </div>
+                <div className="flex items-center gap-3 mb-6"><div className="p-2 rounded-lg bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)]"><ChartIcon /></div><h4 className="text-xl font-bold font-[family-name:var(--font-display)]">Visual Diagrams</h4></div>
+                <p className="text-[var(--foreground-muted)] mb-6">Automatically generate architecture diagrams, flowcharts, and sequence diagrams using Mermaid</p>
+                <div className="glass rounded-xl p-4 border border-[var(--border-subtle)]"><Mermaid chart={DEMO_FLOW_CHART} zoomingEnabled={false} /></div>
               </div>
-
-              {/* Feature 2: Wiki Types */}
               <div className="glass-hover rounded-2xl p-8 border border-[var(--border-subtle)] fade-in-up stagger-2">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-[var(--accent-cyan)] to-[var(--gradient-via)]">
-                    <BoltIcon />
-                  </div>
-                  <h4 className="text-xl font-bold font-[family-name:var(--font-display)]">Two Wiki Types</h4>
-                </div>
+                <div className="flex items中心 gap-3 mb-6"><div className="p-2 rounded-lg bg-gradient-to-r from-[var(--accent-cyan)] to-[var(--gradient-via)]"><BoltIcon /></div><h4 className="text-xl font-bold font-[family-name:var(--font-display)]">Two Wiki Types</h4></div>
                 <div className="space-y-4">
-                  <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--accent-primary)] transition-colors cursor-pointer">
-                    <h5 className="font-semibold mb-2">Comprehensive</h5>
-                    <p className="text-sm text-[var(--foreground-muted)]">
-                      Deep analysis with detailed documentation, architecture patterns, and code examples
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--accent-primary)] transition-colors cursor-pointer">
-                    <h5 className="font-semibold mb-2">Concise</h5>
-                    <p className="text-sm text-[var(--foreground-muted)]">
-                      Quick overview with essential structure and key components
-                    </p>
-                  </div>
+                  <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--accent-primary)] transition-colors cursor-pointer"><h5 className="font-semibold mb-2">Comprehensive</h5><p className="text-sm text-[var(--foreground-muted)]">Deep analysis with detailed documentation, architecture patterns, and code examples</p></div>
+                  <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface)] hover:border-[var(--accent-primary)] transition-colors cursor-pointer"><h5 className="font-semibold mb-2">Concise</h5><p className="text-sm text-[var(--foreground-muted)]">Quick overview with essential structure and key components</p></div>
                 </div>
               </div>
-
-              {/* Feature 3: AI-Powered */}
               <div className="glass-hover rounded-2xl p-8 border border-[var(--border-subtle)] fade-in-up stagger-3">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-[var(--gradient-via)] to-[var(--accent-cyan)]">
-                    <SparklesIcon />
-                  </div>
-                  <h4 className="text-xl font-bold font-[family-name:var(--font-display)]">AI-Powered</h4>
-                </div>
-                <p className="text-[var(--foreground-muted)] mb-6">
-                  Multiple LLM providers supported for intelligent code analysis
-                </p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-[var(--foreground-muted)]">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>
-                    Google Gemini
-                  </div>
-                  <div className="flex items-center gap-2 text-[var(--foreground-muted)]">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>
-                    OpenAI GPT
-                  </div>
-                  <div className="flex items-center gap-2 text-[var(--foreground-muted)]">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>
-                    OpenRouter
-                  </div>
-                  <div className="flex items-center gap-2 text-[var(--foreground-muted)]">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>
-                    DeepSeek & Ollama
-                  </div>
-                </div>
+                <div className="flex items-center gap-3 mb-6"><div className="p-2 rounded-lg bg-gradient-to-r from-[var(--gradient-via)] to-[var(--accent-cyan)]"><SparklesIcon /></div><h4 className="text-xl font-bold font-[family-name:var(--font-display)]">AI-Powered</h4></div>
+                <p className="text-[var(--foreground-muted)] mb-6">Multiple LLM providers supported for intelligent code analysis</p>
+                <div className="space-y-2 text-sm"><div className="flex items-center gap-2 text-[var(--foreground-muted)]"><div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>Google Gemini</div><div className="flex items-center gap-2 text-[var(--foreground-muted)]"><div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>OpenAI GPT</div><div className="flex items-center gap-2 text-[var(--foreground-muted)]"><div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>OpenRouter</div><div className="flex items-center gap-2 text-[var(--foreground-muted)]"><div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]"></div>DeepSeek & Ollama</div></div>
               </div>
-
-              {/* Feature 4: RAG-Powered Chat */}
               <div className="lg:col-span-2 glass-hover rounded-2xl p-8 border border-[var(--border-subtle)] fade-in-up stagger-4">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-[var(--accent-cyan)] to-[var(--gradient-from)]">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                      <path fillRule="evenodd" d="M4.848 2.771A49.144 49.144 0 0 1 12 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 0 1-3.476.383.39.39 0 0 0-.297.17l-2.755 4.133a.75.75 0 0 1-1.248 0l-2.755-4.133a.39.39 0 0 0-.297-.17 48.9 48.9 0 0 1-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97Z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <h4 className="text-xl font-bold font-[family-name:var(--font-display)]">Interactive Q&A</h4>
-                </div>
-                <p className="text-[var(--foreground-muted)] mb-6">
-                  Ask questions about your codebase with RAG-powered chat interface for instant, context-aware answers
-                </p>
+                <div className="flex items-center gap-3 mb-6"><div className="p-2 rounded-lg bg-gradient-to-r from-[var(--accent-cyan)] to-[var(--gradient-from)]"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path fillRule="evenodd" d="M4.848 2.771A49.144 49.144 0 0 1 12 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 0 1-3.476.383.39.39 0 0 0-.297.17l-2.755 4.133a.75.75 0 0 1-1.248 0l-2.755-4.133a.39.39 0 0 0-.297-.17 48.9 48.9 0 0 1-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97Z" clipRule="evenodd" /></svg></div><h4 className="text-xl font-bold font-[family-name:var(--font-display)]">Interactive Q&A</h4></div>
+                <p className="text-[var(--foreground-muted)] mb-6">Ask questions about your codebase with RAG-powered chat interface for instant, context-aware answers</p>
                 <div className="glass rounded-xl p-4 border border-[var(--border-subtle)] space-y-3">
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] flex items-center justify-center text-xs font-bold">
-                      You
-                    </div>
-                    <div className="flex-1 bg-[var(--surface)] rounded-lg p-3 text-sm">
-                      How does authentication work in this codebase?
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[var(--surface)] flex items-center justify-center">
-                      <SparklesIcon />
-                    </div>
-                    <div className="flex-1 bg-[var(--surface)] rounded-lg p-3 text-sm text-[var(--foreground-muted)]">
-                      Based on the codebase analysis, authentication uses JWT tokens...
-                    </div>
-                  </div>
+                  <div className="flex gap-3"><div className="w-8 h-8 rounded-full bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] flex items-center justify-center text-xs font-bold">You</div><div className="flex-1 bg-[var(--surface)] rounded-lg p-3 text-sm">How does authentication work in this codebase?</div></div>
+                  <div className="flex gap-3"><div className="w-8 h-8 rounded-full bg-[var(--surface)] flex items-center justify中心"><SparklesIcon /></div><div className="flex-1 bg-[var(--surface)] rounded-lg p-3 text-sm text-[var(--foreground-muted)]">Based on the codebase analysis, authentication uses JWT tokens...</div></div>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Processed Projects Section */}
-        {!projectsLoading && projects.length > 0 && (
+        {initialProjects.length > 0 && (
           <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[var(--surface)] bg-opacity-30">
             <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
-                <h3 className="text-3xl md:text-4xl font-bold font-[family-name:var(--font-display)] mb-4">
-                  {t('projects.existingProjects')}
-                </h3>
-                <p className="text-[var(--foreground-muted)]">
-                  {t('projects.browseExisting')}
-                </p>
+                <h3 className="text-3xl md:text-4xl font-bold font-[family-name:var(--font-display)] mb-4">{t('projects.existingProjects')}</h3>
+                <p className="text-[var(--foreground-muted)]">{t('projects.browseExisting')}</p>
               </div>
-              <ProcessedProjects
-                showHeader={false}
-                maxItems={6}
-                messages={messages}
-                className="w-full"
-              />
+              <ProcessedProjects showHeader={false} maxItems={6} messages={messages} className="w-full" initialProjects={initialProjects} />
             </div>
           </section>
         )}
       </main>
 
-      {/* Configuration Modal */}
       <ConfigurationModal
         isOpen={isConfigModalOpen}
         onClose={() => setIsConfigModalOpen(false)}
@@ -668,22 +476,12 @@ export default function Home() {
         isAuthLoading={isAuthLoading}
       />
 
-      {/* Footer */}
       <footer className="bg-[var(--surface)] border-t border-[var(--glass-border)] mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-[var(--foreground-muted)]">
-              {t('footer.copyright')}
-            </p>
+            <p className="text-sm text-[var(--foreground-muted)]">{messages.footer?.copyright || 'DeepWiki - Generate Wiki from GitHub/Gitlab/Bitbucket repositories'}</p>
             <div className="flex items-center gap-6">
-              <a
-                href="https://github.com/viettdann/deepwiki-open"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] transition-colors"
-              >
-                <GitHubIcon />
-              </a>
+              <a href="https://github.com/viettdann/deepwiki-open" target="_blank" rel="noopener noreferrer" className="text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] transition-colors"><GitHubIcon /></a>
             </div>
           </div>
         </div>

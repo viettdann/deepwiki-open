@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to skip static generation for this page
+export const dynamic = 'force-dynamic';
+
 import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -768,14 +771,14 @@ Please return ONLY the HTML with no markdown formatting or code blocks. Just the
       // Set the final slides
       setSlides(generatedSlides);
 
-    } catch (err) {
-      console.error('Error generating slides content:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+    } catch (error) {
+      console.error('Error generating slides content:', error);
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {
       setIsLoading(false);
       setLoadingMessage(undefined);
     }
-  }, [owner, repo, repoInfo, token, providerParam, modelParam, isCustomModelParam, customModelParam, language, isLoading, messages.loading, cachedWikiContent, fetchCachedWikiContent]);
+  }, [owner, repo, repoInfo, token, providerParam, modelParam, isCustomModelParam, customModelParam, language, isLoading, messages.loading?.generatingSlides, cachedWikiContent, fetchCachedWikiContent]);
 
   // Export slides content
   const exportSlides = useCallback(async () => {
