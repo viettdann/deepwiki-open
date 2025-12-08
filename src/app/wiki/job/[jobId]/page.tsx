@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 // import { useLanguage } from '@/contexts/LanguageContext';
-import { FaPause, FaPlay, FaTimes, FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaRedo } from 'react-icons/fa';
+import { FaPause, FaPlay, FaTimes, FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaRedo, FaTrash } from 'react-icons/fa';
 import { createJobProgressStream, JobProgressUpdate } from '@/utils/streamingClient';
 
 const WikiIcon = () => (
@@ -258,6 +258,23 @@ export default function JobProgressPage() {
       }
     } catch (e) {
       console.error('Failed to retry job:', e);
+    }
+  };
+
+  const handleDelete = async () => {
+    const jobStatus = currentStatus.replace(/_/g, ' ');
+    if (!confirm(`Are you sure you want to permanently delete this ${jobStatus} job? This action cannot be undone.`)) return;
+    try {
+      const response = await fetch(`/api/wiki/jobs/${jobId}/delete`, { method: 'POST' });
+      if (response.ok) {
+        router.push('/jobs');
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete job: ${error.detail || 'Unknown error'}`);
+      }
+    } catch (e) {
+      console.error('Failed to delete job:', e);
+      alert('Failed to delete job. Please try again.');
     }
   };
 
@@ -553,6 +570,15 @@ export default function JobProgressPage() {
             >
               View Wiki
             </Link>
+          )}
+          {isFinished && (
+            <button
+              onClick={handleDelete}
+              className="flex items-center gap-2 px-4 py-2 bg-(--foreground-muted) text-white rounded-lg hover:bg-(--accent-danger) transition-all shadow-lg hover:shadow-xl"
+              title="Permanently delete this job"
+            >
+              <FaTrash /> Remove
+            </button>
           )}
         </div>
 

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ConfigurationModal from '@/components/ConfigurationModal';
-import { FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaSync } from 'react-icons/fa';
+import { FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaSync, FaTrash } from 'react-icons/fa';
 
 interface Job {
   id: string;
@@ -175,6 +175,23 @@ export default function JobsPage() {
       fetchJobs();
     } catch (e) {
       console.error('Failed to cancel job:', e);
+    }
+  };
+
+  const handleDelete = async (jobId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to permanently delete this job? This action cannot be undone.')) return;
+    try {
+      const response = await fetch(`/api/wiki/jobs/${jobId}/delete`, { method: 'POST' });
+      if (response.ok) {
+        fetchJobs();
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete job: ${error.detail || 'Unknown error'}`);
+      }
+    } catch (e) {
+      console.error('Failed to delete job:', e);
+      alert('Failed to delete job. Please try again.');
     }
   };
 
@@ -493,6 +510,15 @@ export default function JobsPage() {
                       >
                         <FaEye className="text-sm" />
                       </Link>
+                    )}
+                    {['completed', 'failed', 'cancelled'].includes(job.status) && (
+                      <button
+                        onClick={(e) => handleDelete(job.id, e)}
+                        className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
+                        title="Delete Job"
+                      >
+                        <FaTrash className="text-sm" />
+                      </button>
                     )}
                   </div>
                 </div>

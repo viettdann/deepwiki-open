@@ -155,10 +155,28 @@ class WikiGenerationWorker:
         try:
             logger.info(f"Processing job {job_id} for {job['owner']}/{job['repo']}")
 
+            # CRITICAL: Double-check job status from database before starting ANY work
+            # This prevents race conditions where a job was cancelled between query and processing
+            fresh_job = await JobManager.get_job_raw(job_id)
+            if not fresh_job:
+                logger.warning(f"Job {job_id} no longer exists, skipping")
+                return
+
+            current_status = fresh_job.get('status')
+
             # Check for paused status
-            current_status = job.get('status')
             if current_status == JobStatus.PAUSED.value:
                 logger.info(f"Job {job_id} is paused, skipping")
+                return
+
+            # Check for cancelled status
+            if current_status == JobStatus.CANCELLED.value:
+                logger.info(f"Job {job_id} is cancelled, skipping")
+                return
+
+            # Check if job is already completed or failed
+            if current_status in (JobStatus.COMPLETED.value, JobStatus.FAILED.value):
+                logger.info(f"Job {job_id} is already {current_status}, skipping")
                 return
 
             # Resume from current phase

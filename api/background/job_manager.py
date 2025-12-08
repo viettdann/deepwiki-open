@@ -276,17 +276,20 @@ class JobManager:
 
     @staticmethod
     async def get_pending_jobs() -> List[Dict[str, Any]]:
-        """Get all pending/active jobs ordered by creation time."""
+        """Get all pending/active jobs that can be processed.
+
+        Excludes: PAUSED, CANCELLED, COMPLETED, FAILED
+        Includes: PENDING, PREPARING_EMBEDDINGS, GENERATING_STRUCTURE, GENERATING_PAGES
+        """
         db = await get_db()
-        # Explicitly exclude PAUSED and CANCELLED status
         return await db.fetch_all(
             """SELECT * FROM jobs
                WHERE status IN (?, ?, ?, ?)
-               AND status NOT IN (?, ?)
                ORDER BY created_at ASC""",
-            (JobStatus.PENDING.value, JobStatus.PREPARING_EMBEDDINGS.value,
-             JobStatus.GENERATING_STRUCTURE.value, JobStatus.GENERATING_PAGES.value,
-             JobStatus.PAUSED.value, JobStatus.CANCELLED.value)
+            (JobStatus.PENDING.value,
+             JobStatus.PREPARING_EMBEDDINGS.value,
+             JobStatus.GENERATING_STRUCTURE.value,
+             JobStatus.GENERATING_PAGES.value)
         )
 
     @staticmethod
