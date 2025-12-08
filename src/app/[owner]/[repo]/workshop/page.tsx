@@ -1,4 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+
+// Force dynamic rendering to skip static generation for this page
+export const dynamic = 'force-dynamic';
 
 import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';

@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to skip static generation for this page
+export const dynamic = 'force-dynamic';
+
 import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';

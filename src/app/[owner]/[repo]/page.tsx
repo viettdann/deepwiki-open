@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
+// Force dynamic rendering to skip static generation for this page
+export const dynamic = 'force-dynamic';
+
 import Ask from '@/components/Ask';
 import Markdown from '@/components/Markdown';
 import ModelSelectionModal from '@/components/ModelSelectionModal';
