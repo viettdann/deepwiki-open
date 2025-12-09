@@ -425,8 +425,9 @@ async def startup_event():
 
         log_auth_config()
 
-        # Preload reranker model if reranking is enabled
-        if ENABLE_RERANKING:
+        # Preload reranker model if reranking is enabled and preload is not disabled
+        from api.config import ENABLE_RERANKING_MODEL_PRELOAD
+        if ENABLE_RERANKING and ENABLE_RERANKING_MODEL_PRELOAD:
             logger.info("Reranking enabled - preloading reranker model...")
             loop = asyncio.get_event_loop()
             from api.reranker import Reranker

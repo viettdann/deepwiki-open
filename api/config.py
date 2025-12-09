@@ -53,6 +53,7 @@ EMBEDDER_TYPE = os.environ.get('DEEPWIKI_EMBEDDER_TYPE', 'openai').lower()
 
 # Enhanced RAG settings
 ENABLE_RERANKING = os.environ.get('DEEPWIKI_ENABLE_RERANKING', 'False').lower() in ['true', '1', 't']
+ENABLE_RERANKING_MODEL_PRELOAD = os.environ.get('DEEPWIKI_ENABLE_RERANKING_MODEL_PRELOAD', 'True').lower() in ['true', '1', 't']
 RERANKER_CACHE_DIR = os.environ.get('DEEPWIKI_RERANKER_CACHE_DIR', None)
 
 # Get configuration directory from environment variable, or use default if not set
