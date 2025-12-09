@@ -432,6 +432,9 @@ class WikiGenerationWorker:
                 else:
                     break  # All pages processed
 
+            # Mark page as IN_PROGRESS only when actually starting processing
+            await JobManager.update_page_status(page['id'], PageStatus.IN_PROGRESS)
+
             # Calculate progress
             progress = 50.0 + ((completed_count + failed_count) / max(total_pages, 1)) * 50.0
             await self._notify_progress(
@@ -459,6 +462,8 @@ class WikiGenerationWorker:
                 completed_count += 1
             else:
                 failed_count += 1
+                # Increment failed page count in database
+                await JobManager.increment_job_page_count(job_id, failed=True)
 
             # Update overall progress
             progress = 50.0 + ((completed_count + failed_count) / max(total_pages, 1)) * 50.0
@@ -474,7 +479,8 @@ class WikiGenerationWorker:
         state = {
             'completed_count': completed_count,
             'failed_count': failed_count,
-            'active_tasks': set()
+            'active_tasks': set(),
+            'queued_pages': set()  # Track pages already queued to avoid duplicates
         }
 
         async def process_page_with_semaphore(page: Dict[str, Any]):
@@ -483,6 +489,9 @@ class WikiGenerationWorker:
                 # Check for shutdown/pause before starting
                 if await self._should_stop(job_id):
                     return
+
+                # Mark page as IN_PROGRESS only when actually starting processing
+                await JobManager.update_page_status(page['id'], PageStatus.IN_PROGRESS)
 
                 # Notify start
                 async with progress_lock:
@@ -518,6 +527,8 @@ class WikiGenerationWorker:
                         state['completed_count'] += 1
                     else:
                         state['failed_count'] += 1
+                        # Increment failed page count in database
+                        await JobManager.increment_job_page_count(job_id, failed=True)
 
                     # Update overall progress
                     progress = 50.0 + ((state['completed_count'] + state['failed_count']) / max(total_pages, 1)) * 50.0
@@ -538,6 +549,8 @@ class WikiGenerationWorker:
                 # Check for failed pages that can be retried
                 failed_pages = await JobManager.get_failed_pages(job_id)
                 retryable = [p for p in failed_pages if p['retry_count'] < MAX_PAGE_RETRIES]
+                # Filter out pages already queued
+                retryable = [p for p in retryable if p['id'] not in state['queued_pages']]
                 if retryable:
                     page = retryable[0]
                     logger.info(f"Retrying failed page: {page['title']} (attempt {page['retry_count'] + 1})")
@@ -547,11 +560,20 @@ class WikiGenerationWorker:
                         await asyncio.gather(*state['active_tasks'], return_exceptions=True)
                     break
 
+            # Check if this page is already queued
+            if page['id'] in state['queued_pages']:
+                # Skip this page and continue
+                await asyncio.sleep(0.1)
+                continue
+
+            # Mark page as queued
+            state['queued_pages'].add(page['id'])
+
             # Create task for this page
             task = asyncio.create_task(process_page_with_semaphore(page))
             state['active_tasks'].add(task)
 
-            # Remove task from active set when done
+            # Remove task from active and queued sets when done
             task.add_done_callback(lambda t: state['active_tasks'].discard(t))
 
             # Small delay to prevent tight loop
@@ -561,9 +583,6 @@ class WikiGenerationWorker:
         """Generate content for a single page. Returns True if successful."""
         page_id = page['id']
         job_id = job['id']
-
-        # Mark page as in progress
-        await JobManager.update_page_status(page_id, PageStatus.IN_PROGRESS)
 
         start_time = time.time()
 
