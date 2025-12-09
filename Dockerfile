@@ -30,7 +30,7 @@ RUN --mount=type=bind,source=package.json,target=/app/package.json \
 
 FROM python:3.11-slim AS py_deps
 WORKDIR /api
-COPY --from=ghcr.io/astral-sh/uv:0.7.12 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.9.16 /uv /usr/local/bin/uv
 COPY api/pyproject.toml api/uv.lock ./
 ENV UV_PROJECT_ENVIRONMENT="/opt/venv" \
     UV_COMPILE_BYTECODE=1
