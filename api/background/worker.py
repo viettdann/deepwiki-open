@@ -364,8 +364,6 @@ class WikiGenerationWorker:
             raise ValueError(f"Job {job_id} not found")
 
         total_pages = job_detail.job.total_pages
-        completed_count = job_detail.job.completed_pages
-        failed_count = job_detail.job.failed_pages
 
         # Create RAG instance
         rag = RAG(provider=job['provider'], model=job['model'])
@@ -404,18 +402,17 @@ class WikiGenerationWorker:
         if concurrency == 1:
             # Sequential processing (original behavior)
             await self._process_pages_sequentially(
-                job, job_id, rag, total_pages, completed_count, failed_count, progress_lock
+                job, job_id, rag, total_pages, progress_lock
             )
         else:
             # Parallel processing
             await self._process_pages_concurrently(
-                job, job_id, rag, total_pages, completed_count, failed_count, semaphore, progress_lock
+                job, job_id, rag, total_pages, semaphore, progress_lock
             )
 
     async def _process_pages_sequentially(
         self, job: Dict[str, Any], job_id: str, rag: RAG,
-        total_pages: int, completed_count: int, failed_count: int,
-        progress_lock: asyncio.Lock
+        total_pages: int, progress_lock: asyncio.Lock
     ):
         """Process pages one by one (original sequential behavior)."""
         while True:
@@ -431,12 +428,21 @@ class WikiGenerationWorker:
                 retryable = [p for p in failed_pages if p['retry_count'] < MAX_PAGE_RETRIES]
                 if retryable:
                     page = retryable[0]
-                    logger.info(f"Retrying failed page: {page['title']} (attempt {page['retry_count'] + 1})")
+                    logger.info(f"Retrying failed page: {page['title']} (attempt {page['retry_count'] + 1}/{MAX_PAGE_RETRIES})")
                 else:
                     break  # All pages processed
 
-            # Calculate progress
-            progress = 50.0 + ((completed_count + failed_count) / max(total_pages, 1)) * 50.0
+            # Get current counts from database (not local variables)
+            job_detail = await JobManager.get_job_detail(job_id)
+            if not job_detail:
+                logger.error(f"Failed to get job detail for {job_id}")
+                break
+
+            current_completed = job_detail.job.completed_pages
+            current_failed = job_detail.job.failed_pages
+
+            # Calculate progress based on database counters
+            progress = 50.0 + ((current_completed + current_failed) / max(total_pages, 1)) * 50.0
             await self._notify_progress(
                 job_id, JobStatus.GENERATING_PAGES, 2, progress,
                 f"Generating: {page['title']}",
@@ -444,8 +450,8 @@ class WikiGenerationWorker:
                 page_title=page['title'],
                 page_status=PageStatus.IN_PROGRESS,
                 total_pages=total_pages,
-                completed_pages=completed_count,
-                failed_pages=failed_count
+                completed_pages=current_completed,
+                failed_pages=current_failed
             )
 
             # Generate page content
@@ -453,30 +459,32 @@ class WikiGenerationWorker:
                 success = await asyncio.wait_for(self._generate_page_content(job, page, rag), timeout=600)
             except asyncio.TimeoutError:
                 logger.error(f"Page generation timeout for page {page['id']}")
-                await JobManager.update_page_status(
-                    page['id'], PageStatus.FAILED, error="Page generation timed out (exceeded 10 minutes)"
-                )
+                # Check retry count for timeout
+                current_retry_count = page.get('retry_count', 0)
+                if current_retry_count >= MAX_PAGE_RETRIES - 1:
+                    await JobManager.update_page_status(
+                        page['id'], PageStatus.PERMANENT_FAILED, error="Page generation timed out (exceeded 10 minutes)"
+                    )
+                    await JobManager.increment_job_page_count(job_id, failed=True)
+                else:
+                    await JobManager.update_page_status(
+                        page['id'], PageStatus.FAILED, error="Page generation timed out (exceeded 10 minutes)"
+                    )
                 success = False
 
-            if success:
-                completed_count += 1
-            else:
-                failed_count += 1
-
-            # Update overall progress
-            progress = 50.0 + ((completed_count + failed_count) / max(total_pages, 1)) * 50.0
-            await JobManager.update_job_status(job_id, JobStatus.GENERATING_PAGES, progress=progress)
+            # Get updated counts from database after page generation
+            job_detail = await JobManager.get_job_detail(job_id)
+            if job_detail:
+                progress = 50.0 + ((job_detail.job.completed_pages + job_detail.job.failed_pages) / max(total_pages, 1)) * 50.0
+                await JobManager.update_job_status(job_id, JobStatus.GENERATING_PAGES, progress=progress)
 
     async def _process_pages_concurrently(
         self, job: Dict[str, Any], job_id: str, rag: RAG,
-        total_pages: int, completed_count: int, failed_count: int,
-        semaphore: asyncio.Semaphore, progress_lock: asyncio.Lock
+        total_pages: int, semaphore: asyncio.Semaphore, progress_lock: asyncio.Lock
     ):
         """Process multiple pages in parallel with semaphore-controlled concurrency."""
         # Shared state for concurrent processing
         state = {
-            'completed_count': completed_count,
-            'failed_count': failed_count,
             'active_tasks': set()
         }
 
@@ -487,9 +495,18 @@ class WikiGenerationWorker:
                 if await self._should_stop(job_id):
                     return
 
-                # Notify start
+                # Get current counts from database
                 async with progress_lock:
-                    progress = 50.0 + ((state['completed_count'] + state['failed_count']) / max(total_pages, 1)) * 50.0
+                    job_detail = await JobManager.get_job_detail(job_id)
+                    if not job_detail:
+                        logger.error(f"Failed to get job detail for {job_id}")
+                        return
+
+                    current_completed = job_detail.job.completed_pages
+                    current_failed = job_detail.job.failed_pages
+                    progress = 50.0 + ((current_completed + current_failed) / max(total_pages, 1)) * 50.0
+
+                    # Notify start
                     await self._notify_progress(
                         job_id, JobStatus.GENERATING_PAGES, 2, progress,
                         f"Generating: {page['title']}",
@@ -497,8 +514,8 @@ class WikiGenerationWorker:
                         page_title=page['title'],
                         page_status=PageStatus.IN_PROGRESS,
                         total_pages=total_pages,
-                        completed_pages=state['completed_count'],
-                        failed_pages=state['failed_count']
+                        completed_pages=current_completed,
+                        failed_pages=current_failed
                     )
 
                 # Generate page content
@@ -509,22 +526,27 @@ class WikiGenerationWorker:
                     )
                 except asyncio.TimeoutError:
                     logger.error(f"Page generation timeout for page {page['id']}")
-                    await JobManager.update_page_status(
-                        page['id'], PageStatus.FAILED,
-                        error="Page generation timed out (exceeded 10 minutes)"
-                    )
+                    # Check retry count for timeout
+                    current_retry_count = page.get('retry_count', 0)
+                    if current_retry_count >= MAX_PAGE_RETRIES - 1:
+                        await JobManager.update_page_status(
+                            page['id'], PageStatus.PERMANENT_FAILED,
+                            error="Page generation timed out (exceeded 10 minutes)"
+                        )
+                        await JobManager.increment_job_page_count(job_id, failed=True)
+                    else:
+                        await JobManager.update_page_status(
+                            page['id'], PageStatus.FAILED,
+                            error="Page generation timed out (exceeded 10 minutes)"
+                        )
                     success = False
 
-                # Update counters
+                # Update overall progress based on database counters
                 async with progress_lock:
-                    if success:
-                        state['completed_count'] += 1
-                    else:
-                        state['failed_count'] += 1
-
-                    # Update overall progress
-                    progress = 50.0 + ((state['completed_count'] + state['failed_count']) / max(total_pages, 1)) * 50.0
-                    await JobManager.update_job_status(job_id, JobStatus.GENERATING_PAGES, progress=progress)
+                    job_detail = await JobManager.get_job_detail(job_id)
+                    if job_detail:
+                        progress = 50.0 + ((job_detail.job.completed_pages + job_detail.job.failed_pages) / max(total_pages, 1)) * 50.0
+                        await JobManager.update_job_status(job_id, JobStatus.GENERATING_PAGES, progress=progress)
 
         # Main processing loop
         while True:
@@ -657,15 +679,22 @@ class WikiGenerationWorker:
             logger.error(f"Error generating page {page_id}: {error_detail}")
 
             # Check retry count
-            if page.get('retry_count', 0) >= MAX_PAGE_RETRIES - 1:
+            current_retry_count = page.get('retry_count', 0)
+            if current_retry_count >= MAX_PAGE_RETRIES - 1:
+                # Permanently failed - no more retries
                 await JobManager.update_page_status(
                     page_id, PageStatus.PERMANENT_FAILED, error=error_detail[:1000]
                 )
+                # Increment job's failed pages count
+                await JobManager.increment_job_page_count(job_id, failed=True)
+                logger.warning(f"Page {page['title']} permanently failed after {current_retry_count + 1} attempts")
             else:
+                # Temporarily failed - can be retried
                 await JobManager.update_page_status(
                     page_id, PageStatus.FAILED, error=error_detail[:1000]
                 )
-            
+                logger.info(f"Page {page['title']} failed (attempt {current_retry_count + 1}/{MAX_PAGE_RETRIES}), will retry")
+
             return False
 
     async def _get_repo_structure(self, job: Dict[str, Any]) -> tuple:
