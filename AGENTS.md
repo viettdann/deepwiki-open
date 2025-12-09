@@ -55,6 +55,9 @@ docker-compose up     # Run full stack
 
 ### Embedder Configuration
 - `DEEPWIKI_EMBEDDER_TYPE`: `openai` (default), `google`, `ollama`, or `openrouter`
+- `USE_SYNTAX_AWARE_CHUNKING`: Enable syntax-aware code chunking (`true` or `false`, default: `false`)
+  - Respects code boundaries for C#, TypeScript, and JavaScript
+  - Requires regenerating embeddings for existing repositories after enabling
 
 ### Worker Concurrency (Optional)
 - `DEEPWIKI_PAGE_CONCURRENCY`: Number of pages to generate in parallel within a single job (default: `1`)

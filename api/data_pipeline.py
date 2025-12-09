@@ -1,6 +1,7 @@
 import adalflow as adal
 from adalflow.core.types import Document, List
-from adalflow.components.data_process import TextSplitter, ToEmbeddings
+from adalflow.components.data_process import ToEmbeddings
+from api.syntax_aware_splitter import CodeAwareTextSplitter
 import os
 import subprocess
 import json
@@ -404,7 +405,7 @@ def prepare_data_pipeline(embedder_type: str = None, is_ollama_embedder: bool = 
     if embedder_type is None:
         embedder_type = get_embedder_type()
 
-    splitter = TextSplitter(**configs["text_splitter"])
+    splitter = CodeAwareTextSplitter(**configs["text_splitter"])
     embedder_config = get_embedder_config()
 
     embedder = get_embedder(embedder_type=embedder_type)
