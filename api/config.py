@@ -11,6 +11,7 @@ from api.openai_client import OpenAIClient
 from api.openrouter_client import OpenRouterClient
 from api.google_embedder_client import GoogleEmbedderClient
 from api.deepseek_client import DeepSeekClient
+from api.builtin_embedder_client import BuiltinEmbedderClient
 from adalflow import GoogleGenAIClient, OllamaClient
 
 # Get API keys from environment variables
@@ -49,12 +50,30 @@ if API_KEY_AUTH_ENABLED and len(API_KEYS) == 0:
     logger.warning("API key auth enabled but no keys configured!")
 
 # Embedder settings
-EMBEDDER_TYPE = os.environ.get('DEEPWIKI_EMBEDDER_TYPE', 'openai').lower()
+EMBEDDER_TYPE = os.environ.get('DEEPWIKI_EMBEDDER_TYPE', 'builtin').lower()
 
 # Enhanced RAG settings
 ENABLE_RERANKING = os.environ.get('DEEPWIKI_ENABLE_RERANKING', 'False').lower() in ['true', '1', 't']
 ENABLE_RERANKING_MODEL_PRELOAD = os.environ.get('DEEPWIKI_ENABLE_RERANKING_MODEL_PRELOAD', 'True').lower() in ['true', '1', 't']
 RERANKER_CACHE_DIR = os.environ.get('DEEPWIKI_RERANKER_CACHE_DIR', None)
+
+# Embedding device configuration (shared between embedder and reranker)
+# Values: 'auto', 'cpu', 'cuda', 'cuda:0', 'cuda:1', 'mps'
+EMBEDDING_DEVICE = os.environ.get('DEEPWIKI_EMBEDDING_DEVICE', 'auto')
+
+# Embedder cache directory (for built-in embedder models)
+EMBEDDER_CACHE_DIR = os.environ.get('DEEPWIKI_EMBEDDER_CACHE_DIR', None)
+
+# Enable built-in embedder (similar to reranking pattern)
+ENABLE_BUILTIN_EMBEDDER = os.environ.get('DEEPWIKI_EMBEDDER_TYPE', 'builtin').lower() == 'builtin'
+
+# Enable embedder preloading on startup (only when built-in embedder is enabled)
+# Same pattern as reranking: both conditions must be true for preload
+ENABLE_EMBEDDER_PRELOAD = os.environ.get('DEEPWIKI_ENABLE_EMBEDDER_MODEL_PRELOAD', 'True').lower() in ['true', '1', 't']
+
+# Embedder fallback chain configuration
+# Order: builtin → openrouter → google → openai
+EMBEDDER_FALLBACK_CHAIN = ['builtin', 'openrouter', 'google', 'openai']
 
 # Worker concurrency settings
 # PAGE_CONCURRENCY: Number of pages to generate in parallel within a single job (default: 1)
@@ -74,7 +93,8 @@ CLIENT_CLASSES = {
     "OpenAIClient": OpenAIClient,
     "OpenRouterClient": OpenRouterClient,
     "OllamaClient": OllamaClient,
-    "DeepSeekClient": DeepSeekClient
+    "DeepSeekClient": DeepSeekClient,
+    "BuiltinEmbedderClient": BuiltinEmbedderClient
 }
 
 def replace_env_placeholders(config: Union[Dict[str, Any], List[Any], str, Any]) -> Union[Dict[str, Any], List[Any], str, Any]:
@@ -164,7 +184,7 @@ def load_embedder_config():
     embedder_config = load_json_config("embedder.json")
 
     # Process client classes
-    for key in ["embedder", "embedder_ollama", "embedder_google", "embedder_openrouter"]:
+    for key in ["embedder", "embedder_builtin", "embedder_ollama", "embedder_google", "embedder_openrouter"]:
         if key in embedder_config and "client_class" in embedder_config[key]:
             class_name = embedder_config[key]["client_class"]
             if class_name in CLIENT_CLASSES:
@@ -180,7 +200,9 @@ def get_embedder_config():
         dict: The embedder configuration with model_client resolved
     """
     embedder_type = EMBEDDER_TYPE
-    if embedder_type == 'google' and 'embedder_google' in configs:
+    if embedder_type == 'builtin' and 'embedder_builtin' in configs:
+        return configs.get("embedder_builtin", {})
+    elif embedder_type == 'google' and 'embedder_google' in configs:
         return configs.get("embedder_google", {})
     elif embedder_type == 'ollama' and 'embedder_ollama' in configs:
         return configs.get("embedder_ollama", {})
@@ -241,11 +263,14 @@ def is_openrouter_embedder():
 def get_embedder_type():
     """
     Get the current embedder type based on configuration.
-    
+
     Returns:
-        str: 'ollama', 'google', 'openrouter', or 'openai' (default)
+        str: 'builtin', 'ollama', 'google', 'openrouter', or 'openai' (default)
     """
-    if is_ollama_embedder():
+    # Check EMBEDDER_TYPE environment variable first
+    if EMBEDDER_TYPE == 'builtin':
+        return 'builtin'
+    elif is_ollama_embedder():
         return 'ollama'
     elif is_google_embedder():
         return 'google'
@@ -350,7 +375,7 @@ if generator_config:
 
 # Update embedder configuration
 if embedder_config:
-    for key in ["embedder", "embedder_ollama", "embedder_google", "embedder_openrouter", "retriever", "text_splitter"]:
+    for key in ["embedder", "embedder_builtin", "embedder_ollama", "embedder_google", "embedder_openrouter", "retriever", "text_splitter"]:
         if key in embedder_config:
             configs[key] = embedder_config[key]
 
@@ -424,3 +449,33 @@ def get_model_config(provider="google", model=None):
         result["model_kwargs"] = {"model": model, **model_params}
 
     return result
+
+
+def get_available_embedder_type() -> str:
+    """
+    Get the first available embedder type from the fallback chain.
+
+    Returns:
+        str: Available embedder type
+
+    Raises:
+        RuntimeError: If no embedders are available
+    """
+    for embedder_type in EMBEDDER_FALLBACK_CHAIN:
+        if embedder_type == 'builtin':
+            if BuiltinEmbedderClient.is_available():
+                return embedder_type
+        elif embedder_type == 'openai':
+            if OPENAI_API_KEY:
+                return embedder_type
+        elif embedder_type == 'google':
+            if GOOGLE_API_KEY:
+                return embedder_type
+        elif embedder_type == 'openrouter':
+            if OPENROUTER_API_KEY:
+                return embedder_type
+        elif embedder_type == 'ollama':
+            # Ollama is always potentially available (local)
+            return embedder_type
+
+    raise RuntimeError("No embedders available. Please configure at least one embedder.")

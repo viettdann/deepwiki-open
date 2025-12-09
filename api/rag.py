@@ -188,7 +188,21 @@ class RAG(adal.Component):
 
         # Initialize components
         self.memory = Memory()
-        self.embedder = get_embedder(embedder_type=self.embedder_type)
+
+        # Get embedder with fallback support
+        try:
+            self.embedder = get_embedder(embedder_type=self.embedder_type, allow_fallback=True)
+
+            # Update embedder_type to actual type used (may have fallen back)
+            from api.tools.embedder import get_active_embedder_type
+            actual_type = get_active_embedder_type()
+            if actual_type and actual_type != self.embedder_type:
+                logger.info(f"Using fallback embedder: {actual_type} (requested: {self.embedder_type})")
+                self.embedder_type = actual_type
+                self.is_ollama_embedder = (actual_type == 'ollama')
+        except RuntimeError as e:
+            logger.error(f"No embedders available: {e}")
+            raise
 
         self_weakref = weakref.ref(self)
         # Patch: ensure query embedding is always single string for Ollama

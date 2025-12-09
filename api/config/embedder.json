@@ -1,4 +1,12 @@
 {
+  "embedder_builtin": {
+    "client_class": "BuiltinEmbedderClient",
+    "batch_size": 64,
+    "model_kwargs": {
+      "model": "${BUILTIN_EMBEDDING_MODEL:-sentence-transformers/all-mpnet-base-v2}",
+      "dimensions": 768
+    }
+  },
   "embedder": {
     "client_class": "OpenAIClient",
     "batch_size": 500,

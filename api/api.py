@@ -415,27 +415,57 @@ from api.routes.jobs import router as jobs_router
 app.include_router(jobs_router)
 
 
+async def _preload_models_background():
+    """Preload models in the background without blocking server startup."""
+    try:
+        from api.config import ENABLE_RERANKING, ENABLE_RERANKING_MODEL_PRELOAD
+        from api.config import ENABLE_BUILTIN_EMBEDDER, ENABLE_EMBEDDER_PRELOAD
+
+        loop = asyncio.get_event_loop()
+
+        # Preload reranker model if enabled
+        if ENABLE_RERANKING and ENABLE_RERANKING_MODEL_PRELOAD:
+            logger.info("Reranking enabled - preloading reranker model in background...")
+            try:
+                from api.reranker import Reranker
+                await loop.run_in_executor(None, Reranker.get_instance().preload)
+                logger.info("Reranker model preloaded successfully")
+            except Exception as e:
+                logger.error(f"Failed to preload reranker model: {e}")
+
+        # Preload built-in embedder if enabled
+        if ENABLE_BUILTIN_EMBEDDER and ENABLE_EMBEDDER_PRELOAD:
+            logger.info("Built-in embedder enabled - preloading model in background...")
+            try:
+                from api.builtin_embedder_client import BuiltinEmbedderClient
+                success = await loop.run_in_executor(None, BuiltinEmbedderClient.preload)
+                if success:
+                    logger.info("Built-in embedder preloaded successfully")
+                else:
+                    logger.warning("Built-in embedder preload failed, will use fallback embedder")
+            except Exception as e:
+                logger.warning(f"Failed to preload built-in embedder: {e}, will use fallback")
+    except Exception as e:
+        logger.error(f"Error in background model preloading: {e}")
+
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize background worker and preload models on app startup."""
+    """Initialize background worker and start model preloading independently."""
     try:
         from api.background.worker import start_worker
         from api.middleware.auth import log_auth_config
-        from api.config import ENABLE_RERANKING
 
         log_auth_config()
 
-        # Preload reranker model if reranking is enabled and preload is not disabled
-        from api.config import ENABLE_RERANKING_MODEL_PRELOAD
-        if ENABLE_RERANKING and ENABLE_RERANKING_MODEL_PRELOAD:
-            logger.info("Reranking enabled - preloading reranker model...")
-            loop = asyncio.get_event_loop()
-            from api.reranker import Reranker
-            await loop.run_in_executor(None, Reranker.get_instance().preload)
-            logger.info("Reranker model preloaded successfully")
-
+        # Start the background worker immediately
         await start_worker()
         logger.info("Background worker started successfully")
+
+        # Start model preloading as a background task (non-blocking)
+        asyncio.create_task(_preload_models_background())
+        logger.info("Model preloading initiated in background")
+
     except Exception as e:
         logger.error(f"Failed to start background worker: {e}")
 

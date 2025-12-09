@@ -14,6 +14,15 @@ from adalflow.core.types import Document
 logger = logging.getLogger(__name__)
 
 
+def _check_sentence_transformers_available() -> bool:
+    """Check if sentence_transformers is available."""
+    try:
+        import sentence_transformers
+        return True
+    except ImportError:
+        return False
+
+
 class Reranker:
     """Singleton reranker for cross-encoder scoring and deduplication."""
 
@@ -56,7 +65,7 @@ class Reranker:
 
             try:
                 from sentence_transformers import CrossEncoder
-                from api.config import load_reranker_config, RERANKER_CACHE_DIR
+                from api.config import load_reranker_config, RERANKER_CACHE_DIR, EMBEDDING_DEVICE
 
                 # Set cache directory for HuggingFace models
                 cache_dir = self._get_cache_dir(RERANKER_CACHE_DIR)
@@ -67,8 +76,11 @@ class Reranker:
                 self._config = load_reranker_config()
                 model_name = self._config.get("rerank_model", "cross-encoder/ms-marco-MiniLM-L-6-v2")
 
-                logger.info(f"Loading reranker model: {model_name}")
-                self._model = CrossEncoder(model_name, cache_folder=str(cache_dir))
+                # Determine device
+                device = self._resolve_device(EMBEDDING_DEVICE)
+                logger.info(f"Loading reranker model: {model_name} on device: {device}")
+
+                self._model = CrossEncoder(model_name, cache_folder=str(cache_dir), device=device)
                 logger.info(f"Successfully loaded reranker model: {model_name}")
 
             except Exception as e:
@@ -98,6 +110,30 @@ class Reranker:
         logger.debug(f"Cache directory: {cache_dir}")
 
         return cache_dir
+
+    def _resolve_device(self, device_config: str) -> str:
+        """
+        Resolve device string to actual device.
+
+        Args:
+            device_config: Device configuration ('auto', 'cpu', 'cuda', 'cuda:0', 'mps', etc.)
+
+        Returns:
+            Device string to use
+        """
+        if device_config and device_config != 'auto':
+            return device_config
+
+        # Auto-detect
+        try:
+            import torch
+            if torch.cuda.is_available():
+                return 'cuda'
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                return 'mps'
+        except ImportError:
+            pass
+        return 'cpu'
 
     def is_loaded(self) -> bool:
         """Check if the reranker model is loaded and ready."""

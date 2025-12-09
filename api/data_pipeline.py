@@ -383,10 +383,10 @@ def read_all_documents(path: str, embedder_type: str = None, is_ollama_embedder:
 
 def prepare_data_pipeline(embedder_type: str = None, is_ollama_embedder: bool = None):
     """
-    Creates and returns the data transformation pipeline.
+    Creates and returns the data transformation pipeline with fallback support.
 
     Args:
-        embedder_type (str, optional): The embedder type ('openai', 'google', 'ollama').
+        embedder_type (str, optional): The embedder type ('builtin', 'openai', 'google', 'ollama').
                                      If None, will be determined from configuration.
         is_ollama_embedder (bool, optional): DEPRECATED. Use embedder_type instead.
                                            If None, will be determined from configuration.
@@ -395,26 +395,35 @@ def prepare_data_pipeline(embedder_type: str = None, is_ollama_embedder: bool = 
         adal.Sequential: The data transformation pipeline
     """
     from api.config import get_embedder_config, get_embedder_type
+    from api.tools.embedder import get_active_embedder_type
 
     # Handle backward compatibility
     if embedder_type is None and is_ollama_embedder is not None:
         embedder_type = 'ollama' if is_ollama_embedder else None
-    
+
     # Determine embedder type if not specified
     if embedder_type is None:
         embedder_type = get_embedder_type()
 
     splitter = TextSplitter(**configs["text_splitter"])
+
+    # Get embedder with fallback support
+    embedder = get_embedder(embedder_type=embedder_type, allow_fallback=True)
+
+    # Get actual embedder type (may have fallen back)
+    actual_type = get_active_embedder_type() or embedder_type
     embedder_config = get_embedder_config()
 
-    embedder = get_embedder(embedder_type=embedder_type)
-
-    # Choose appropriate processor based on embedder type
-    if embedder_type == 'ollama':
+    # Choose appropriate processor based on actual embedder type
+    if actual_type == 'ollama':
         # Use Ollama document processor for single-document processing
         embedder_transformer = OllamaDocumentProcessor(embedder=embedder)
+    elif actual_type == 'builtin':
+        # Built-in embedder can handle batches efficiently
+        batch_size = embedder_config.get("batch_size", 64)
+        embedder_transformer = ToEmbeddings(embedder=embedder, batch_size=batch_size)
     else:
-        # Use batch processing for OpenAI and Google embedders
+        # Use batch processing for OpenAI, Google, and OpenRouter embedders
         batch_size = embedder_config.get("batch_size", 500)
         embedder_transformer = ToEmbeddings(
             embedder=embedder, batch_size=batch_size
@@ -972,6 +981,36 @@ class DatabaseManager:
             logger.error(f"Failed to create repository structure: {e}")
             raise
 
+    def _get_expected_embedding_dimension(self, embedder_type: str) -> int:
+        """
+        Get expected embedding dimension for embedder type.
+
+        Args:
+            embedder_type: The embedder type
+
+        Returns:
+            Expected embedding dimension
+        """
+        from api.config import get_embedder_config
+
+        # Default dimension map
+        dimension_map = {
+            'builtin': 768,  # all-mpnet-base-v2 default
+            'openai': 256,  # text-embedding-3-large with dimensions=256
+            'google': 768,  # text-embedding-004
+            'openrouter': 256,  # varies by model
+            'ollama': 768,  # nomic-embed-text
+        }
+
+        # Check config for custom dimensions
+        embedder_config = get_embedder_config()
+        if embedder_config and 'model_kwargs' in embedder_config:
+            configured_dim = embedder_config['model_kwargs'].get('dimensions')
+            if configured_dim:
+                return configured_dim
+
+        return dimension_map.get(embedder_type, 768)
+
     def prepare_db_index(self, embedder_type: str = None, is_ollama_embedder: bool = None, 
                         excluded_dirs: List[str] = None, excluded_files: List[str] = None,
                         included_dirs: List[str] = None, included_files: List[str] = None) -> List[Document]:
@@ -994,15 +1033,41 @@ class DatabaseManager:
         # Handle backward compatibility
         if embedder_type is None and is_ollama_embedder is not None:
             embedder_type = 'ollama' if is_ollama_embedder else None
+
+        # Determine embedder type if not specified
+        from api.config import get_embedder_type
+        if embedder_type is None:
+            embedder_type = get_embedder_type()
+
         # check the database
         if self.repo_paths and os.path.exists(self.repo_paths["save_db_file"]):
             logger.info("Loading existing database...")
             try:
                 self.db = LocalDB.load_state(self.repo_paths["save_db_file"])
                 documents = self.db.get_transformed_data(key="split_and_embed")
-                if documents:
-                    logger.info(f"Loaded {len(documents)} documents from existing database")
-                    return documents
+
+                if documents and len(documents) > 0:
+                    # Check embedding dimension of first document
+                    existing_dim = None
+                    if hasattr(documents[0], 'vector') and documents[0].vector:
+                        existing_dim = len(documents[0].vector)
+
+                    # Get expected dimension from current embedder config
+                    expected_dim = self._get_expected_embedding_dimension(embedder_type)
+
+                    if existing_dim and expected_dim and existing_dim != expected_dim:
+                        logger.warning(
+                            f"Embedding dimension mismatch detected: existing={existing_dim}, "
+                            f"expected={expected_dim} for embedder '{embedder_type}'. "
+                            f"Rebuilding index automatically..."
+                        )
+                        # Delete old database and rebuild
+                        os.remove(self.repo_paths["save_db_file"])
+                        # Fall through to create new database
+                    else:
+                        # Dimensions match, use existing database
+                        logger.info(f"Loaded {len(documents)} documents from existing database")
+                        return documents
             except Exception as e:
                 logger.error(f"Error loading existing database: {e}")
                 # Continue to create a new database
