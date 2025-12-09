@@ -85,9 +85,20 @@ This document provides a comprehensive overview of the DeepWiki project's workfl
    - **OpenRouter**: Mixed density embeddings
 
 2. **Text Splitting**
-   - Uses AdalFlow's TextSplitter component
-   - Configurable chunk sizes and overlaps
-   - Maintains context continuity across chunks
+   - **Syntax-Aware Chunking** (New - optional via feature flag)
+     - Respects code boundaries for C#, TypeScript, and JavaScript
+     - Extracts semantic units: namespaces, classes, methods, functions, interfaces
+     - Preserves docstrings/comments with their owning symbols
+     - Attaches import/using statements to first symbol (avoids duplication)
+     - Metadata-rich chunks: `symbol_name`, `signature`, `token_count`, `parent_symbol`, `language`
+     - Thread-safe parser pool (tree-sitter)
+     - Memory guard: skips parsing for files > 500KB
+     - Feature flag: `USE_SYNTAX_AWARE_CHUNKING=true` (default: `false`)
+     - Fallback to standard TextSplitter for unsupported languages or parse failures
+   - **Standard TextSplitter** (AdalFlow component)
+     - Word/sentence-based splitting
+     - Configurable chunk sizes and overlaps
+     - Maintains context continuity across chunks
 
 3. **Batch Processing**
    - OpenAI/Google: Batch processing (default 500 docs/batch)
@@ -238,6 +249,7 @@ The system supports multiple LLM providers through a unified interface:
 
 - **Repository Caching**: Local storage to avoid redundant clones
 - **Embedding Cache**: Persistent FAISS indices and document storage
+  - **Important**: After enabling `USE_SYNTAX_AWARE_CHUNKING`, regenerate embeddings for existing repositories to use syntax-aware chunks
 - **Wiki Cache**: JSON-based output caching for compatibility
 
 ### 2. Batch Processing
