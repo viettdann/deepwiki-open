@@ -56,6 +56,14 @@ ENABLE_RERANKING = os.environ.get('DEEPWIKI_ENABLE_RERANKING', 'False').lower() 
 ENABLE_RERANKING_MODEL_PRELOAD = os.environ.get('DEEPWIKI_ENABLE_RERANKING_MODEL_PRELOAD', 'True').lower() in ['true', '1', 't']
 RERANKER_CACHE_DIR = os.environ.get('DEEPWIKI_RERANKER_CACHE_DIR', None)
 
+# Worker concurrency settings
+# PAGE_CONCURRENCY: Number of pages to generate in parallel within a single job (default: 1)
+# Future: JOB_CONCURRENCY for parallel job processing
+PAGE_CONCURRENCY = int(os.environ.get('DEEPWIKI_PAGE_CONCURRENCY', '1'))
+if PAGE_CONCURRENCY < 1:
+    logger.warning(f"Invalid DEEPWIKI_PAGE_CONCURRENCY={PAGE_CONCURRENCY}, using default value 1")
+    PAGE_CONCURRENCY = 1
+
 # Get configuration directory from environment variable, or use default if not set
 CONFIG_DIR = os.environ.get('DEEPWIKI_CONFIG_DIR', None)
 
