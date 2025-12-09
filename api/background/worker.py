@@ -20,7 +20,7 @@ from api.background.models import JobStatus, PageStatus, JobProgressUpdate
 from api.background.job_manager import JobManager
 import aiohttp
 
-from api.config import get_model_config, configs, OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY
+from api.config import get_model_config, configs, OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY, PAGE_CONCURRENCY
 from api.openai_client import OpenAIClient
 from api.openrouter_client import OpenRouterClient
 from api.deepseek_client import DeepSeekClient
@@ -344,7 +344,7 @@ class WikiGenerationWorker:
         )
 
     async def _phase_generate_pages(self, job: Dict[str, Any]):
-        """Phase 2: Generate page content."""
+        """Phase 2: Generate page content with controlled parallelism."""
         job_id = job['id']
 
         await JobManager.update_job_status(job_id, JobStatus.GENERATING_PAGES, phase=2, progress=50.0)
@@ -387,7 +387,34 @@ class WikiGenerationWorker:
             )
         )
 
-        # Process pages one by one
+        # Determine concurrency level
+        concurrency = PAGE_CONCURRENCY
+        logger.info(f"Starting page generation with concurrency={concurrency} for job {job_id}")
+
+        # Create semaphore for controlled concurrency
+        semaphore = asyncio.Semaphore(concurrency)
+
+        # Thread-safe counters for progress tracking
+        progress_lock = asyncio.Lock()
+
+        # Process pages with controlled concurrency
+        if concurrency == 1:
+            # Sequential processing (original behavior)
+            await self._process_pages_sequentially(
+                job, job_id, rag, total_pages, completed_count, failed_count, progress_lock
+            )
+        else:
+            # Parallel processing
+            await self._process_pages_concurrently(
+                job, job_id, rag, total_pages, completed_count, failed_count, semaphore, progress_lock
+            )
+
+    async def _process_pages_sequentially(
+        self, job: Dict[str, Any], job_id: str, rag: RAG,
+        total_pages: int, completed_count: int, failed_count: int,
+        progress_lock: asyncio.Lock
+    ):
+        """Process pages one by one (original sequential behavior)."""
         while True:
             # Check for shutdown/pause
             if await self._should_stop(job_id):
@@ -419,9 +446,8 @@ class WikiGenerationWorker:
             )
 
             # Generate page content
-            # Add timeout to prevent hanging indefinitely (whole page generation process)
             try:
-                success = await asyncio.wait_for(self._generate_page_content(job, page, rag), timeout=600) # 10 minutes max per page
+                success = await asyncio.wait_for(self._generate_page_content(job, page, rag), timeout=600)
             except asyncio.TimeoutError:
                 logger.error(f"Page generation timeout for page {page['id']}")
                 await JobManager.update_page_status(
@@ -437,6 +463,99 @@ class WikiGenerationWorker:
             # Update overall progress
             progress = 50.0 + ((completed_count + failed_count) / max(total_pages, 1)) * 50.0
             await JobManager.update_job_status(job_id, JobStatus.GENERATING_PAGES, progress=progress)
+
+    async def _process_pages_concurrently(
+        self, job: Dict[str, Any], job_id: str, rag: RAG,
+        total_pages: int, completed_count: int, failed_count: int,
+        semaphore: asyncio.Semaphore, progress_lock: asyncio.Lock
+    ):
+        """Process multiple pages in parallel with semaphore-controlled concurrency."""
+        # Shared state for concurrent processing
+        state = {
+            'completed_count': completed_count,
+            'failed_count': failed_count,
+            'active_tasks': set()
+        }
+
+        async def process_page_with_semaphore(page: Dict[str, Any]):
+            """Process a single page with semaphore control."""
+            async with semaphore:
+                # Check for shutdown/pause before starting
+                if await self._should_stop(job_id):
+                    return
+
+                # Notify start
+                async with progress_lock:
+                    progress = 50.0 + ((state['completed_count'] + state['failed_count']) / max(total_pages, 1)) * 50.0
+                    await self._notify_progress(
+                        job_id, JobStatus.GENERATING_PAGES, 2, progress,
+                        f"Generating: {page['title']}",
+                        page_id=page['id'],
+                        page_title=page['title'],
+                        page_status=PageStatus.IN_PROGRESS,
+                        total_pages=total_pages,
+                        completed_pages=state['completed_count'],
+                        failed_pages=state['failed_count']
+                    )
+
+                # Generate page content
+                try:
+                    success = await asyncio.wait_for(
+                        self._generate_page_content(job, page, rag),
+                        timeout=600
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(f"Page generation timeout for page {page['id']}")
+                    await JobManager.update_page_status(
+                        page['id'], PageStatus.FAILED,
+                        error="Page generation timed out (exceeded 10 minutes)"
+                    )
+                    success = False
+
+                # Update counters
+                async with progress_lock:
+                    if success:
+                        state['completed_count'] += 1
+                    else:
+                        state['failed_count'] += 1
+
+                    # Update overall progress
+                    progress = 50.0 + ((state['completed_count'] + state['failed_count']) / max(total_pages, 1)) * 50.0
+                    await JobManager.update_job_status(job_id, JobStatus.GENERATING_PAGES, progress=progress)
+
+        # Main processing loop
+        while True:
+            # Check for shutdown/pause
+            if await self._should_stop(job_id):
+                # Wait for active tasks to complete
+                if state['active_tasks']:
+                    await asyncio.gather(*state['active_tasks'], return_exceptions=True)
+                return
+
+            # Get next pending page
+            page = await JobManager.get_next_pending_page(job_id)
+            if not page:
+                # Check for failed pages that can be retried
+                failed_pages = await JobManager.get_failed_pages(job_id)
+                retryable = [p for p in failed_pages if p['retry_count'] < MAX_PAGE_RETRIES]
+                if retryable:
+                    page = retryable[0]
+                    logger.info(f"Retrying failed page: {page['title']} (attempt {page['retry_count'] + 1})")
+                else:
+                    # No more pages, wait for active tasks to complete
+                    if state['active_tasks']:
+                        await asyncio.gather(*state['active_tasks'], return_exceptions=True)
+                    break
+
+            # Create task for this page
+            task = asyncio.create_task(process_page_with_semaphore(page))
+            state['active_tasks'].add(task)
+
+            # Remove task from active set when done
+            task.add_done_callback(lambda t: state['active_tasks'].discard(t))
+
+            # Small delay to prevent tight loop
+            await asyncio.sleep(0.1)
 
     async def _generate_page_content(self, job: Dict[str, Any], page: Dict[str, Any], rag: RAG) -> bool:
         """Generate content for a single page. Returns True if successful."""
