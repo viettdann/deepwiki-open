@@ -1,6 +1,3 @@
-# Build argument for custom certificates directory
-ARG CUSTOM_CERT_DIR="certs"
-
 FROM node:20-alpine3.22 AS node_deps
 WORKDIR /app
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
@@ -30,14 +27,16 @@ RUN --mount=type=bind,source=package.json,target=/app/package.json \
 
 FROM python:3.11-slim AS py_deps
 WORKDIR /api
-COPY --from=ghcr.io/astral-sh/uv:0.9.16 /uv /usr/local/bin/uv
-COPY api/pyproject.toml api/uv.lock ./
 ENV UV_PROJECT_ENVIRONMENT="/opt/venv" \
-    UV_COMPILE_BYTECODE=1
-RUN uv sync --frozen --no-dev
+    UV_COMPILE_BYTECODE=1 \
+    PATH="/opt/venv/bin:$PATH"
+COPY --from=ghcr.io/astral-sh/uv:0.9.16 /uv /usr/local/bin/uv
+RUN --mount=type=bind,source=api/pyproject.toml,target=/api/pyproject.toml \
+    --mount=type=bind,source=api/uv.lock,target=/api/uv.lock \
+    uv sync --frozen --no-dev
 
 # Use Python 3.11 as final image
-FROM python:3.11-slim
+FROM python:3.11-slim AS runtime
 ARG API_PORT=8001
 ARG FE_PORT=3000
 ARG NODE_ENV=production
@@ -47,7 +46,8 @@ ARG SERVER_BASE_URL=http://localhost:${API_PORT}
 ENV API_PORT=${API_PORT} \
     FE_PORT=${FE_PORT} \
     NODE_ENV=${NODE_ENV} \
-    SERVER_BASE_URL=${SERVER_BASE_URL}
+    SERVER_BASE_URL=${SERVER_BASE_URL} \
+    PATH="/opt/venv/bin:$PATH"
 
 # Create a non-root user
 ARG UID=1000
@@ -77,20 +77,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# Update certificates if custom ones were provided and copied successfully
-RUN if [ -n "${CUSTOM_CERT_DIR}" ]; then \
-    mkdir -p /usr/local/share/ca-certificates && \
-    if [ -d "${CUSTOM_CERT_DIR}" ]; then \
-    cp -r "${CUSTOM_CERT_DIR}"/* /usr/local/share/ca-certificates/ 2>/dev/null || true; \
-    update-ca-certificates; \
-    echo "Custom certificates installed successfully."; \
-    else \
-    echo "Warning: ${CUSTOM_CERT_DIR} not found. Skipping certificate installation."; \
-    fi \
-    fi
-
-ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy Python dependencies
 COPY --chown=${APP_USER}:${APP_USER} --from=py_deps /opt/venv /opt/venv
