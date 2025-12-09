@@ -54,6 +54,14 @@ EMBEDDER_TYPE = os.environ.get('DEEPWIKI_EMBEDDER_TYPE', 'openai').lower()
 # Get configuration directory from environment variable, or use default if not set
 CONFIG_DIR = os.environ.get('DEEPWIKI_CONFIG_DIR', None)
 
+# Worker concurrency settings
+# PAGE_CONCURRENCY: Number of pages to generate in parallel within a single job (default: 1)
+# Future: JOB_CONCURRENCY for parallel job processing
+PAGE_CONCURRENCY = int(os.environ.get('DEEPWIKI_PAGE_CONCURRENCY', '1'))
+if PAGE_CONCURRENCY < 1:
+    logger.warning(f"Invalid DEEPWIKI_PAGE_CONCURRENCY={PAGE_CONCURRENCY}, using default value 1")
+    PAGE_CONCURRENCY = 1
+
 # Client class mapping
 CLIENT_CLASSES = {
     "GoogleGenAIClient": GoogleGenAIClient,

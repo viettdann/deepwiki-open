@@ -56,6 +56,13 @@ docker-compose up     # Run full stack
 ### Embedder Configuration
 - `DEEPWIKI_EMBEDDER_TYPE`: `openai` (default), `google`, `ollama`, or `openrouter`
 
+### Worker Concurrency (Optional)
+- `DEEPWIKI_PAGE_CONCURRENCY`: Number of pages to generate in parallel within a single job (default: `1`)
+  - Set to `1` for sequential processing (original behavior)
+  - Set to `2-3` for parallel processing (faster generation, higher API usage)
+  - Higher values increase speed but also memory usage and API rate limit pressure
+
+
 ### Authorization
 - `DEEPWIKI_AUTH_MODE`: Enable authorization (`true` or `1`, default: `false`)
 - `DEEPWIKI_AUTH_CODE`: Required auth code when `DEEPWIKI_AUTH_MODE` enabled
