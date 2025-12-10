@@ -365,63 +365,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-50 bg-[var(--surface)] border-b border-[var(--glass-border)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo & Brand */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded-lg blur opacity-50"></div>
-                <div className="relative bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] p-2 rounded-lg">
-                  <WikiIcon />
-                </div>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold font-[family-name:var(--font-display)] gradient-text">
-                  {t('common.appName')}
-                </h1>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
-                Home
-              </Link>
-              <Link href="/wiki/projects" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
-                Indexed Wiki
-              </Link>
-              <Link href="/jobs" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
-                Jobs
-                <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
-              </Link>
-            </nav>
-
-            {/* CTA Button */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => {
-                  if (repositoryInput.trim()) {
-                    // If repo is already entered, open modal directly
-                    setIsConfigModalOpen(true);
-                  } else {
-                    // Otherwise scroll to input
-                    const input = document.getElementById('repo-input');
-                    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    input?.focus();
-                  }
-                }}
-                className="hidden md:block btn-japanese text-sm px-6 py-2"
-              >
-                Generate Wiki
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <>
       {/* Main Content */}
       <main className="flex-1">
         {/* Hero Section */}
@@ -443,55 +387,62 @@ export default function Home() {
                 {t('home.description')}
               </p>
 
-              {/* Repository Input */}
+              {/* Repository Input - Terminal Style */}
               <form onSubmit={handleFormSubmit} className="max-w-2xl mx-auto mb-8">
-                <div className="glass-hover rounded-2xl p-6 border border-[var(--glass-border)]">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <input
-                      id="repo-input"
-                      type="text"
-                      value={repositoryInput}
-                      onChange={handleRepositoryInputChange}
-                      placeholder="http://github.com/viettdann/deepwiki-open or owner/repo"
-                      className="input-glass flex-1"
-                    />
-                    <button
-                      type="submit"
-                      className="btn-japanese whitespace-nowrap"
-                      disabled={isSubmitting}
-                    >
-                      <span className="flex items-center gap-2 justify-center">
-                        <RocketIcon />
-                        {isSubmitting ? t('common.processing') : 'Generate Wiki'}
-                      </span>
-                    </button>
+                <div className="rounded-lg border-2 border-[var(--accent-primary)]/30 bg-[var(--surface)]/80 backdrop-blur-sm shadow-xl overflow-hidden">
+                  {/* Terminal header */}
+                  <div className="bg-[var(--accent-primary)]/5 border-b-2 border-[var(--accent-primary)]/20 px-4 py-2 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[var(--accent-emerald)]"></span>
+                    <span className="w-2 h-2 rounded-full bg-[var(--accent-warning)]"></span>
+                    <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)]"></span>
+                    <span className="ml-2 text-xs font-mono text-[var(--accent-cyan)]">REPOSITORY.INPUT</span>
                   </div>
-                  {error && (
-                    <div className="mt-3 text-sm text-[var(--highlight)] text-left">
-                      {error}
+                  <div className="p-6">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <input
+                        id="repo-input"
+                        type="text"
+                        value={repositoryInput}
+                        onChange={handleRepositoryInputChange}
+                        placeholder="github.com/owner/repo or /local/path"
+                        className="input-glass flex-1 font-mono text-sm"
+                      />
+                      <button
+                        type="submit"
+                        className="px-6 py-3 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)] hover:bg-[var(--accent-secondary)] text-white text-sm font-mono font-medium transition-all terminal-btn whitespace-nowrap flex items-center gap-2 justify-center"
+                        disabled={isSubmitting}
+                      >
+                        <RocketIcon />
+                        {isSubmitting ? t('common.processing') : 'GENERATE'}
+                      </button>
                     </div>
-                  )}
+                    {error && (
+                      <div className="mt-3 text-xs font-mono text-[var(--highlight)] text-left p-2 rounded bg-[var(--highlight)]/10 border border-[var(--highlight)]/30">
+                        {error}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </form>
 
-              {/* Platform Support Badges */}
-              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-[var(--foreground-muted)]">
-                <span>Supports:</span>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
+              {/* Platform Support Badges - Terminal Style */}
+              <div className="flex flex-wrap items-center justify-center gap-3 text-xs font-mono text-[var(--foreground-muted)]">
+                <span className="text-[var(--accent-cyan)]">SUPPORTS:</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 transition-colors">
                   <GitHubIcon />
                   <span>GitHub</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 transition-colors">
                   <GitLabIcon />
                   <span>GitLab</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 transition-colors">
                   <BitbucketIcon />
                   <span>Bitbucket</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-[var(--border-subtle)]">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 transition-colors">
                   <AzureIcon />
-                  <span>Azure Repos</span>
+                  <span>Azure</span>
                 </div>
               </div>
             </div>
@@ -512,18 +463,23 @@ export default function Home() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Feature 1: Mermaid Diagrams */}
-              <div className="lg:col-span-2 glass-hover rounded-2xl p-8 border border-[var(--border-subtle)] fade-in-up stagger-1">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)]">
-                    <ChartIcon />
+              <div className="lg:col-span-2 rounded-lg border-2 border-[var(--accent-primary)]/20 bg-[var(--surface)]/80 backdrop-blur-sm shadow-xl overflow-hidden fade-in-up stagger-1 hover:border-[var(--accent-primary)]/40 transition-all">
+                <div className="bg-[var(--accent-primary)]/5 border-b-2 border-[var(--accent-primary)]/20 px-4 py-2 flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[var(--accent-emerald)]"></span>
+                    <span className="w-2 h-2 rounded-full bg-[var(--accent-warning)]"></span>
+                    <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)]"></span>
                   </div>
-                  <h4 className="text-xl font-bold font-[family-name:var(--font-display)]">Visual Diagrams</h4>
+                  <ChartIcon />
+                  <h4 className="text-sm font-bold font-mono text-[var(--accent-cyan)]">VISUAL.DIAGRAMS</h4>
                 </div>
-                <p className="text-[var(--foreground-muted)] mb-6">
-                  Automatically generate architecture diagrams, flowcharts, and sequence diagrams using Mermaid
-                </p>
-                <div className="glass rounded-xl p-4 border border-[var(--border-subtle)]">
-                  <Mermaid chart={DEMO_FLOW_CHART} zoomingEnabled={false} />
+                <div className="p-6">
+                  <p className="text-sm text-[var(--foreground-muted)] mb-4 font-mono">
+                    Automatically generate architecture diagrams, flowcharts, and sequence diagrams using Mermaid
+                  </p>
+                  <div className="rounded border border-[var(--accent-primary)]/20 p-4 bg-[var(--background)]">
+                    <Mermaid chart={DEMO_FLOW_CHART} zoomingEnabled={false} />
+                  </div>
                 </div>
               </div>
 
@@ -617,28 +573,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        {/* Processed Projects Section */}
-        {!projectsLoading && projects.length > 0 && (
-          <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[var(--surface)] bg-opacity-30">
-            <div className="max-w-7xl mx-auto">
-              <div className="text-center mb-12">
-                <h3 className="text-3xl md:text-4xl font-bold font-[family-name:var(--font-display)] mb-4">
-                  {t('projects.existingProjects')}
-                </h3>
-                <p className="text-[var(--foreground-muted)]">
-                  {t('projects.browseExisting')}
-                </p>
-              </div>
-              <ProcessedProjects
-                showHeader={false}
-                maxItems={6}
-                messages={messages}
-                className="w-full"
-              />
-            </div>
-          </section>
-        )}
       </main>
 
       {/* Configuration Modal */}
@@ -682,19 +616,19 @@ export default function Home() {
         isAuthLoading={isAuthLoading}
       />
 
-      {/* Footer */}
-      <footer className="bg-[var(--surface)] border-t border-[var(--glass-border)] mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Terminal-style Footer */}
+      <footer className="bg-[var(--surface)]/90 border-t-2 border-[var(--accent-primary)]/20 backdrop-blur mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-[var(--foreground-muted)]">
-              {t('footer.copyright')}
+            <p className="text-xs font-mono text-[var(--foreground-muted)]">
+              <span className="text-[var(--accent-primary)]">◆</span> {t('footer.copyright')}
             </p>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <a
                 href="https://github.com/viettdann/deepwiki-open"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] transition-colors"
+                className="text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors p-2 rounded border border-transparent hover:border-[var(--accent-primary)]/30"
               >
                 <GitHubIcon />
               </a>
@@ -702,6 +636,6 @@ export default function Home() {
           </div>
         </div>
       </footer>
-    </div>
+    </>
   );
 }

@@ -202,54 +202,7 @@ export default function WikiProjectsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-(--surface) border-b border-(--glass-border)">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo & Brand */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-linear-to-r from-(--gradient-from) to-(--gradient-to) rounded-lg blur opacity-50"></div>
-                <div className="relative bg-linear-to-r from-(--gradient-from) to-(--gradient-to) p-2 rounded-lg">
-                  <WikiIcon />
-                </div>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold font-display gradient-text">
-                  DeepWiki
-                </h1>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors">
-                Home
-              </Link>
-              <Link href="/wiki/projects" className="text-sm font-medium text-(--accent-primary) hover:text-foreground transition-colors flex items-center gap-2">
-                Indexed Wiki
-              </Link>
-              <Link href="/jobs" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors flex items-center gap-2">
-                Jobs
-                <span className="w-2 h-2 bg-(--accent-emerald) rounded-full pulse-glow"></span>
-              </Link>
-            </nav>
-
-            {/* CTA Button */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsConfigModalOpen(true)}
-                className="hidden md:flex items-center gap-2 btn-japanese text-sm px-6 py-2"
-              >
-                <RocketIcon />
-                Generate Wiki
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <>
       {/* Main Content */}
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -322,6 +275,6 @@ export default function WikiProjectsPage() {
           </div>
         </div>
       </footer>
-    </div>
+    </>
   );
 }

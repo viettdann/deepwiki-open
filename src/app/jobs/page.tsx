@@ -388,61 +388,7 @@ export default function JobsPage() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-[var(--surface)] border-b border-[var(--glass-border)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo & Brand */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded-lg blur opacity-50"></div>
-                <div className="relative bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] p-2 rounded-lg">
-                  <WikiIcon />
-                </div>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold font-[family-name:var(--font-display)] gradient-text">
-                  DeepWiki
-                </h1>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
-                Home
-              </Link>
-              <Link href="/wiki/projects" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
-                Indexed Wiki
-              </Link>
-              <Link href="/jobs" className="text-sm font-medium text-[var(--accent-primary)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
-                Jobs
-                <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
-              </Link>
-            </nav>
-
-            {/* CTA & Actions */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => fetchJobs()}
-                className="p-2 text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] transition-colors"
-                title="Refresh"
-              >
-                <FaSync className={isLoading ? 'animate-spin' : ''} />
-              </button>
-              <button
-                onClick={() => setIsConfigModalOpen(true)}
-                className="hidden md:flex items-center gap-2 btn-japanese text-sm px-6 py-2"
-              >
-                <RocketIcon />
-                Generate Wiki
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <>
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Filters */}
@@ -683,6 +629,6 @@ export default function JobsPage() {
           </div>
         </div>
       </footer>
-    </div>
+    </>
   );
 }

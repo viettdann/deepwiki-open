@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, JetBrains_Mono, Syne } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import GlobalHeaderWrapper from "@/components/GlobalHeaderWrapper";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -38,7 +39,9 @@ export default function RootLayout({
         className={`${dmSans.variable} ${jetBrainsMono.variable} ${syne.variable} antialiased`}
       >
         <LanguageProvider>
-          {children}
+          <GlobalHeaderWrapper>
+            {children}
+          </GlobalHeaderWrapper>
         </LanguageProvider>
       </body>
     </html>
