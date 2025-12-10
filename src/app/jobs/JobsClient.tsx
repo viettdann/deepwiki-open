@@ -55,7 +55,7 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
   const limit = 20;
 
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [repositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
+  const [repositoryInput, setRepositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
   const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
   const [provider, setProvider] = useState<string>('');
@@ -306,6 +306,75 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
     } catch {}
   };
 
+  const renderJobsContent = () => {
+    if (isLoading && jobs.length === 0) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <FaSpinner className="text-4xl text-blue-500 animate-spin" />
+        </div>
+      );
+    }
+    if (jobs.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <p className="text-[var(--muted-foreground)]">No jobs found</p>
+          <Link href="/" className="text-blue-500 hover:underline mt-2 inline-block">Generate a new wiki</Link>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-4">
+        {jobs.map((job) => (
+          <div key={job.id} onClick={() => router.push(`/wiki/job/${job.id}`)} className="rounded-lg border-2 border-[var(--accent-primary)]/20 bg-[var(--surface)]/80 backdrop-blur-sm shadow-lg overflow-hidden hover:border-[var(--accent-primary)]/40 cursor-pointer transition-all">
+            <div className="bg-[var(--accent-primary)]/5 border-b-2 border-[var(--accent-primary)]/20 px-4 py-2 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-emerald)]"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-warning)]"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)]"></span>
+                </div>
+                <span className="text-[var(--accent-cyan)]">{getRepoIcon(job.repo_type)}</span>
+                <h3 className="text-sm font-bold font-mono text-[var(--foreground)]">{job.owner}/{job.repo}</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-1 rounded text-xs font-mono ${getStatusColor(job.status)}`}>{job.status.replace(/_/g, ' ')}</span>
+                {getStatusIcon(job.status)}
+              </div>
+            </div>
+            <div className="p-4">
+              <p className="text-xs font-mono text-[var(--muted-foreground)] mb-3">{job.provider} / {job.model || 'default'} • {job.language.toUpperCase()}</p>
+              {['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(job.status) && (
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs text-[var(--muted-foreground)] mb-1"><span>Phase {job.current_phase + 1}/3</span><span>{Math.round(job.progress_percent)}%</span></div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${job.progress_percent}%` }} /></div>
+                  {job.total_pages > 0 && (<p className="text-xs text-[var(--muted-foreground)] mt-1">{job.completed_pages}/{job.total_pages} pages{job.failed_pages > 0 && ` (${job.failed_pages} failed)`}</p>)}
+                </div>
+              )}
+              {job.error_message && (<p className="mt-2 text-xs text-red-500 truncate">{job.error_message}</p>)}
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs text-[var(--muted-foreground)]">{formatDate(job.created_at)}</span>
+                <div className="flex items-center gap-2">
+                  {['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(job.status) && (
+                    <button onClick={(e) => handlePause(job.id, e)} className="p-1.5 text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded" title="Pause"><FaPause className="text-sm" /></button>
+                  )}
+                  {job.status === 'paused' && (
+                    <button onClick={(e) => handleResume(job.id, e)} className="p-1.5 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/30 rounded" title="Resume"><FaPlay className="text-sm" /></button>
+                  )}
+                  {!['completed', 'failed', 'cancelled'].includes(job.status) && (
+                    <button onClick={(e) => handleCancel(job.id, e)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded" title="Cancel"><FaTimes className="text-sm" /></button>
+                  )}
+                  {job.status === 'completed' && (
+                    <Link href={`/${job.owner}/${job.repo}?type=${job.repo_type}`} onClick={(e) => e.stopPropagation()} className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded" title="View Wiki"><FaEye className="text-sm" /></Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 bg-[var(--surface)]/95 backdrop-blur-xl border-b-2 border-[var(--accent-primary)]/30 shadow-lg">
@@ -382,61 +451,7 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
             <div className="mb-6 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">{error}</div>
           )}
 
-          {isLoading && jobs.length === 0 ? (
-            <div className="flex items-center justify-center py-12"><FaSpinner className="text-4xl text-blue-500 animate-spin" /></div>
-          ) : jobs.length === 0 ? (
-            <div className="text-center py-12"><p className="text-[var(--muted-foreground)]">No jobs found</p><Link href="/" className="text-blue-500 hover:underline mt-2 inline-block">Generate a new wiki</Link></div>
-          ) : (
-            <div className="space-y-4">
-              {jobs.map((job) => (
-                <div key={job.id} onClick={() => router.push(`/wiki/job/${job.id}`)} className="rounded-lg border-2 border-[var(--accent-primary)]/20 bg-[var(--surface)]/80 backdrop-blur-sm shadow-lg overflow-hidden hover:border-[var(--accent-primary)]/40 cursor-pointer transition-all">
-                  {/* Terminal header */}
-                  <div className="bg-[var(--accent-primary)]/5 border-b-2 border-[var(--accent-primary)]/20 px-4 py-2 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[var(--accent-emerald)]"></span>
-                        <span className="w-2 h-2 rounded-full bg-[var(--accent-warning)]"></span>
-                        <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)]"></span>
-                      </div>
-                      <span className="text-[var(--accent-cyan)]">{getRepoIcon(job.repo_type)}</span>
-                      <h3 className="text-sm font-bold font-mono text-[var(--foreground)]">{job.owner}/{job.repo}</h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-xs font-mono ${getStatusColor(job.status)}`}>{job.status.replace(/_/g, ' ')}</span>
-                      {getStatusIcon(job.status)}
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-xs font-mono text-[var(--muted-foreground)] mb-3">{job.provider} / {job.model || 'default'} • {job.language.toUpperCase()}</p>
-                  {['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(job.status) && (
-                    <div className="mt-3">
-                      <div className="flex justify_between text-xs text-[var(--muted-foreground)] mb-1"><span>Phase {job.current_phase + 1}/3</span><span>{Math.round(job.progress_percent)}%</span></div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${job.progress_percent}%` }} /></div>
-                      {job.total_pages > 0 && (<p className="text-xs text-[var(--muted-foreground)] mt-1">{job.completed_pages}/{job.total_pages} pages{job.failed_pages > 0 && ` (${job.failed_pages} failed)`}</p>)}
-                    </div>
-                  )}
-                  {job.error_message && (<p className="mt-2 text-xs text-red-500 truncate">{job.error_message}</p>)}
-                  <div className="mt-3 flex items-center justify_between">
-                    <span className="text-xs text-[var(--muted-foreground)]">{formatDate(job.created_at)}</span>
-                    <div className="flex items-center gap-2">
-                      {['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(job.status) && (
-                        <button onClick={(e) => handlePause(job.id, e)} className="p-1.5 text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded" title="Pause"><FaPause className="text-sm" /></button>
-                      )}
-                      {job.status === 'paused' && (
-                        <button onClick={(e) => handleResume(job.id, e)} className="p-1.5 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/30 rounded" title="Resume"><FaPlay className="text-sm" /></button>
-                      )}
-                      {!['completed', 'failed', 'cancelled'].includes(job.status) && (
-                        <button onClick={(e) => handleCancel(job.id, e)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded" title="Cancel"><FaTimes className="text-sm" /></button>
-                      )}
-                      {job.status === 'completed' && (
-                        <Link href={`/${job.owner}/${job.repo}?type=${job.repo_type}`} onClick={(e) => e.stopPropagation()} className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded" title="View Wiki"><FaEye className="text-sm" /></Link>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {renderJobsContent()}
 
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-center gap-2">

@@ -13,11 +13,12 @@ export default function GlobalHeaderWrapper({ children }: GlobalHeaderWrapperPro
   const pathname = usePathname();
 
   // Check if this is a special page that has its own Header component
-  const isJobDetailPage = pathname.startsWith('/wiki/job/');
-  const isRepoWikiPage = pathname.match(/^\/(?!wiki\/)[^\/]+\/[^\/]+$/) !== null;
+  const isJobDetailPage = pathname?.startsWith('/wiki/job/') ?? false;
+  const isRepoWikiPage = (pathname?.match(/^\/(?!wiki\/)[^\/]+\/[^\/]+$/) ?? null) !== null;
 
   // Determine current page based on pathname
-  const getCurrentPage = () => {
+  const getCurrentPage = (): 'home' | 'projects' | 'wiki' | 'jobs' => {
+    if (!pathname) return 'home';
     if (pathname === '/') return 'home';
     if (pathname.startsWith('/wiki/projects')) return 'projects';
     if (pathname.startsWith('/wiki/job/')) return 'wiki';

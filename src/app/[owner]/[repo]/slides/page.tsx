@@ -92,7 +92,8 @@ export default function SlidesPage() {
     type: repoType,
     token: token || null,
     localPath: localPath || null,
-    repoUrl: repoUrl || null
+    repoUrl: repoUrl || null,
+    branch: null,
   }), [owner, repo, repoType, token, localPath, repoUrl]);
 
   // State variables

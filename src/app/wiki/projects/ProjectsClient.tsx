@@ -41,7 +41,7 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
   const { language, setLanguage, messages, supportedLanguages } = useLanguage();
 
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [repositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
+  const [repositoryInput, setRepositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
   const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
   const [provider, setProvider] = useState<string>('');
