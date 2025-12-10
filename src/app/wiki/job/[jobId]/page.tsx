@@ -116,7 +116,7 @@ export default function JobProgressPage() {
       setIsLoading(false);
       return null;
     }
-  }, [jobId, router]);
+  }, [jobId]);
 
   useEffect(() => {
     fetchJob();
@@ -196,7 +196,7 @@ export default function JobProgressPage() {
     ) {
       fetchJob();
     }
-  }, [progress?.current_phase, progress?.status, jobDetail?.job.current_phase, jobDetail?.job.status, jobDetail?.pages.length, fetchJob]);
+  }, [progress?.current_phase, progress?.status, jobDetail, fetchJob]);
 
   const handlePause = async () => {
     try {

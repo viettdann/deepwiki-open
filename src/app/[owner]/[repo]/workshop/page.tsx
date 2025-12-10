@@ -15,7 +15,6 @@ import getRepoUrl from '@/utils/getRepoUrl';
 
 // Helper function to add tokens and other parameters to request body
 const addTokensToRequestBody = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   requestBody: Record<string, any>,
   token: string,
   repoType: string,
@@ -62,7 +61,7 @@ export default function WorkshopPage() {
     if (!repoUrl) return '';
     try {
       return new URL(repoUrl).hostname.toLowerCase();
-    } catch (e) {
+    } catch {
       console.warn(`Invalid repoUrl provided: ${repoUrl}`);
       return '';
     }

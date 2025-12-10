@@ -67,7 +67,7 @@ export default function SlidesPage() {
     if (!repoUrl) return '';
     try {
       return new URL(repoUrl).hostname.toLowerCase();
-    } catch (e) {
+    } catch {
       console.warn(`Invalid repoUrl provided: ${repoUrl}`);
       return '';
     }

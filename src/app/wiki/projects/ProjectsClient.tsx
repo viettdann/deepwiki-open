@@ -199,9 +199,6 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
               <span className="hidden sm:block">|</span>
               <span className="hidden sm:block text-[var(--accent-cyan)]">{initialProjects.length} PROJECTS</span>
             </div>
-            <div className="flex items-center gap-2 text-[var(--accent-primary)]">
-              <span className="hidden sm:block">[{new Date().toLocaleTimeString('en-US', { hour12: false })}]</span>
-            </div>
           </div>
 
           <div className="flex items-center justify-between h-14">
