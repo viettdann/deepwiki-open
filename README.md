@@ -15,10 +15,10 @@ DeepWiki started as a fork but became much more. What began as small fixes turne
 - **Modern UI**: Next.js 15 with React 19, Tailwind CSS 4, and glassmorphism design.
 - **Works great on phones and tablets**
 - **Cleaner design throughout**
-- **Support for many AI providers**: Google Gemini, OpenAI, DeepSeek, OpenRouter, Ollama.
+- **Support for many AI providers**: Google Gemini, OpenAI, DeepSeek, OpenRouter, Azure OpenAI, Ollama.
 
 **More Stuff You Can Do**
-- **Use different embedding models**: OpenAI, Google, OpenRouter, or local Ollama.
+- **Use different embedding models**: OpenAI, Google, Azure OpenAI, OpenRouter, or local Ollama.
 - **Support for Azure DevOps**: Works with GitHub, GitLab, Bitbucket, and Azure DevOps.
 - **Flexible setup for big companies**
 
@@ -42,8 +42,8 @@ This is a real-world version that solves actual problems: generate docs for huge
 - **Easy Search**: Simple way to find and read your documentation
 - **Chat With Your Code**: Ask questions and get answers about your repository using RAG with HTTP streaming
 - **Deep Research**: Ask complex questions and get thorough answers that look at multiple parts of your code (multi-step reasoning)
-- **Pick Your AI**: Choose between Google Gemini, OpenAI, DeepSeek, OpenRouter, or run models locally
-- **Flexible Embeddings**: Use OpenAI, Google, OpenRouter, or local models for finding similar code
+- **Pick Your AI**: Choose between Google Gemini, OpenAI, DeepSeek, OpenRouter, Azure OpenAI, or run models locally
+- **Flexible Embeddings**: Use OpenAI, Google, Azure OpenAI, OpenRouter, or local models for finding similar code
 
 ## 🚀 Quick Start
 
@@ -58,7 +58,7 @@ cd deepwiki-open
 cp .env.example .env
 
 # Add your API keys to .env
-# You need at least one of: GOOGLE_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, or local Ollama
+# You need at least one of: GOOGLE_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, DEEPSEEK_API_KEY, AZURE_OPENAI_API_KEY, or local Ollama
 # The app will close if no keys are set up
 # See .env.example for all options
 
@@ -73,6 +73,7 @@ Disclaimer: I don't use Ollama, do it by yourself
 > - OpenAI API key: [OpenAI Platform](https://platform.openai.com/api-keys)
 > - OpenRouter API key: [OpenRouter](https://openrouter.ai/)
 > - DeepSeek API key: [DeepSeek Platform](https://platform.deepseek.com/api_keys)
+> - Azure OpenAI key + endpoint: [Azure AI Foundry](https://ai.azure.com/)
 
 ### Option 2: Manual Setup
 
@@ -360,6 +361,7 @@ docker compose up
 | -------- | --------------------------- | ---------------- | ----------------------------------- |
 | `openai` | OpenAI embeddings (default) | `OPENAI_API_KEY` | Uses `text-embedding-3-small` model |
 | `google` | Google AI embeddings        | `GOOGLE_API_KEY` | Uses `text-embedding-004` model     |
+| `azure`  | Azure OpenAI embeddings     | `AZURE_OPENAI_API_KEY` | Deployment-based, uses `AZURE_OPENAI_VERSION` |
 | `ollama` | Local Ollama embeddings     | None             | Requires local Ollama installation  |
 | `openrouter` | OpenRouter embeddings   | `OPENROUTER_API_KEY` | Supports multiple models          |
 
@@ -386,6 +388,11 @@ export DEEPWIKI_EMBEDDER_TYPE=ollama
 # Use OpenRouter
 export DEEPWIKI_EMBEDDER_TYPE=openrouter
 export OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small
+
+# Use Azure OpenAI
+export AZURE_OPENAI_API_KEY=your_key
+export AZURE_OPENAI_ENDPOINT=https://YOUR-RESOURCE.openai.azure.com
+export DEEPWIKI_EMBEDDER_TYPE=azure
 ```
 
 **Available OpenRouter Embedding Models:**
@@ -465,15 +472,20 @@ cp .env.example .env
 | ------------------------ | --------------------------------------------------------- | ------------- | -------------------------- |
 | `GOOGLE_API_KEY`         | Google Gemini API key for AI generation and embeddings    | Conditional\* | -                          |
 | `OPENAI_API_KEY`         | OpenAI API key for embeddings and models                  | Conditional\* | -                          |
+| `AZURE_OPENAI_API_KEY`   | Azure OpenAI API key (deployments for chat + embeddings)  | Conditional\* | -                          |
+| `AZURE_OPENAI_ENDPOINT`  | Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com) | Conditional\* | - |
+| `AZURE_OPENAI_VERSION`   | Azure API version (classic `api-version` or `v1`)         | Conditional\* | `v1`                       |
+| `AZURE_OPENAI_USE_V1`    | Use the new `{endpoint}/openai/v1` path (skip api-version) | No            | `false`                    |
 | `OPENROUTER_API_KEY`     | OpenRouter API key for alternative models                 | Conditional\* | -                          |
 | `DEEPSEEK_API_KEY`       | DeepSeek API key for DeepSeek models                      | Conditional\* | -                          |
 | `OPENAI_BASE_URL`        | Universal API base URL (for custom endpoints)             | No            | Provider-specific default  |
 | `OPENROUTER_BASE_URL`    | OpenRouter API base URL (falls back to OPENAI_BASE_URL)  | No            | `https://openrouter.ai/api/v1` |
 | `DEEPSEEK_BASE_URL`      | DeepSeek API base URL (falls back to OPENAI_BASE_URL)    | No            | `https://api.deepseek.com` |
-| `DEEPWIKI_EMBEDDER_TYPE` | Embedder type: `openai`, `google`, `ollama`, `openrouter` | No            | `openai`                   |
+| `DEEPWIKI_EMBEDDER_TYPE` | Embedder type: `openai`, `google`, `azure`, `ollama`, `openrouter` | No            | `openai`                   |
 | `OLLAMA_HOST`            | Ollama host URL                                           | No            | `http://localhost:11434`   |
 | `OPENAI_EMBEDDING_MODEL` | OpenAI embedding model name                               | No            | `text-embedding-3-large`   |
 | `GOOGLE_EMBEDDING_MODEL` | Google embedding model name                               | No            | `text-embedding-004`       |
+| `AZURE_OPENAI_EMBEDDING_MODEL` | Azure embedding deployment name                      | No            | `text-embedding-3-large`   |
 | `OLLAMA_EMBEDDING_MODEL` | Ollama embedding model name                               | No            | `nomic-embed-text`         |
 | `OPENROUTER_EMBEDDING_MODEL` | OpenRouter embedding model name                       | No            | `openai/text-embedding-3-small` |
 | `PORT`                   | API server port                                           | No            | `8001`                     |
@@ -492,7 +504,7 @@ cp .env.example .env
 | `LOG_MAX_SIZE`           | Max log file size (MB)                                    | No            | `10`                       |
 | `LOG_BACKUP_COUNT`       | Number of backup log files                                | No            | `5`                        |
 
-*You need at least one of: `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`, or local Ollama.
+*You need at least one of: `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `AZURE_OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`, or local Ollama.
 
 **Important**: The app stops if no keys are set up. So you'll know right away if something's missing.
 
@@ -502,6 +514,7 @@ For a complete list of all environment variables with detailed descriptions, see
 
 - Using `DEEPWIKI_EMBEDDER_TYPE=openai`: Need `OPENAI_API_KEY`
 - Using `DEEPWIKI_EMBEDDER_TYPE=google`: Need `GOOGLE_API_KEY`
+- Using `DEEPWIKI_EMBEDDER_TYPE=azure`: Need `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT`
 - Using `DEEPWIKI_EMBEDDER_TYPE=ollama`: No key needed
 - Using `DEEPWIKI_EMBEDDER_TYPE=openrouter`: Need `OPENROUTER_API_KEY`
 

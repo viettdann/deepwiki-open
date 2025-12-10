@@ -89,6 +89,16 @@ GET /models/config
       ]
     },
     {
+      "id": "azure",
+      "name": "Azure OpenAI",
+      "supportsCustomModel": true,
+      "models": [
+        {"id": "gpt-4o-mini", "name": "gpt-4o-mini (deployment)"},
+        {"id": "gpt-o4-mini", "name": "gpt-o4-mini (deployment)"},
+        {"id": "gpt-5-mini", "name": "gpt-5-mini (deployment)"}
+      ]
+    },
+    {
       "id": "ollama",
       "name": "Ollama",
       "supportsCustomModel": true,
@@ -469,7 +479,7 @@ class RepoInfo(BaseModel):
 - `DEEPWIKI_BACKEND_API_KEYS`: Comma-separated API keys
 
 #### Embedding
-- `DEEPWIKI_EMBEDDER_TYPE`: Embedder provider (openai/google/ollama/openrouter)
+- `DEEPWIKI_EMBEDDER_TYPE`: Embedder provider (openai/google/ollama/openrouter/azure)
 
 #### Server
 - `PORT`: API server port (default: 8001)
