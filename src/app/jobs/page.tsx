@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ConfigurationModal from '@/components/ConfigurationModal';
 import { FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaTrash } from 'react-icons/fa';
+import Header from '@/components/Header';
 
 interface Job {
   id: string;
@@ -375,7 +376,15 @@ export default function JobsPage() {
   };
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
+      <Header
+        currentPage="jobs"
+        statusLabel="SYSTEM.JOBS"
+        showRefresh={true}
+        onRefreshClick={() => window.location.reload()}
+        actionLabel="Generate Wiki"
+        onActionClick={() => setIsConfigModalOpen(true)}
+      />
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Filters */}
@@ -616,6 +625,6 @@ export default function JobsPage() {
           </div>
         </div>
       </footer>
-    </>
+    </div>
   );
 }

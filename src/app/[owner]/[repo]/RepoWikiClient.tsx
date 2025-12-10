@@ -5,6 +5,7 @@ import Ask from '@/components/Ask';
 import Markdown from '@/components/Markdown';
 import ModelSelectionModal from '@/components/ModelSelectionModal';
 import WikiTreeView from '@/components/WikiTreeView';
+import Header from '@/components/Header';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
@@ -1468,71 +1469,11 @@ Return your analysis in the specified XML format.`
         backgroundSize: '20px 20px'
       }}></div>
 
-      {/* Terminal-inspired header */}
-      <header className="sticky top-0 z-40 bg-[var(--surface)]/95 backdrop-blur-xl border-b-2 border-[var(--accent-primary)]/30 shadow-lg">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Terminal status bar */}
-          <div className="h-7 flex items-center justify-between border-b border-[var(--accent-primary)]/10 text-xs font-mono">
-            <div className="flex items-center gap-4 text-[var(--foreground-muted)]">
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-emerald)] animate-pulse"></span>
-                SYSTEM.READY
-              </span>
-              <span className="hidden sm:block">|</span>
-              <span className="hidden sm:block text-[var(--accent-cyan)]">WIKI.ACTIVE</span>
-            </div>
-            <div className="flex items-center gap-2 text-[var(--accent-primary)]">
-              <span className="hidden sm:block">[{new Date().toLocaleTimeString('en-US', { hour12: false })}]</span>
-            </div>
-          </div>
-
-          {/* Main header */}
-          <div className="flex items-center justify-between h-14">
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded blur-sm opacity-40 group-hover:opacity-60 transition-opacity"></div>
-                <div className="relative bg-[var(--accent-primary)] p-2 rounded border border-[var(--accent-primary)]/50">
-                  <FaBookOpen className="w-4 h-4 text-white" />
-                </div>
-              </div>
-              <div className="leading-tight">
-                <p className="text-base font-bold font-mono tracking-tight text-[var(--foreground)]">
-                  <span className="text-[var(--accent-cyan)]">$</span> {messages.common?.appName || 'DeepWiki'}
-                </p>
-                <p className="text-[10px] font-mono text-[var(--foreground-muted)] tracking-wider">
-                  &#47;&#47; {messages.repoPage?.aiWikiGenerator || 'AI-powered documentation'}
-                </p>
-              </div>
-            </Link>
-
-            <nav className="hidden md:flex items-center gap-6 text-xs font-mono font-medium">
-              <Link href="/" className="text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors flex items-center gap-1">
-                <span className="text-[var(--accent-primary)]">01</span> {messages.common?.home || 'Home'}
-              </Link>
-              <Link href="/wiki/projects" className="text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors flex items-center gap-1">
-                <span className="text-[var(--accent-primary)]">02</span> {messages.repoPage?.indexedWiki || 'Wiki Index'}
-              </Link>
-              <Link href="/jobs" className="text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors flex items-center gap-2">
-                <span className="text-[var(--accent-primary)]">03</span> {messages.common?.jobs || 'Jobs'}
-                <span className="w-1.5 h-1.5 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
-              </Link>
-            </nav>
-
-            <div className="flex items-center gap-3">
-              <Link href="/" className="md:hidden text-xs font-mono text-[var(--accent-cyan)] hover:text-[var(--highlight)] transition-colors">
-                {messages.repoPage?.home || 'Home'}
-              </Link>
-              <button
-                onClick={() => setIsModelSelectionModalOpen(true)}
-                className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] text-xs font-mono font-medium transition-all hover:border-[var(--accent-primary)]"
-              >
-                <FaSync className={`text-xs ${isLoading ? 'animate-spin' : ''}`} />
-                <span className="hidden lg:inline">{messages.repoPage?.refreshWiki || 'Refresh'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header
+        currentPage="wiki"
+        statusLabel="SYSTEM.READY"
+        statusValue="WIKI.ACTIVE"
+      />
       <main className="flex-1 w-full">
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-10 flex flex-col gap-6 h-full">
         {isLoading ? (

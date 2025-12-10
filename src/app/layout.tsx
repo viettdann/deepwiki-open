@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { DM_Sans, JetBrains_Mono, Syne } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/contexts/LanguageContext";
-import GlobalHeaderWrapper from "@/components/GlobalHeaderWrapper";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -17,7 +16,6 @@ const jetBrainsMono = JetBrains_Mono({
   display: "swap",
   variable: "--font-jetbrains-mono",
   preload: true,
-  fallback: ['ui-monospace', 'SFMono-Regular', 'Monaco', 'Consolas', 'monospace'],
 });
 
 const syne = Syne({
@@ -41,9 +39,7 @@ export default function RootLayout({
         className={`${dmSans.variable} ${jetBrainsMono.variable} ${syne.variable} antialiased`}
       >
         <LanguageProvider>
-          <GlobalHeaderWrapper>
-            {children}
-          </GlobalHeaderWrapper>
+          {children}
         </LanguageProvider>
       </body>
     </html>

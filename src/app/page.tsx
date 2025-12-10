@@ -6,6 +6,7 @@ import Mermaid from '../components/Mermaid';
 import ConfigurationModal from '@/components/ConfigurationModal';
 import { extractUrlPath, extractUrlDomain } from '@/utils/urlDecoder';
 import { useLanguage } from '@/contexts/LanguageContext';
+import Header from '@/components/Header';
 
 // SVG Icons - Inline to avoid external dependencies
 
@@ -357,7 +358,18 @@ export default function Home() {
   };
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
+      <Header
+        currentPage="home"
+        statusLabel="SYSTEM.READY"
+        statusValue="GENERATOR.ONLINE"
+        actionLabel="Generate"
+        onActionClick={() => {
+          const input = document.getElementById('repo-input');
+          input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          input?.focus();
+        }}
+      />
       {/* Main Content */}
       <main className="flex-1">
         {/* Hero Section */}
@@ -628,6 +640,6 @@ export default function Home() {
           </div>
         </div>
       </footer>
-    </>
+    </div>
   );
 }

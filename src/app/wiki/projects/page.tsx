@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ProcessedProjects from '@/components/ProcessedProjects';
 import ConfigurationModal from '@/components/ConfigurationModal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import Header from '@/components/Header';
 
 const GitHubIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -188,7 +189,13 @@ export default function WikiProjectsPage() {
   };
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
+      <Header
+        currentPage="projects"
+        statusLabel="SYSTEM.WIKI"
+        actionLabel="Generate Wiki"
+        onActionClick={() => setIsConfigModalOpen(true)}
+      />
       {/* Main Content */}
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -261,6 +268,6 @@ export default function WikiProjectsPage() {
           </div>
         </div>
       </footer>
-    </>
+    </div>
   );
 }
