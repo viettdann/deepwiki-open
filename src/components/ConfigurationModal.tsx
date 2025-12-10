@@ -39,6 +39,10 @@ interface ConfigurationModalProps {
   accessToken: string;
   setAccessToken: (value: string) => void;
 
+  // Branch selection
+  branch: string;
+  setBranch: (value: string) => void;
+
   // File filter options
   excludedDirs: string;
   setExcludedDirs: (value: string) => void;
@@ -82,6 +86,8 @@ export default function ConfigurationModal({
   setSelectedPlatform,
   accessToken,
   setAccessToken,
+  branch,
+  setBranch,
   excludedDirs,
   setExcludedDirs,
   excludedFiles,
@@ -106,12 +112,15 @@ export default function ConfigurationModal({
   // Is Private Repository toggle
   const [isPrivateRepo, setIsPrivateRepo] = useState(false);
 
+  // Is Custom Branch toggle
+  const [isCustomBranch, setIsCustomBranch] = useState(false);
 
   // Update local state when modal opens
   React.useEffect(() => {
     if (isOpen) {
       setRepositoryInput(initialRepositoryInput);
       setIsPrivateRepo(!!accessToken);
+      setIsCustomBranch(false); // Always default to OFF
     }
   }, [isOpen, initialRepositoryInput, accessToken]);
 
@@ -265,6 +274,60 @@ export default function ConfigurationModal({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           {t.form?.tokenSecurityNote || 'Stored locally, never sent to our servers'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+            </div>
+
+            {/* Custom Branch Toggle */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between p-3 rounded-md border border-[var(--border-color)] bg-[var(--background)]/30">
+                    <div className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[var(--foreground-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span className="text-sm font-medium text-[var(--foreground)]">
+                        {t.form?.customBranch || 'Custom Branch'}
+                      </span>
+                    </div>
+                    <div
+                      className="relative flex items-center cursor-pointer"
+                      onClick={() => {
+                        const newValue = !isCustomBranch;
+                        setIsCustomBranch(newValue);
+                        if (!newValue) setBranch('main');
+                      }}
+                    >
+                      <div className={`w-11 h-6 rounded-full transition-colors ${isCustomBranch ? 'bg-[var(--accent-primary)]' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                      <div className={`absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white transition-transform transform ${isCustomBranch ? 'translate-x-5' : ''}`}></div>
+                    </div>
+                  </div>
+
+                  {/* Branch Input - with transition */}
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      isCustomBranch ? 'max-h-[200px] opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'
+                    }`}
+                  >
+                    <div className="p-4 bg-[var(--background)]/50 rounded-md border border-[var(--border-color)]">
+                      <div>
+                        <label htmlFor="branch-input" className="block text-xs font-medium text-[var(--foreground)] mb-2">
+                          {t.form?.branchName || 'Branch Name'}
+                        </label>
+                        <input
+                          id="branch-input"
+                          type="text"
+                          value={branch}
+                          onChange={(e) => setBranch(e.target.value)}
+                          placeholder="main"
+                          className="input-glass block w-full px-3 py-2 text-sm"
+                        />
+                        <div className="flex items-center mt-2 text-xs text-[var(--muted)]">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {t.form?.branchNote || 'Specify the Git branch to generate wiki from (defaults to "main")'}
                         </div>
                       </div>
                     </div>

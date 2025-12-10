@@ -125,6 +125,7 @@ export default function Home() {
   const [includedFiles, setIncludedFiles] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket' | 'azure'>('github');
   const [accessToken, setAccessToken] = useState('');
+  const [branch, setBranch] = useState('main');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
@@ -351,6 +352,7 @@ export default function Home() {
     params.append('provider', provider);
     params.append('model', model);
     if (isCustomModel && customModel) params.append('custom_model', customModel);
+    if (branch && branch !== 'main') params.append('branch', branch);
     if (excludedDirs) params.append('excluded_dirs', excludedDirs);
     if (excludedFiles) params.append('excluded_files', excludedFiles);
     if (includedDirs) params.append('included_dirs', includedDirs);
@@ -662,6 +664,8 @@ export default function Home() {
         setSelectedPlatform={setSelectedPlatform}
         accessToken={accessToken}
         setAccessToken={setAccessToken}
+        branch={branch}
+        setBranch={setBranch}
         excludedDirs={excludedDirs}
         setExcludedDirs={setExcludedDirs}
         excludedFiles={excludedFiles}

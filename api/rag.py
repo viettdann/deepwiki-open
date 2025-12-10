@@ -344,7 +344,8 @@ IMPORTANT FORMATTING RULES:
 
     def prepare_retriever(self, repo_url_or_path: str, type: str = "github", access_token: str = None,
                       excluded_dirs: List[str] = None, excluded_files: List[str] = None,
-                      included_dirs: List[str] = None, included_files: List[str] = None):
+                      included_dirs: List[str] = None, included_files: List[str] = None,
+                      branch: str = "main"):
         """
         Prepare the retriever for a repository.
         Will load database from local storage if available.
@@ -356,6 +357,7 @@ IMPORTANT FORMATTING RULES:
             excluded_files: Optional list of file patterns to exclude from processing
             included_dirs: Optional list of directories to include exclusively
             included_files: Optional list of file patterns to include exclusively
+            branch: Git branch to clone. Defaults to "main"
         """
         self.initialize_db_manager()
         self.repo_url_or_path = repo_url_or_path
@@ -367,7 +369,8 @@ IMPORTANT FORMATTING RULES:
             excluded_dirs=excluded_dirs,
             excluded_files=excluded_files,
             included_dirs=included_dirs,
-            included_files=included_files
+            included_files=included_files,
+            branch=branch
         )
         logger.info(f"Loaded {len(self.transformed_docs)} documents for retrieval")
 

@@ -237,6 +237,7 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   const isCustomModelParam = searchParams?.get('is_custom_model') === 'true';
   const customModelParam = searchParams?.get('custom_model') || '';
   const language = searchParams?.get('language') || 'en';
+  const branchParam = searchParams?.get('branch') || 'main';
   const repoHost = (() => {
     if (!repoUrl) return '';
     try {
@@ -264,8 +265,9 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
     type: repoType,
     token: token || null,
     localPath: localPath || null,
-    repoUrl: repoUrl || null
-  }), [owner, repo, repoType, localPath, repoUrl, token]);
+    repoUrl: repoUrl || null,
+    branch: branchParam || null
+  }), [owner, repo, repoType, localPath, repoUrl, token, branchParam]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState<string | undefined>(
@@ -311,7 +313,7 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   const [authCode, setAuthCode] = useState<string>('');
   const [isAuthLoading] = useState<boolean>(false);
 
-  const [defaultBranch, setDefaultBranch] = useState<string>('main');
+  const [defaultBranch, setDefaultBranch] = useState<string>(branchParam);
 
   const generateFileUrl = useCallback((filePath: string): string => {
     if (effectiveRepoInfo.type === 'local') {
@@ -1099,7 +1101,8 @@ Return your analysis in the specified XML format.`
         modelExcludedDirs ? modelExcludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
         modelExcludedFiles ? modelExcludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,
         modelIncludedDirs ? modelIncludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
-        modelIncludedFiles ? modelIncludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined
+        modelIncludedFiles ? modelIncludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,
+        defaultBranch
       );
       router.push(jobRedirectUrl);
     } catch (jobError) {
@@ -1240,7 +1243,8 @@ Return your analysis in the specified XML format.`
             modelExcludedDirs ? modelExcludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
             modelExcludedFiles ? modelExcludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,
             modelIncludedDirs ? modelIncludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
-            modelIncludedFiles ? modelIncludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined
+            modelIncludedFiles ? modelIncludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,
+            defaultBranch
           );
           router.push(jobRedirectUrl);
         } catch (jobError) {

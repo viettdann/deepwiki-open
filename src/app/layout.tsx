@@ -23,8 +23,8 @@ const syne = Syne({
 });
 
 export const metadata: Metadata = {
-  title: "Deepwiki Open Source | Sheing Ng",
-  description: "Created by Sheing Ng",
+  title: "Deepwiki Open Source",
+  description: "Deepwiki Open Source is a free and open-source version of Deepwiki, a tool that helps you create a knowledge base from your code repository.",
 };
 
 export default function RootLayout({

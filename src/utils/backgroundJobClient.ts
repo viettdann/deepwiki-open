@@ -8,6 +8,7 @@ interface CreateJobRequest {
   owner: string;
   repo: string;
   access_token?: string;
+  branch?: string;
   provider: string;
   model?: string;
   language: string;
@@ -154,7 +155,8 @@ export async function startBackgroundWikiGeneration(
   excludedDirs?: string[],
   excludedFiles?: string[],
   includedDirs?: string[],
-  includedFiles?: string[]
+  includedFiles?: string[],
+  branch?: string
 ): Promise<string> {
   const request: CreateJobRequest = {
     repo_url: repoUrl,
@@ -162,6 +164,7 @@ export async function startBackgroundWikiGeneration(
     owner,
     repo,
     access_token: accessToken,
+    branch: branch || "main",
     provider,
     model,
     language,

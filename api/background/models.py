@@ -37,6 +37,7 @@ class CreateJobRequest(BaseModel):
     owner: str = Field(..., description="Repository owner")
     repo: str = Field(..., description="Repository name")
     access_token: Optional[str] = Field(None, description="Access token for private repos")
+    branch: Optional[str] = Field("main", description="Git branch to clone")
 
     provider: str = Field("google", description="LLM provider")
     model: Optional[str] = Field(None, description="Model name")
