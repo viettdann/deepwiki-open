@@ -239,7 +239,16 @@ export default function Home() {
 
       fullPath = extractUrlPath(input)?.replace(/\.git$/, '');
       const parts = fullPath?.split('/') ?? [];
-      if (parts.length >= 2) {
+
+      // Special handling for Azure DevOps URLs
+      // Format: {organization}/{project}/_git/{repository}
+      if (type === 'azure' && parts.includes('_git')) {
+        const gitIndex = parts.indexOf('_git');
+        if (gitIndex >= 1 && gitIndex + 1 < parts.length) {
+          owner = parts[gitIndex - 1]; // project name
+          repo = parts[gitIndex + 1]; // repository name
+        }
+      } else if (parts.length >= 2) {
         repo = parts[parts.length - 1] || '';
         owner = parts[parts.length - 2] || '';
       }

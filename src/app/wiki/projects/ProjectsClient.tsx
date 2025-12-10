@@ -90,10 +90,75 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
     }
     if (isSubmitting) return;
     setIsSubmitting(true);
-    const parseRepositoryInput = (input: string) => {
-      const match = input.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-      if (match) return { owner: match[1], repo: match[2].replace('.git', ''), type: 'github' };
-      return null;
+    const parseRepositoryInput = (input: string): {
+      owner: string,
+      repo: string,
+      type: string,
+      fullPath?: string,
+      localPath?: string
+    } | null => {
+      input = input.trim();
+      let owner = '', repo = '', type = 'github', fullPath;
+      let localPath: string | undefined;
+
+      const windowsPathRegex = /^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$/;
+      const customGitRegex = /^(?:https?:\/\/)?([^\/]+)\/(.+?)\/([^\/]+)(?:\.git)?\/?$/;
+
+      if (windowsPathRegex.test(input)) {
+        type = 'local';
+        localPath = input;
+        repo = input.split('\\').pop() || 'local-repo';
+        owner = 'local';
+      } else if (input.startsWith('/')) {
+        type = 'local';
+        localPath = input;
+        repo = input.split('/').filter(Boolean).pop() || 'local-repo';
+        owner = 'local';
+      } else if (customGitRegex.test(input)) {
+        const domain = input.match(/(?:https?:\/\/)?([^\/]+)/)?.[1] || '';
+        if (domain.includes('github.com')) {
+          type = 'github';
+        } else if (domain.includes('gitlab.com') || domain.includes('gitlab.')) {
+          type = 'gitlab';
+        } else if (domain.includes('bitbucket.org') || domain.includes('bitbucket.')) {
+          type = 'bitbucket';
+        } else if (domain.includes('dev.azure.com') || domain.includes('visualstudio.com')) {
+          type = 'azure';
+        } else {
+          type = 'web';
+        }
+
+        // Extract path from URL
+        const pathMatch = input.match(/(?:https?:\/\/)?[^\/]+\/(.+?)(?:\.git)?\/?$/);
+        fullPath = pathMatch?.[1] || '';
+        const parts = fullPath.split('/');
+
+        // Special handling for Azure DevOps URLs
+        // Format: {organization}/{project}/_git/{repository}
+        if (type === 'azure' && parts.includes('_git')) {
+          const gitIndex = parts.indexOf('_git');
+          if (gitIndex >= 1 && gitIndex + 1 < parts.length) {
+            owner = parts[gitIndex - 1]; // project name
+            repo = parts[gitIndex + 1]; // repository name
+          }
+        } else if (parts.length >= 2) {
+          repo = parts[parts.length - 1] || '';
+          owner = parts[parts.length - 2] || '';
+        }
+      } else {
+        return null;
+      }
+
+      if (!owner || !repo) return null;
+
+      owner = owner.trim();
+      repo = repo.trim();
+
+      if (repo.endsWith('.git')) {
+        repo = repo.slice(0, -4);
+      }
+
+      return { owner, repo, type, fullPath, localPath };
     };
     const parsedRepo = parseRepositoryInput(repositoryInput);
     if (!parsedRepo) {
