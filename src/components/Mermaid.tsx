@@ -4,7 +4,7 @@ import mermaid from 'mermaid';
 
 mermaid.initialize({
   startOnLoad: true,
-  theme: 'neutral',
+  theme: 'dark',
   securityLevel: 'loose',
   suppressErrorRendering: true,
   logLevel: 'error',
@@ -18,72 +18,82 @@ mermaid.initialize({
     padding: 20,
   },
   themeCSS: `
-    /* Dark mode styles - Deep Space theme */
+    /* Enhanced dark mode styles */
     .node rect, .node circle, .node ellipse, .node polygon, .node path {
-      fill: #222222;
-      stroke: #5d4037;
-      stroke-width: 1px;
+      fill: #374151;
+      stroke: #60a5fa;
+      stroke-width: 2px;
     }
     .edgePath .path {
-      stroke: #9370db;
-      stroke-width: 1.5px;
+      stroke: #60a5fa;
+      stroke-width: 2px;
     }
     .edgeLabel {
-      background-color: transparent;
-      color: #f0f0f0;
+      background-color: #1f2937;
+      color: #f3f4f6;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid #374151;
       p {
         background-color: transparent !important;
+        margin: 0 !important;
       }
     }
     .label {
-      color: #f0f0f0;
+      color: #f3f4f6;
+      font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
+      font-weight: 500;
     }
     .cluster rect {
-      fill: #222222;
-      stroke: #5d4037;
-      stroke-width: 1px;
+      fill: #1f2937;
+      stroke: #4b5563;
+      stroke-width: 2px;
     }
     .flowchart-link {
-      stroke: #9370db;
+      stroke: #60a5fa;
+      stroke-width: 2px;
     }
 
     /* Sequence diagram styles */
     .actor {
-      fill: #222222;
-      stroke: #5d4037;
-      stroke-width: 1px;
+      fill: #374151;
+      stroke: #60a5fa;
+      stroke-width: 2px;
     }
     text.actor {
-      fill: #f0f0f0;
+      fill: #f3f4f6;
       stroke: none;
     }
     .messageText {
-      fill: #f0f0f0;
+      fill: #f3f4f6;
       stroke: none;
       font-weight: 500;
+      font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
     }
     .messageLine0, .messageLine1 {
-      stroke: #9370db;
-      stroke-width: 1.5px;
+      stroke: #60a5fa;
+      stroke-width: 2px;
     }
     .noteText {
-      fill: #f0f0f0;
+      fill: #f3f4f6;
+      font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
     }
     #sequenceNumber {
-      fill: #f0f0f0;
+      fill: #f3f4f6;
     }
     text.sequenceText {
-      fill: #f0f0f0;
+      fill: #f3f4f6;
       font-weight: 500;
+      font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
     }
     text.loopText, text.loopText tspan {
-      fill: #f0f0f0;
+      fill: #f3f4f6;
     }
     /* Add a subtle background to message text for better readability */
     .messageText, text.sequenceText {
       paint-order: stroke;
-      stroke: #1a1a1a;
-      stroke-width: 2px;
+      stroke: #1f2937;
+      stroke-width: 3px;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
@@ -95,7 +105,59 @@ mermaid.initialize({
     .edgeLabel,
     .label,
     text {
-      fill: #f0f0f0 !important;
+      fill: #f3f4f6 !important;
+      font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
+    }
+
+    /* Gantt chart styles */
+    .taskText {
+      fill: #f3f4f6 !important;
+    }
+    .grid .tick line {
+      stroke: #4b5563;
+    }
+    .grid path {
+      stroke-width: 0;
+    }
+    .today {
+      fill: #ef4444;
+      fill-opacity: 0.2;
+    }
+
+    /* Class diagram styles */
+    .classBox rect {
+      fill: #374151;
+      stroke: #60a5fa;
+      stroke-width: 2px;
+    }
+    .classLabel .label {
+      fill: #f3f4f6;
+    }
+    .title {
+      fill: #60a5fa;
+    }
+
+    /* State diagram styles */
+    .node rect.state-group {
+      fill: #1f2937;
+      stroke: #4b5563;
+      stroke-width: 2px;
+    }
+
+    /* ER diagram styles */
+    .entityBox {
+      fill: #374151;
+      stroke: #60a5fa;
+      stroke-width: 2px;
+    }
+    .relationshipLabelBox {
+      fill: #1f2937;
+      opacity: 0.9;
+      border: 1px solid #374151;
+    }
+    .relationshipLine {
+      stroke: #60a5fa;
+      stroke-width: 2px;
     }
 
     /* Add clickable element styles with subtle transitions */
@@ -107,7 +169,7 @@ mermaid.initialize({
       cursor: pointer;
     }
     .clickable:hover > * {
-      filter: brightness(0.95);
+      filter: brightness(1.2);
     }
   `,
   fontFamily: 'var(--font-syne), var(--font-dm-sans), sans-serif',
