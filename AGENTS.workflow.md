@@ -10,7 +10,7 @@ This document provides a comprehensive overview of the DeepWiki project's workfl
 
 1. **API Layer** (`api/`)
    - FastAPI-based REST API endpoints
-   - WebSocket support for real-time progress updates
+   - HTTP streaming (Server-Sent Events) for real-time progress updates
    - Authentication and rate limiting
 
 2. **Data Pipeline** (`api/data_pipeline.py`)
@@ -21,7 +21,7 @@ This document provides a comprehensive overview of the DeepWiki project's workfl
 3. **Background Job System** (`api/background/`)
    - Asynchronous job processing
    - Page-level checkpointing and retry mechanisms
-   - Progress tracking via WebSocket
+   - Progress tracking via HTTP streaming (SSE)
 
 4. **RAG System** (`api/rag.py`)
    - Retrieval-Augmented Generation implementation
@@ -81,6 +81,7 @@ This document provides a comprehensive overview of the DeepWiki project's workfl
 1. **Embedder Selection**
    - **OpenAI**: text-embedding-3-small (1536 dimensions)
    - **Google**: text-embedding-004 (768 dimensions)
+   - **Azure OpenAI**: text-embedding-3-large (deployment-based, honors `AZURE_OPENAI_VERSION`)
    - **Ollama**: nomic-embed-text (384-8192 dimensions)
    - **OpenRouter**: Mixed density embeddings
 
@@ -93,7 +94,7 @@ This document provides a comprehensive overview of the DeepWiki project's workfl
      - Metadata-rich chunks: `symbol_name`, `signature`, `token_count`, `parent_symbol`, `language`
      - Thread-safe parser pool (tree-sitter)
      - Memory guard: skips parsing for files > 500KB
-     - Feature flag: `USE_SYNTAX_AWARE_CHUNKING=true` (default: `false`)
+     - Feature flag: `USE_SYNTAX_AWARE_CHUNKING=true` (default: `false`; shipped `.env.example` sets it to `true`)
      - Fallback to standard TextSplitter for unsupported languages or parse failures
    - **Standard TextSplitter** (AdalFlow component)
      - Word/sentence-based splitting
@@ -141,12 +142,17 @@ The system supports multiple LLM providers through a unified interface:
    - Custom endpoint configuration
    - Provider-specific routing
 
-4. **Ollama**
+4. **Azure OpenAI**
+   - Uses `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_VERSION`
+   - Supports classic `api-version` flow and new v1 base path via `AZURE_OPENAI_USE_V1=true`
+   - Deployments map to models (e.g., `gpt-4o-mini`, `gpt-5-mini`)
+
+5. **Ollama**
    - Local model deployment
    - Models: llama3, mistral, codellama
    - Direct HTTP API integration
 
-5. **DeepSeek**
+6. **DeepSeek**
    - Specialized code analysis models
    - Cost-effective alternative
    - Chinese language support
@@ -363,7 +369,7 @@ Phase 2 (Pages) → Completion → Cache Storage
 
 ### 1. Progress Tracking
 
-- WebSocket real-time updates
+- HTTP streaming (SSE) updates
 - Percentage-based progress indicators
 - Page-level status tracking
 

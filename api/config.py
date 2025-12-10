@@ -11,6 +11,7 @@ from api.openai_client import OpenAIClient
 from api.openrouter_client import OpenRouterClient
 from api.google_embedder_client import GoogleEmbedderClient
 from api.deepseek_client import DeepSeekClient
+from api.azureai_client import AzureAIClient
 from adalflow import GoogleGenAIClient, OllamaClient
 
 # Get API keys from environment variables
@@ -69,7 +70,8 @@ CLIENT_CLASSES = {
     "OpenAIClient": OpenAIClient,
     "OpenRouterClient": OpenRouterClient,
     "OllamaClient": OllamaClient,
-    "DeepSeekClient": DeepSeekClient
+    "DeepSeekClient": DeepSeekClient,
+    "AzureAIClient": AzureAIClient
 }
 
 def replace_env_placeholders(config: Union[Dict[str, Any], List[Any], str, Any]) -> Union[Dict[str, Any], List[Any], str, Any]:
@@ -140,13 +142,14 @@ def load_generator_config():
             if provider_config.get("client_class") in CLIENT_CLASSES:
                 provider_config["model_client"] = CLIENT_CLASSES[provider_config["client_class"]]
             # Fall back to default mapping based on provider_id
-            elif provider_id in ["google", "openai", "openrouter", "ollama", "deepseek"]:
+            elif provider_id in ["google", "openai", "openrouter", "ollama", "deepseek", "azure"]:
                 default_map = {
                     "google": GoogleGenAIClient,
                     "openai": OpenAIClient,
                     "openrouter": OpenRouterClient,
                     "ollama": OllamaClient,
-                    "deepseek": DeepSeekClient
+                    "deepseek": DeepSeekClient,
+                    "azure": AzureAIClient,
                 }
                 provider_config["model_client"] = default_map[provider_id]
             else:
@@ -159,7 +162,7 @@ def load_embedder_config():
     embedder_config = load_json_config("embedder.json")
 
     # Process client classes
-    for key in ["embedder", "embedder_ollama", "embedder_google", "embedder_openrouter"]:
+    for key in ["embedder", "embedder_ollama", "embedder_google", "embedder_openrouter", "embedder_azure"]:
         if key in embedder_config and "client_class" in embedder_config[key]:
             class_name = embedder_config[key]["client_class"]
             if class_name in CLIENT_CLASSES:
@@ -181,6 +184,8 @@ def get_embedder_config():
         return configs.get("embedder_ollama", {})
     elif embedder_type == 'openrouter' and 'embedder_openrouter' in configs:
         return configs.get("embedder_openrouter", {})
+    elif embedder_type == 'azure' and 'embedder_azure' in configs:
+        return configs.get("embedder_azure", {})
     else:
         return configs.get("embedder", {})
 
@@ -233,12 +238,21 @@ def is_openrouter_embedder():
     """
     return EMBEDDER_TYPE == 'openrouter'
 
+def is_azure_embedder():
+    """
+    Check if the current embedder configuration uses Azure OpenAI embeddings.
+
+    Returns:
+        bool: True if using Azure embedder, False otherwise
+    """
+    return EMBEDDER_TYPE == 'azure'
+
 def get_embedder_type():
     """
     Get the current embedder type based on configuration.
     
     Returns:
-        str: 'ollama', 'google', 'openrouter', or 'openai' (default)
+        str: 'ollama', 'google', 'openrouter', 'azure', or 'openai' (default)
     """
     if is_ollama_embedder():
         return 'ollama'
@@ -246,6 +260,8 @@ def get_embedder_type():
         return 'google'
     elif is_openrouter_embedder():
         return 'openrouter'
+    elif is_azure_embedder():
+        return 'azure'
     else:
         return 'openai'
 
@@ -339,7 +355,7 @@ if generator_config:
 
 # Update embedder configuration
 if embedder_config:
-    for key in ["embedder", "embedder_ollama", "embedder_google", "embedder_openrouter", "retriever", "text_splitter"]:
+    for key in ["embedder", "embedder_ollama", "embedder_google", "embedder_openrouter", "embedder_azure", "retriever", "text_splitter"]:
         if key in embedder_config:
             configs[key] = embedder_config[key]
 
@@ -383,29 +399,40 @@ def get_model_config(provider="google", model=None):
         if not model:
             raise ValueError(f"No default model specified for provider '{provider}'")
 
+    # Normalize model name (strip whitespace)
+    model = model.strip() if isinstance(model, str) else model
+
     # Get model parameters (if present)
-    model_params = {}
     if model in provider_config.get("models", {}):
-        model_params = provider_config["models"][model]
+        model_params = provider_config["models"][model].copy()
     else:
         default_model = provider_config.get("default_model")
-        model_params = provider_config["models"][default_model]
+        model_params = provider_config["models"][default_model].copy()
 
     # Prepare base configuration
-    result = {
-        "model_client": model_client,
-        "model": model,
-    }
+    result_model = model
+
+    # Azure: allow deployment name override distinct from base model id
+    if provider == "azure":
+        deployment_override = (
+            model_params.pop("deployment", None)
+            or model_params.pop("deployment_name", None)
+            or os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        )
+        if deployment_override:
+            result_model = deployment_override.strip()
+
+    result = {"model_client": model_client, "model": result_model}
 
     # Provider-specific adjustments
     if provider == "ollama":
         # Ollama uses a slightly different parameter structure
         if "options" in model_params:
-            result["model_kwargs"] = {"model": model, **model_params["options"]}
+            result["model_kwargs"] = {"model": result_model, **model_params["options"]}
         else:
-            result["model_kwargs"] = {"model": model}
+            result["model_kwargs"] = {"model": result_model}
     else:
         # Standard structure for other providers
-        result["model_kwargs"] = {"model": model, **model_params}
+        result["model_kwargs"] = {"model": result_model, **model_params}
 
     return result

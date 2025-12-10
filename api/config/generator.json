@@ -174,6 +174,33 @@
         }
       }
     },
+    "azure": {
+      "client_class": "AzureAIClient",
+      "default_model": "gpt-4o-mini",
+      "supportsCustomModel": true,
+      "models": {
+        "gpt-4o-mini": {
+          "temperature": 1,
+          "top_p": 1,
+          "deployment": "gpt-4o-mini"
+        },
+        "gpt-o4-mini": {
+          "temperature": 1,
+          "top_p": 1,
+          "deployment": "gpt-o4-mini"
+        },
+        "gpt-5-mini": {
+          "temperature": 1,
+          "top_p": 1,
+          "deployment": "gpt-5-mini"
+        },
+        "gpt-5.1-codex-mini": {
+          "temperature": 1,
+          "top_p": 1,
+          "deployment": "gpt-5.1-codex-mini"
+        }
+      }
+    },
     "ollama": {
       "default_model": "qwen3:1.7b",
       "supportsCustomModel": true,

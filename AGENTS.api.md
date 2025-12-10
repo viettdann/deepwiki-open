@@ -89,6 +89,16 @@ GET /models/config
       ]
     },
     {
+      "id": "azure",
+      "name": "Azure OpenAI",
+      "supportsCustomModel": true,
+      "models": [
+        {"id": "gpt-4o-mini", "name": "gpt-4o-mini (deployment)"},
+        {"id": "gpt-o4-mini", "name": "gpt-o4-mini (deployment)"},
+        {"id": "gpt-5-mini", "name": "gpt-5-mini (deployment)"}
+      ]
+    },
+    {
       "id": "ollama",
       "name": "Ollama",
       "supportsCustomModel": true,
@@ -459,6 +469,8 @@ class RepoInfo(BaseModel):
 - `OPENROUTER_API_KEY`: OpenRouter API key
 - `DEEPSEEK_API_KEY`: DeepSeek API key
 - `OLLAMA_HOST`: Ollama server URL (default: http://localhost:11434)
+- `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_VERSION`: Azure OpenAI credentials (classic data-plane uses `api-version`)
+- `AZURE_OPENAI_USE_V1`: Set to `true` to call the new Azure v1 endpoint via `{endpoint}/openai/v1` (skips `api-version`, uses standard OpenAI client); default is `false` to keep classic behavior.
 
 #### Authentication
 - `DEEPWIKI_AUTH_MODE`: Enable wiki authentication (true/false)
@@ -467,7 +479,7 @@ class RepoInfo(BaseModel):
 - `DEEPWIKI_BACKEND_API_KEYS`: Comma-separated API keys
 
 #### Embedding
-- `DEEPWIKI_EMBEDDER_TYPE`: Embedder provider (openai/google/ollama/openrouter)
+- `DEEPWIKI_EMBEDDER_TYPE`: Embedder provider (openai/google/ollama/openrouter/azure)
 
 #### Server
 - `PORT`: API server port (default: 8001)

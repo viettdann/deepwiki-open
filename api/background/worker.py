@@ -22,6 +22,7 @@ import aiohttp
 
 from api.config import get_model_config, configs, OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY, PAGE_CONCURRENCY
 from api.openai_client import OpenAIClient
+from api.azureai_client import AzureAIClient
 from api.openrouter_client import OpenRouterClient
 from api.deepseek_client import DeepSeekClient
 from api.rag import RAG
@@ -1188,6 +1189,34 @@ IMPORTANT: Generate the content in {language_name}."""
                 response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
                 async for chunk in response:
                     content += chunk
+
+            elif provider == "azure":
+                if not os.getenv("AZURE_OPENAI_API_KEY"):
+                    raise ValueError("AZURE_OPENAI_API_KEY not configured")
+
+                client = AzureAIClient()
+                model_kwargs = {
+                    "model": model,
+                    "stream": True,
+                    "temperature": model_config["temperature"]
+                }
+                if "top_p" in model_config:
+                    model_kwargs["top_p"] = model_config["top_p"]
+
+                api_kwargs = client.convert_inputs_to_api_kwargs(
+                    input=prompt,
+                    model_kwargs=model_kwargs,
+                    model_type=ModelType.LLM
+                )
+                response = await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
+                async for chunk in response:
+                    choices = getattr(chunk, "choices", [])
+                    if len(choices) > 0:
+                        delta = getattr(choices[0], "delta", None)
+                        if delta is not None:
+                            text = getattr(delta, "content", None)
+                            if text is not None:
+                                content += text
 
             elif provider == "openai":
                 if not OPENAI_API_KEY:

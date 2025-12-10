@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional
 from adalflow.components.data_process.text_splitter import TextSplitter
 from adalflow.core.tokenizer import Tokenizer
 from adalflow.core.types import Document
+from adalflow.utils.registry import EntityMapping
 
 if TYPE_CHECKING:
     from tree_sitter import Tree
@@ -972,3 +973,9 @@ def create_code_splitter(
         chunk_overlap=chunk_overlap,
         **kwargs,
     )
+
+
+# Register custom splitter with AdalFlow's registry so serialized pipelines
+# can be deserialized (e.g., when loading cached LocalDB states) even before
+# a CodeAwareTextSplitter instance is created.
+EntityMapping.register("CodeAwareTextSplitter", CodeAwareTextSplitter)

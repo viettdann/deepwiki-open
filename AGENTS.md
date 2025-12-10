@@ -45,6 +45,7 @@ docker-compose up     # Run full stack
 - `OPENAI_API_KEY` - OpenAI
 - `OPENROUTER_API_KEY` - OpenRouter
 - `DEEPSEEK_API_KEY` - DeepSeek
+- `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_VERSION` - Azure OpenAI (chat + embeddings)
 - `OLLAMA_HOST` - Local Ollama (defaults to `http://localhost:11434`)
 
 ### Server Configuration
@@ -54,8 +55,8 @@ docker-compose up     # Run full stack
 - `NODE_ENV`: `development` or `production`
 
 ### Embedder Configuration
-- `DEEPWIKI_EMBEDDER_TYPE`: `openai` (default), `google`, `ollama`, or `openrouter`
-- `USE_SYNTAX_AWARE_CHUNKING`: Enable syntax-aware code chunking (`true` or `false`, default: `false`)
+- `DEEPWIKI_EMBEDDER_TYPE`: `openai` (default), `google`, `ollama`, `openrouter`, or `azure`
+- `USE_SYNTAX_AWARE_CHUNKING`: Enable syntax-aware code chunking (`true` or `false`, default: `false`; `.env.example` now ships with it set to `true`)
   - Respects code boundaries for C#, TypeScript, and JavaScript
   - Requires regenerating embeddings for existing repositories after enabling
 
@@ -108,7 +109,7 @@ docker-compose up     # Run full stack
 
 ## Key Patterns
 
-**Multi-Provider LLM Support**: Use `get_model_config(provider, model)` from `api/config.py` to get client/kwargs for any provider (google, openai, openrouter, ollama, deepseek).
+**Multi-Provider LLM Support**: Use `get_model_config(provider, model)` from `api/config.py` to get client/kwargs for any provider (google, openai, openrouter, ollama, deepseek, azure).
 
 **Embedder Selection**: Controlled by `DEEPWIKI_EMBEDDER_TYPE` env var. Use `get_embedder()` from `api/tools/embedder.py`.
 
