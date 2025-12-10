@@ -42,25 +42,64 @@ select option {
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-dm-sans), sans-serif;
-  --font-mono: var(--font-jetbrains-mono), monospace;
-  --font-display: var(--font-syne), sans-serif;
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
+  --font-display: var(--font-syne), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Base font settings */
+html {
+  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-dm-sans), var(--font-sans), sans-serif;
+  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   font-feature-settings: 'ss01', 'ss02', 'cv01', 'cv02';
+  font-variant-ligatures: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Ensure monospace fonts are applied */
+/* Ensure monospace fonts are applied everywhere */
 .font-mono,
 code,
 kbd,
 samp,
-pre {
-  font-family: var(--font-jetbrains-mono), var(--font-mono), monospace;
+pre,
+.text-font-mono,
+[class*="font-mono"],
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+textarea,
+select,
+button {
+  font-family: inherit;
+}
+
+/* Force JetBrains Mono for specific elements */
+.font-mono,
+code,
+kbd,
+samp,
+pre,
+.text-font-mono,
+[class*="font-mono"],
+.input-glass,
+.terminal-btn,
+.terminal-cursor,
+.code-block,
+.mono-digits,
+.matrix-text,
+.typing-cursor {
+  font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace !important;
+  font-feature-settings: normal;
+  font-variant-ligatures: none;
+  line-height: 1.6;
 }
 
 /* Animated gradient mesh background */
