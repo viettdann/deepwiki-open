@@ -443,6 +443,7 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
         isOpen={isConfigModalOpen}
         onClose={() => setIsConfigModalOpen(false)}
         repositoryInput={repositoryInput}
+        setRepositoryInput={setRepositoryInput}
         selectedLanguage={selectedLanguage}
         setSelectedLanguage={setSelectedLanguage}
         supportedLanguages={supportedLanguages}

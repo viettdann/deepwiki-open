@@ -10,6 +10,7 @@ interface ConfigurationModalProps {
 
   // Repository input
   repositoryInput: string;
+  setRepositoryInput: (value: string) => void;
 
   // Language selection
   selectedLanguage: string;
@@ -63,6 +64,7 @@ export default function ConfigurationModal({
   isOpen,
   onClose,
   repositoryInput: initialRepositoryInput,
+  setRepositoryInput: setParentRepositoryInput,
   selectedLanguage,
   setSelectedLanguage,
   supportedLanguages,
@@ -148,11 +150,19 @@ export default function ConfigurationModal({
                       <input
                         type="text"
                         value={repositoryInput}
-                        onChange={(e) => setRepositoryInput(e.target.value)}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          setRepositoryInput(newValue);
+                          setParentRepositoryInput(newValue);
+                        }}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') setIsEditingRepo(false);
+                          if (e.key === 'Enter') {
+                            setIsEditingRepo(false);
+                            setParentRepositoryInput(repositoryInput);
+                          }
                           if (e.key === 'Escape') {
                             setRepositoryInput(initialRepositoryInput);
+                            setParentRepositoryInput(initialRepositoryInput);
                             setIsEditingRepo(false);
                           }
                         }}
@@ -160,7 +170,10 @@ export default function ConfigurationModal({
                         autoFocus
                       />
                       <button
-                        onClick={() => setIsEditingRepo(false)}
+                        onClick={() => {
+                          setIsEditingRepo(false);
+                          setParentRepositoryInput(repositoryInput);
+                        }}
                         className="px-3 py-2 text-sm font-medium rounded-md bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90 transition-colors"
                       >
                         Save
