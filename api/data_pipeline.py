@@ -105,22 +105,26 @@ def download_repo(repo_url: str, local_path: str, repo_type: str = None, access_
             parsed = urlparse(repo_url)
             # URL-encode the token to handle special characters
             encoded_token = quote(access_token, safe='')
+            # Strip any existing username from netloc to avoid double @ symbols
+            # (e.g., "user@host" -> "host")
+            clean_netloc = parsed.netloc.split('@')[-1] if '@' in parsed.netloc else parsed.netloc
+
             # Determine the repository type and format the URL accordingly
             if repo_type == "github":
                 # Format: https://{token}@{domain}/owner/repo.git
                 # Works for both github.com and enterprise GitHub domains
-                clone_url = urlunparse((parsed.scheme, f"{encoded_token}@{parsed.netloc}", parsed.path, '', '', ''))
+                clone_url = urlunparse((parsed.scheme, f"{encoded_token}@{clean_netloc}", parsed.path, '', '', ''))
             elif repo_type == "gitlab":
                 # Format: https://oauth2:{token}@gitlab.com/owner/repo.git
-                clone_url = urlunparse((parsed.scheme, f"oauth2:{encoded_token}@{parsed.netloc}", parsed.path, '', '', ''))
+                clone_url = urlunparse((parsed.scheme, f"oauth2:{encoded_token}@{clean_netloc}", parsed.path, '', '', ''))
             elif repo_type == "bitbucket":
                 # Format: https://x-token-auth:{token}@bitbucket.org/owner/repo.git
-                clone_url = urlunparse((parsed.scheme, f"x-token-auth:{encoded_token}@{parsed.netloc}", parsed.path, '', '', ''))
+                clone_url = urlunparse((parsed.scheme, f"x-token-auth:{encoded_token}@{clean_netloc}", parsed.path, '', '', ''))
             elif repo_type == "azure":
                 # Format: https://{token}@dev.azure.com/org/project/_git/repo
                 # Azure DevOps uses PAT directly as username (like GitHub)
                 # Works for both dev.azure.com and legacy *.visualstudio.com domains
-                clone_url = urlunparse((parsed.scheme, f"{encoded_token}@{parsed.netloc}", parsed.path, '', '', ''))
+                clone_url = urlunparse((parsed.scheme, f"{encoded_token}@{clean_netloc}", parsed.path, '', '', ''))
 
             logger.info("Using access token for authentication")
 
