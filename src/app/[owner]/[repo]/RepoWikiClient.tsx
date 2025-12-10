@@ -482,6 +482,38 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
 
   const [defaultBranch, setDefaultBranch] = useState<string>(branchParam);
 
+  // Model selector dropdown state
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [modelConfig, setModelConfig] = useState<{providers: Array<{id: string; name: string; models: Array<{id: string; name: string}>; supportsCustomModel?: boolean}>} | null>(null);
+  const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
+  const [customModelInput, setCustomModelInput] = useState<{providerId: string; value: string} | null>(null);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
+  const modelButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Toggle provider expansion
+  const toggleProvider = (providerId: string) => {
+    setExpandedProviders(prev => {
+      const next = new Set(prev);
+      if (next.has(providerId)) {
+        next.delete(providerId);
+      } else {
+        next.add(providerId);
+      }
+      return next;
+    });
+  };
+
+  // Handle custom model submission
+  const submitCustomModel = (providerId: string) => {
+    if (customModelInput && customModelInput.value.trim()) {
+      setSelectedProviderState(providerId);
+      setIsCustomSelectedModelState(true);
+      setCustomSelectedModelState(customModelInput.value.trim());
+      setCustomModelInput(null);
+      setIsModelDropdownOpen(false);
+    }
+  };
+
   const generateFileUrl = useCallback((filePath: string): string => {
     if (effectiveRepoInfo.type === 'local') {
       return filePath;
@@ -524,15 +556,63 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsAskModalOpen(false);
+        setIsModelDropdownOpen(false);
       }
     };
-    if (isAskModalOpen) {
+    if (isAskModalOpen || isModelDropdownOpen) {
       window.addEventListener('keydown', handleEsc);
     }
     return () => {
       window.removeEventListener('keydown', handleEsc);
     };
-  }, [isAskModalOpen]);
+  }, [isAskModalOpen, isModelDropdownOpen]);
+
+  // Fetch model config
+  useEffect(() => {
+    const fetchModelConfig = async () => {
+      try {
+        const response = await fetch('/api/models/config');
+        if (response.ok) {
+          const data = await response.json();
+          setModelConfig(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch model config:', err);
+      }
+    };
+    if (!modelConfig) {
+      fetchModelConfig();
+    }
+  }, [modelConfig]);
+
+  // Auto-expand current provider when dropdown opens
+  useEffect(() => {
+    if (isModelDropdownOpen && selectedProviderState && !expandedProviders.has(selectedProviderState)) {
+      setExpandedProviders(new Set([selectedProviderState]));
+    }
+  }, [isModelDropdownOpen, selectedProviderState, expandedProviders]);
+
+  // Handle click outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      // Ignore clicks on the button itself or inside the dropdown
+      if (
+        modelDropdownRef.current &&
+        !modelDropdownRef.current.contains(target) &&
+        modelButtonRef.current &&
+        !modelButtonRef.current.contains(target)
+      ) {
+        setIsModelDropdownOpen(false);
+      }
+    };
+    if (isModelDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isModelDropdownOpen]);
 
   const generatePageContent = useCallback(async (page: WikiPage, ownerLocal: string, repoLocal: string) => {
     return new Promise<void>(async (resolve) => {
@@ -1460,6 +1540,7 @@ Return your analysis in the specified XML format.`
   const [isModelSelectionModalOpen, setIsModelSelectionModalOpen] = useState(false);
 
   return (
+    <div className="relative">
     <div className="min-h-screen flex flex-col bg-[var(--background)] relative">
       <style>{wikiStyles}</style>
 
@@ -1708,26 +1789,323 @@ Return your analysis in the specified XML format.`
         </div>
       </footer>
 
-      {/* Terminal-style Ask button */}
+      {/* Terminal-style Ask button - Enhanced */}
       {!isLoading && wikiStructure && (
         <button
           onClick={() => setIsAskModalOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-lg bg-[var(--accent-primary)] text-white shadow-2xl flex items-center justify-center hover:bg-[var(--accent-secondary)] transition-all z-50 border-2 border-[var(--accent-primary)]/50 hover:border-[var(--accent-cyan)] group"
+          className="fixed bottom-8 right-8 group z-50"
           aria-label={messages.ask?.title || 'Ask about this repository'}
         >
-          <FaComments className="text-xl group-hover:scale-110 transition-transform" />
-          <span className="absolute -top-1 -right-1 w-3 h-3 bg-[var(--accent-emerald)] rounded-full border-2 border-[var(--background)] pulse-glow"></span>
+          {/* Glow effect */}
+          <div className="absolute -inset-2 bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-cyan)] rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity animate-pulse"></div>
+
+          {/* Button container */}
+          <div className="relative flex items-center gap-3 px-5 py-3 bg-[var(--surface)]/95 backdrop-blur-md rounded-xl border-2 border-[var(--accent-primary)]/50 group-hover:border-[var(--accent-cyan)] transition-all shadow-2xl overflow-hidden">
+            {/* Scan line effect */}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--accent-cyan)]/10 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000"></div>
+
+            {/* Terminal prompt */}
+            <div className="relative flex items-center gap-2">
+              <span className="font-mono text-[var(--accent-primary)] text-sm font-bold">$</span>
+              <FaComments className="text-xl text-[var(--accent-cyan)] group-hover:scale-110 transition-transform" />
+            </div>
+
+            {/* Label */}
+            <span className="relative font-mono text-sm font-semibold text-[var(--foreground)] whitespace-nowrap">
+              ASK AI
+            </span>
+
+            {/* Pulsing indicator */}
+            <span className="relative w-2 h-2 bg-[var(--accent-emerald)] rounded-full">
+              <span className="absolute inset-0 bg-[var(--accent-emerald)] rounded-full animate-ping"></span>
+            </span>
+          </div>
         </button>
       )}
-      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${isAskModalOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} backdrop-blur-sm bg-black/70`}>
-        <div className="relative w-full max-w-4xl max-h-[80vh] bg-[var(--surface)] rounded-2xl shadow-2xl border border-[var(--glass-border)] flex flex-col overflow-hidden">
-          <div className="flex items-center justify-end p-3 border-b border-[var(--glass-border)] bg-[var(--surface)]/80">
-            <button onClick={() => setIsAskModalOpen(false)} className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors rounded-full p-2" aria-label="Close">
-              <FaTimes className="text-xl" />
-            </button>
+
+      {/* Terminal Chat Modal - Bottom Center */}
+      <div
+        className={`fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4 transition-all duration-500 ease-out ${
+          isAskModalOpen
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-full opacity-0 pointer-events-none'
+        }`}
+      >
+        {/* Backdrop blur overlay */}
+        <div
+          className={`fixed inset-0 transition-opacity duration-300 ${
+            isAskModalOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={() => setIsAskModalOpen(false)}
+        ></div>
+
+        {/* Terminal Window Container */}
+        <div className="relative w-full max-w-6xl">
+          {/* Ambient glow */}
+          <div className="absolute -inset-4 bg-gradient-to-t from-[var(--accent-primary)]/20 via-[var(--accent-cyan)]/10 to-transparent rounded-3xl blur-2xl opacity-80"></div>
+
+          {/* Terminal Window */}
+          <div className="relative bg-[var(--surface)]/98 backdrop-blur-xl rounded-2xl shadow-[0_-10px_50px_rgba(139,92,246,0.3)] border-2 border-[var(--accent-primary)]/40 overflow-hidden max-h-[80vh] flex flex-col">
+            {/* Terminal Header */}
+            <div className="relative bg-gradient-to-r from-[var(--accent-primary)]/10 to-[var(--accent-cyan)]/10 border-b-2 border-[var(--accent-primary)]/30 px-5 py-2">
+              {/* Grid pattern overlay */}
+              <div className="absolute inset-0 opacity-5" style={{
+                backgroundImage: 'linear-gradient(var(--accent-primary) 1px, transparent 1px), linear-gradient(90deg, var(--accent-primary) 1px, transparent 1px)',
+                backgroundSize: '20px 20px'
+              }}></div>
+
+              <div className="relative flex items-center justify-between">
+                {/* Left: Traffic lights + Title */}
+                <div className="flex items-center gap-4">
+                  {/* Traffic light dots */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsAskModalOpen(false)}
+                      className="w-3 h-3 rounded-full bg-[var(--accent-danger)] hover:bg-red-400 transition-colors border border-red-900/30"
+                      aria-label="Close"
+                    ></button>
+                    <div className="w-3 h-3 rounded-full bg-[var(--accent-warning)] border border-yellow-900/30"></div>
+                    <div className="w-3 h-3 rounded-full bg-[var(--accent-emerald)] border border-emerald-900/30"></div>
+                  </div>
+
+                  {/* Terminal title */}
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-[var(--accent-primary)] font-bold">◆</span>
+                    <h3 className="font-mono text-sm font-bold text-[var(--foreground)] tracking-tight">
+                      {messages.ask?.title || 'AI CHAT TERMINAL'}
+                    </h3>
+                    <span className="font-mono text-xs text-[var(--muted)]">
+                      / {effectiveRepoInfo.owner}/{effectiveRepoInfo.repo}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right: Status indicators */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-[var(--accent-emerald)]/10 border border-[var(--accent-emerald)]/30">
+                    <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full animate-pulse"></span>
+                    <span className="font-mono text-xs text-[var(--accent-emerald)] font-semibold">ONLINE</span>
+                  </div>
+
+                  <button
+                    onClick={() => setIsAskModalOpen(false)}
+                    className="p-2 hover:bg-[var(--accent-primary)]/10 rounded-lg transition-colors group"
+                    aria-label="Minimize"
+                  >
+                    <svg className="w-4 h-4 text-[var(--muted)] group-hover:text-[var(--accent-cyan)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Command line indicator */}
+              <div className="mt-3 flex items-center gap-2 font-mono text-xs text-[var(--accent-cyan)]/70">
+                <span>$</span>
+                <span className="text-[var(--muted)]">ai-chat --repo={effectiveRepoInfo.repo} --interactive</span>
+              </div>
+            </div>
+
+            {/* Terminal Content Area */}
+            <div className="relative flex-1 min-h-[200px] min-h-[20vh] overflow-y-auto p-6 bg-[var(--background)]/30">
+              {/* Subtle scan line effect */}
+              <div className="absolute inset-0 pointer-events-none opacity-[0.02]" style={{
+                background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, var(--accent-cyan) 2px, var(--accent-cyan) 4px)'
+              }}></div>
+
+              <div className="relative">
+                <Ask
+                  repoInfo={effectiveRepoInfo}
+                  provider={selectedProviderState}
+                  model={selectedModelState}
+                  isCustomModel={isCustomSelectedModelState}
+                  customModel={customSelectedModelState}
+                  language={language}
+                  onRef={(ref) => (askComponentRef.current = ref)}
+                />
+              </div>
+            </div>
+
+            {/* Terminal-style Model Selector Dropdown */}
+            <div
+              ref={modelDropdownRef}
+              className={`relative border-t border-[var(--accent-primary)]/20 transition-all duration-300 ease-out overflow-hidden ${
+                isModelDropdownOpen
+                  ? 'max-h-[250px] opacity-100'
+                  : 'max-h-0 opacity-0'
+              }`}
+            >
+              <div className="bg-[var(--surface)]/95 backdrop-blur-sm">
+                {/* Dropdown header */}
+                <div className="bg-gradient-to-r from-[var(--accent-primary)]/10 to-[var(--accent-cyan)]/10 border-b border-[var(--accent-primary)]/30 px-4 py-2">
+                  <div className="flex items-center gap-2 font-mono text-xs">
+                    <span className="text-[var(--accent-primary)]">◆</span>
+                    <span className="text-[var(--foreground)] font-bold">SELECT MODEL</span>
+                    <span className="text-[var(--muted)]">/ quick switch</span>
+                  </div>
+                </div>
+
+                {/* Dropdown content */}
+                <div className="max-h-[180px] overflow-y-auto p-3">
+                  {modelConfig ? (
+                    <div className="space-y-2">
+                      {modelConfig.providers.map((provider) => {
+                        const isExpanded = expandedProviders.has(provider.id);
+                        const hasSelectedModel = selectedProviderState === provider.id;
+
+                        return (
+                          <div key={provider.id} className="space-y-1">
+                            {/* Provider label - Clickable */}
+                            <button
+                              onClick={() => toggleProvider(provider.id)}
+                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-xs text-[var(--accent-cyan)] font-semibold hover:bg-[var(--accent-primary)]/10 transition-colors"
+                            >
+                              <svg
+                                className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <span>{provider.name}</span>
+                              {hasSelectedModel && (
+                                <span className="ml-auto text-[var(--accent-emerald)] text-[10px]">● ACTIVE</span>
+                              )}
+                            </button>
+
+                            {/* Models - Collapsible */}
+                            {isExpanded && (
+                              <div className="space-y-0.5 pl-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                {provider.models.map((mdl) => {
+                                  const isSelected = selectedProviderState === provider.id && selectedModelState === mdl.id && !isCustomSelectedModelState;
+                                  return (
+                                    <button
+                                      key={mdl.id}
+                                      onClick={() => {
+                                        setSelectedProviderState(provider.id);
+                                        setSelectedModelState(mdl.id);
+                                        setIsCustomSelectedModelState(false);
+                                        setIsModelDropdownOpen(false);
+                                      }}
+                                      className={`w-full flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-all ${
+                                        isSelected
+                                          ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-cyan)] border border-[var(--accent-primary)]/50'
+                                          : 'text-[var(--foreground)]/70 hover:bg-[var(--accent-primary)]/10 hover:text-[var(--foreground)] border border-transparent'
+                                      }`}
+                                    >
+                                      <span className={isSelected ? 'text-[var(--accent-emerald)]' : 'text-[var(--muted)]'}>
+                                        {isSelected ? '✓' : '→'}
+                                      </span>
+                                      <span className="flex-1 text-left truncate">{mdl.name}</span>
+                                    </button>
+                                  );
+                                })}
+
+                                {/* Custom model option */}
+                                {provider.supportsCustomModel && (
+                                  <div className="space-y-1">
+                                    {customModelInput?.providerId === provider.id ? (
+                                      // Inline input form
+                                      <div className="p-2 rounded bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/30">
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="text"
+                                            value={customModelInput.value}
+                                            onChange={(e) => setCustomModelInput({ providerId: provider.id, value: e.target.value })}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') {
+                                                submitCustomModel(provider.id);
+                                              } else if (e.key === 'Escape') {
+                                                setCustomModelInput(null);
+                                              }
+                                            }}
+                                            placeholder="Enter model name..."
+                                            autoFocus
+                                            className="flex-1 px-2 py-1 text-xs font-mono bg-[var(--background)] text-[var(--foreground)] border border-[var(--border-color)] rounded focus:outline-none focus:border-[var(--accent-cyan)] focus:ring-1 focus:ring-[var(--accent-cyan)]"
+                                          />
+                                          <button
+                                            onClick={() => submitCustomModel(provider.id)}
+                                            className="px-2 py-1 text-xs font-mono bg-[var(--accent-emerald)] text-white rounded hover:bg-[var(--accent-emerald)]/80 transition-colors"
+                                          >
+                                            ✓
+                                          </button>
+                                          <button
+                                            onClick={() => setCustomModelInput(null)}
+                                            className="px-2 py-1 text-xs font-mono bg-[var(--surface)] text-[var(--muted)] rounded hover:bg-[var(--accent-danger)]/20 hover:text-[var(--accent-danger)] transition-colors"
+                                          >
+                                            ✕
+                                          </button>
+                                        </div>
+                                        <div className="mt-1 text-[10px] text-[var(--muted)] font-mono">
+                                          Press Enter to submit • ESC to cancel
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      // Button to show input
+                                      <button
+                                        onClick={() => setCustomModelInput({ providerId: provider.id, value: '' })}
+                                        className="w-full flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs text-[var(--accent-warning)]/70 hover:bg-[var(--accent-warning)]/10 hover:text-[var(--accent-warning)] transition-all border border-dashed border-[var(--accent-warning)]/30 hover:border-[var(--accent-warning)]/50"
+                                      >
+                                        <span>+</span>
+                                        <span className="flex-1 text-left">Custom model</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-4 text-[var(--muted)] font-mono text-xs">
+                      Loading models...
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Terminal Footer Status Bar */}
+            <div className="relative bg-[var(--accent-primary)]/5 border-t-2 border-[var(--accent-primary)]/20 px-5 py-2">
+              <div className="flex items-center justify-between font-mono text-xs">
+                <div className="flex items-center gap-4">
+                  {/* Clickable model selector */}
+                  <button
+                    ref={modelButtonRef}
+                    onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                    className="flex items-center gap-2 px-2.5 py-1 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 hover:border-[var(--accent-cyan)] transition-all group"
+                  >
+                    <span className="text-[var(--muted)]">MODEL:</span>
+                    <span className="text-[var(--accent-cyan)]">
+                      {selectedProviderState}/{isCustomSelectedModelState ? customSelectedModelState : selectedModelState}
+                    </span>
+                    <svg
+                      className={`w-3 h-3 text-[var(--accent-primary)] transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  <span className="text-[var(--muted)]">•</span>
+
+                  <span className="text-[var(--accent-primary)]">
+                    <span className="text-[var(--muted)]">LANG:</span> {language.toUpperCase()}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 text-[var(--muted)]">
+                  <kbd className="px-2 py-0.5 bg-[var(--background)]/50 rounded border border-[var(--border-color)] text-[10px]">ESC</kbd>
+                  <span className="text-[10px]">to close</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <Ask repoInfo={effectiveRepoInfo} provider={selectedProviderState} model={selectedModelState} isCustomModel={isCustomSelectedModelState} customModel={customSelectedModelState} language={language} onRef={(ref) => (askComponentRef.current = ref)} />
           </div>
         </div>
       </div>

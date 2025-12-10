@@ -6,7 +6,6 @@ import Markdown from './Markdown';
 import { useLanguage } from '@/contexts/LanguageContext';
 import RepoInfo from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
-import ModelSelectionModal from './ModelSelectionModal';
 import { createStreamingRequest, ChatCompletionRequest } from '@/utils/streamingClient';
 
 interface Model {
@@ -57,16 +56,22 @@ const Ask: React.FC<AskProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [deepResearch, setDeepResearch] = useState(false);
 
-  // Model selection state
+  // Model selection state - sync with props
   const [selectedProvider, setSelectedProvider] = useState(provider);
   const [selectedModel, setSelectedModel] = useState(model);
   const [isCustomSelectedModel, setIsCustomSelectedModel] = useState(isCustomModel);
   const [customSelectedModel, setCustomSelectedModel] = useState(customModel);
-  const [isModelSelectionModalOpen, setIsModelSelectionModalOpen] = useState(false);
-  const [isComprehensiveView, setIsComprehensiveView] = useState(true);
 
   // Get language context for translations
   const { messages } = useLanguage();
+
+  // Sync local state when props change (from parent dropdown)
+  useEffect(() => {
+    setSelectedProvider(provider);
+    setSelectedModel(model);
+    setIsCustomSelectedModel(isCustomModel);
+    setCustomSelectedModel(customModel);
+  }, [provider, model, isCustomModel, customModel]);
 
   // Research navigation state
   const [researchStages, setResearchStages] = useState<ResearchStage[]>([]);
@@ -549,22 +554,8 @@ const Ask: React.FC<AskProps> = ({
   return (
     <div>
       <div className="p-4">
-        <div className="flex items-center justify-end mb-4">
-          {/* Model selection button */}
-          <button
-            type="button"
-            onClick={() => setIsModelSelectionModalOpen(true)}
-            className="text-xs px-2.5 py-1 rounded border border-[var(--border-color)]/40 bg-[var(--background)]/10 text-[var(--foreground)]/80 hover:bg-[var(--background)]/30 hover:text-[var(--foreground)] transition-colors flex items-center gap-1.5"
-          >
-            <span>{selectedProvider}/{isCustomSelectedModel ? customSelectedModel : selectedModel}</span>
-            <svg className="h-3.5 w-3.5 text-[var(--accent-primary)]/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-        </div>
-
         {/* Question input */}
-        <form onSubmit={handleSubmit} className="mt-4">
+        <form onSubmit={handleSubmit}>
           <div className="relative">
             <input
               ref={inputRef}
@@ -615,9 +606,9 @@ const Ask: React.FC<AskProps> = ({
                   <div className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform transform ${deepResearch ? 'translate-x-5' : ''}`}></div>
                 </div>
               </label>
-              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 w-72 z-10">
+              <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 w-72 z-10">
                 <div className="relative">
-                  <div className="absolute -bottom-2 left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                  <div className="absolute -top-2 left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-800"></div>
                   <p className="mb-1">Deep Research conducts a multi-turn investigation process:</p>
                   <ul className="list-disc pl-4 text-xs">
                     <li><strong>Initial Research:</strong> Creates a research plan and initial findings</li>
@@ -807,29 +798,6 @@ const Ask: React.FC<AskProps> = ({
           </div>
         )}
       </div>
-
-      {/* Model Selection Modal */}
-      <ModelSelectionModal
-        isOpen={isModelSelectionModalOpen}
-        onClose={() => setIsModelSelectionModalOpen(false)}
-        provider={selectedProvider}
-        setProvider={setSelectedProvider}
-        model={selectedModel}
-        setModel={setSelectedModel}
-        isCustomModel={isCustomSelectedModel}
-        setIsCustomModel={setIsCustomSelectedModel}
-        customModel={customSelectedModel}
-        setCustomModel={setCustomSelectedModel}
-        isComprehensiveView={isComprehensiveView}
-        setIsComprehensiveView={setIsComprehensiveView}
-        showFileFilters={false}
-        onApply={() => {
-          console.log('Model selection applied:', selectedProvider, selectedModel);
-        }}
-        showWikiType={false}
-        authRequired={false}
-        isAuthLoading={false}
-      />
     </div>
   );
 };
