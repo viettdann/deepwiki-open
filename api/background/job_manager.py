@@ -44,14 +44,14 @@ class JobManager:
         async with db.connection() as conn:
             await conn.execute(
                 """INSERT INTO jobs (
-                    id, repo_url, repo_type, owner, repo, access_token,
+                    id, repo_url, repo_type, owner, repo, access_token, branch,
                     provider, model, language, is_comprehensive,
                     excluded_dirs, excluded_files, included_dirs, included_files,
                     status, current_phase, progress_percent, client_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     job_id, request.repo_url, request.repo_type, request.owner, request.repo,
-                    request.access_token, request.provider, request.model, request.language,
+                    request.access_token, request.branch, request.provider, request.model, request.language,
                     1 if request.is_comprehensive else 0,
                     json.dumps(request.excluded_dirs) if request.excluded_dirs else None,
                     json.dumps(request.excluded_files) if request.excluded_files else None,

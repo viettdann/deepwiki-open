@@ -41,7 +41,7 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
   const { language, setLanguage, messages, supportedLanguages } = useLanguage();
 
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [repositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
+  const [repositoryInput, setRepositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
   const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
   const [provider, setProvider] = useState<string>('');
@@ -50,6 +50,7 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
   const [customModel, setCustomModel] = useState<string>('');
   const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket' | 'azure'>('github');
   const [accessToken, setAccessToken] = useState('');
+  const [branch, setBranch] = useState('main');
   const [excludedDirs, setExcludedDirs] = useState('');
   const [excludedFiles, setExcludedFiles] = useState('');
   const [includedDirs, setIncludedDirs] = useState('');
@@ -90,10 +91,75 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
     }
     if (isSubmitting) return;
     setIsSubmitting(true);
-    const parseRepositoryInput = (input: string) => {
-      const match = input.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-      if (match) return { owner: match[1], repo: match[2].replace('.git', ''), type: 'github' };
-      return null;
+    const parseRepositoryInput = (input: string): {
+      owner: string,
+      repo: string,
+      type: string,
+      fullPath?: string,
+      localPath?: string
+    } | null => {
+      input = input.trim();
+      let owner = '', repo = '', type = 'github', fullPath;
+      let localPath: string | undefined;
+
+      const windowsPathRegex = /^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$/;
+      const customGitRegex = /^(?:https?:\/\/)?([^\/]+)\/(.+?)\/([^\/]+)(?:\.git)?\/?$/;
+
+      if (windowsPathRegex.test(input)) {
+        type = 'local';
+        localPath = input;
+        repo = input.split('\\').pop() || 'local-repo';
+        owner = 'local';
+      } else if (input.startsWith('/')) {
+        type = 'local';
+        localPath = input;
+        repo = input.split('/').filter(Boolean).pop() || 'local-repo';
+        owner = 'local';
+      } else if (customGitRegex.test(input)) {
+        const domain = input.match(/(?:https?:\/\/)?([^\/]+)/)?.[1] || '';
+        if (domain.includes('github.com')) {
+          type = 'github';
+        } else if (domain.includes('gitlab.com') || domain.includes('gitlab.')) {
+          type = 'gitlab';
+        } else if (domain.includes('bitbucket.org') || domain.includes('bitbucket.')) {
+          type = 'bitbucket';
+        } else if (domain.includes('dev.azure.com') || domain.includes('visualstudio.com')) {
+          type = 'azure';
+        } else {
+          type = 'web';
+        }
+
+        // Extract path from URL
+        const pathMatch = input.match(/(?:https?:\/\/)?[^\/]+\/(.+?)(?:\.git)?\/?$/);
+        fullPath = pathMatch?.[1] || '';
+        const parts = fullPath.split('/');
+
+        // Special handling for Azure DevOps URLs
+        // Format: {organization}/{project}/_git/{repository}
+        if (type === 'azure' && parts.includes('_git')) {
+          const gitIndex = parts.indexOf('_git');
+          if (gitIndex >= 1 && gitIndex + 1 < parts.length) {
+            owner = parts[gitIndex - 1]; // project name
+            repo = parts[gitIndex + 1]; // repository name
+          }
+        } else if (parts.length >= 2) {
+          repo = parts[parts.length - 1] || '';
+          owner = parts[parts.length - 2] || '';
+        }
+      } else {
+        return null;
+      }
+
+      if (!owner || !repo) return null;
+
+      owner = owner.trim();
+      repo = repo.trim();
+
+      if (repo.endsWith('.git')) {
+        repo = repo.slice(0, -4);
+      }
+
+      return { owner, repo, type, fullPath, localPath };
     };
     const parsedRepo = parseRepositoryInput(repositoryInput);
     if (!parsedRepo) {
@@ -108,6 +174,7 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
     params.append('provider', provider);
     params.append('model', model);
     if (isCustomModel && customModel) params.append('custom_model', customModel);
+    if (branch && branch !== 'main') params.append('branch', branch);
     if (excludedDirs) params.append('excluded_dirs', excludedDirs);
     if (excludedFiles) params.append('excluded_files', excludedFiles);
     if (includedDirs) params.append('included_dirs', includedDirs);
@@ -120,29 +187,55 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-50 bg-(--surface) border-b border-(--glass-border)">
+      <header className="sticky top-0 z-50 bg-[var(--surface)]/95 backdrop-blur-xl border-b-2 border-[var(--accent-primary)]/30 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
+          {/* Terminal status bar */}
+          <div className="h-7 flex items-center justify-between border-b border-[var(--accent-primary)]/10 text-xs font-mono">
+            <div className="flex items-center gap-4 text-[var(--foreground-muted)]">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-emerald)] animate-pulse"></span>
+                WIKI.INDEX
+              </span>
+              <span className="hidden sm:block">|</span>
+              <span className="hidden sm:block text-[var(--accent-cyan)]">{initialProjects.length} PROJECTS</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between h-14">
+            <Link href="/" className="flex items-center gap-3 group">
               <div className="relative">
-                <div className="absolute inset-0 bg-linear-to-r from-(--gradient-from) to-(--gradient-to) rounded-lg blur opacity-50"></div>
-                <div className="relative bg-linear-to-r from-(--gradient-from) to-(--gradient-to) p-2 rounded-lg">
+                <div className="absolute -inset-1 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded blur-sm opacity-40 group-hover:opacity-60 transition-opacity"></div>
+                <div className="relative bg-[var(--accent-primary)] p-2 rounded border border-[var(--accent-primary)]/50">
                   <WikiIcon />
                 </div>
               </div>
-              <div>
-                <h1 className="text-xl font-bold font-display gradient-text">DeepWiki</h1>
+              <div className="leading-tight">
+                <p className="text-base font-bold font-mono tracking-tight text-[var(--foreground)]">
+                  <span className="text-[var(--accent-cyan)]">$</span> DeepWiki
+                </p>
+                <p className="text-[10px] font-mono text-[var(--foreground-muted)] tracking-wider">
+                  &#47;&#47; Project index
+                </p>
               </div>
-            </div>
-            <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors">Home</Link>
-              <Link href="/wiki/projects" className="text-sm font-medium text-(--accent-primary) hover:text-foreground transition-colors flex items-center gap-2">Indexed Wiki</Link>
-              <Link href="/jobs" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors flex items-center gap-2">Jobs<span className="w-2 h-2 bg-(--accent-emerald) rounded-full pulse-glow"></span></Link>
+            </Link>
+
+            <nav className="hidden md:flex items-center gap-6 text-xs font-mono font-medium">
+              <Link href="/" className="text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors flex items-center gap-1">
+                <span className="text-[var(--accent-primary)]">01</span> Home
+              </Link>
+              <Link href="/wiki/projects" className="text-[var(--accent-cyan)] transition-colors flex items-center gap-1">
+                <span className="text-[var(--accent-primary)]">02</span> Wiki Index
+              </Link>
+              <Link href="/jobs" className="text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors flex items-center gap-2">
+                <span className="text-[var(--accent-primary)]">03</span> Jobs
+                <span className="w-1.5 h-1.5 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
+              </Link>
             </nav>
+
             <div className="flex items-center gap-4">
-              <button onClick={() => setIsConfigModalOpen(true)} className="hidden md:flex items-center gap-2 btn-japanese text-sm px-6 py-2">
+              <button onClick={() => setIsConfigModalOpen(true)} className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] text-xs font-mono font-medium transition-all hover:border-[var(--accent-primary)] terminal-btn">
                 <RocketIcon />
-                Generate Wiki
+                Generate
               </button>
             </div>
           </div>
@@ -157,6 +250,7 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
         isOpen={isConfigModalOpen}
         onClose={() => setIsConfigModalOpen(false)}
         repositoryInput={repositoryInput}
+        setRepositoryInput={setRepositoryInput}
         selectedLanguage={selectedLanguage}
         setSelectedLanguage={setSelectedLanguage}
         supportedLanguages={supportedLanguages}
@@ -174,6 +268,8 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
         setSelectedPlatform={setSelectedPlatform}
         accessToken={accessToken}
         setAccessToken={setAccessToken}
+        branch={branch}
+        setBranch={setBranch}
         excludedDirs={excludedDirs}
         setExcludedDirs={setExcludedDirs}
         excludedFiles={excludedFiles}
@@ -189,12 +285,14 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
         setAuthCode={setAuthCode}
         isAuthLoading={isAuthLoading}
       />
-      <footer className="bg-(--surface) border-t border-(--glass-border) mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <footer className="bg-[var(--surface)]/90 border-t-2 border-[var(--accent-primary)]/20 backdrop-blur mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-(--foreground-muted)">{messages.footer?.copyright || '© 2024 DeepWiki. All rights reserved.'}</p>
-            <div className="flex items-center gap-6">
-              <a href="https://github.com/viettdann/deepwiki-open" target="_blank" rel="noopener noreferrer" className="text-(--foreground-muted) hover:text-(--accent-primary) transition-colors">
+            <p className="text-xs font-mono text-[var(--foreground-muted)]">
+              <span className="text-[var(--accent-primary)]">◆</span> {messages.footer?.copyright || '© 2024 DeepWiki. All rights reserved.'}
+            </p>
+            <div className="flex items-center gap-4">
+              <a href="https://github.com/viettdann/deepwiki-open" target="_blank" rel="noopener noreferrer" className="text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors p-2 rounded border border-transparent hover:border-[var(--accent-primary)]/30">
                 <GitHubIcon />
               </a>
             </div>

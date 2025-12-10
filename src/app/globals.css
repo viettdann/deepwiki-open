@@ -42,16 +42,64 @@ select option {
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-dm-sans), sans-serif;
-  --font-mono: var(--font-jetbrains-mono), monospace;
-  --font-display: var(--font-syne), sans-serif;
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace;
+  --font-display: var(--font-syne), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Base font settings */
+html {
+  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), sans-serif;
+  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   font-feature-settings: 'ss01', 'ss02', 'cv01', 'cv02';
+  font-variant-ligatures: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure monospace fonts are applied everywhere */
+.font-mono,
+code,
+kbd,
+samp,
+pre,
+.text-font-mono,
+[class*="font-mono"],
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+textarea,
+select,
+button {
+  font-family: inherit;
+}
+
+/* Force JetBrains Mono for specific elements */
+.font-mono,
+code,
+kbd,
+samp,
+pre,
+.text-font-mono,
+[class*="font-mono"],
+.input-glass,
+.terminal-btn,
+.terminal-cursor,
+.code-block,
+.mono-digits,
+.matrix-text,
+.typing-cursor {
+  font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, Monaco, "Courier New", monospace !important;
+  font-feature-settings: normal;
+  font-variant-ligatures: none;
+  line-height: 1.6;
 }
 
 /* Animated gradient mesh background */
@@ -347,22 +395,119 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - Terminal style */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--surface);
-  border-radius: 5px;
+  background: var(--background);
+  border-left: 1px solid var(--accent-primary)/20;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--accent-primary);
-  border-radius: 5px;
+  border-radius: 2px;
+  border: 1px solid var(--accent-primary)/30;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-secondary);
+  background: var(--accent-cyan);
+}
+
+/* Terminal scan-line effect (subtle) */
+@keyframes scan-line {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+.terminal-scanline::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to bottom, transparent, var(--accent-cyan), transparent);
+  opacity: 0.05;
+  animation: scan-line 8s linear infinite;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Code block glow effect */
+@keyframes code-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(139, 92, 246, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+  }
+}
+
+.code-glow {
+  animation: code-glow 3s ease-in-out infinite;
+}
+
+/* Terminal typing cursor */
+@keyframes blink-cursor {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+.typing-cursor::after {
+  content: '▊';
+  animation: blink-cursor 1s step-end infinite;
+  color: var(--accent-cyan);
+  margin-left: 2px;
+}
+
+/* Monospace number styling */
+.mono-digits {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Terminal button effect */
+.terminal-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.3), transparent);
+  transition: left 0.5s ease;
+}
+
+.terminal-btn:hover::before {
+  left: 100%;
+}
+
+/* Data table matrix effect */
+@keyframes matrix-flicker {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.matrix-text {
+  animation: matrix-flicker 2s ease-in-out infinite;
 }

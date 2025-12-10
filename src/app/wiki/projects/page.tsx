@@ -2,27 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import ProcessedProjects from '@/components/ProcessedProjects';
 import ConfigurationModal from '@/components/ConfigurationModal';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-const WikiIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-    <path d="M11.25 4.533A9.707 9.707 0 0 0 6 3a9.735 9.735 0 0 0-3.25.555.75.75 0 0 0-.5.707v14.25a.75.75 0 0 0 1 .707A8.237 8.237 0 0 1 6 18.75c1.995 0 3.823.707 5.25 1.886V4.533ZM12.75 20.636A8.214 8.214 0 0 1 18 18.75c.966 0 1.89.166 2.75.47a.75.75 0 0 0 1-.708V4.262a.75.75 0 0 0-.5-.707A9.735 9.735 0 0 0 18 3a9.707 9.707 0 0 0-5.25 1.533v16.103Z" />
-  </svg>
-);
+import Header from '@/components/Header';
 
 const GitHubIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
     <path fillRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" clipRule="evenodd" />
-  </svg>
-);
-
-const RocketIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-    <path fillRule="evenodd" d="M9.315 7.584C12.195 3.883 16.695 1.5 21.75 1.5a.75.75 0 0 1 .75.75c0 5.056-2.383 9.555-6.084 12.436A6.75 6.75 0 0 1 9.75 22.5a.75.75 0 0 1-.75-.75v-4.131A15.838 15.838 0 0 1 6.382 15H2.25a.75.75 0 0 1-.75-.75 6.75 6.75 0 0 1 7.815-6.666ZM15 6.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" clipRule="evenodd" />
-    <path d="M5.26 17.242a.75.75 0 1 0-.897-1.203 5.243 5.243 0 0 0-2.05 5.022.75.75 0 0 0 .625.627 5.243 5.243 0 0 0 5.022-2.051.75.75 0 1 0-1.202-.897 3.744 3.744 0 0 1-3.008 1.51c0-1.23.592-2.323 1.51-3.008Z" />
   </svg>
 );
 
@@ -32,7 +19,7 @@ export default function WikiProjectsPage() {
 
   // State for modal
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [repositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
+  const [repositoryInput, setRepositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
   const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
   const [provider, setProvider] = useState<string>('');
@@ -41,6 +28,7 @@ export default function WikiProjectsPage() {
   const [customModel, setCustomModel] = useState<string>('');
   const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket' | 'azure'>('github');
   const [accessToken, setAccessToken] = useState('');
+  const [branch, setBranch] = useState('main');
   const [excludedDirs, setExcludedDirs] = useState('');
   const [excludedFiles, setExcludedFiles] = useState('');
   const [includedDirs, setIncludedDirs] = useState('');
@@ -103,11 +91,75 @@ export default function WikiProjectsPage() {
     if (isSubmitting) return;
 
     setIsSubmitting(true);
-    const parseRepositoryInput = (input: string) => {
-      // Simplified parsing - add full logic if needed
-      const match = input.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-      if (match) return { owner: match[1], repo: match[2].replace('.git', ''), type: 'github' };
-      return null;
+    const parseRepositoryInput = (input: string): {
+      owner: string,
+      repo: string,
+      type: string,
+      fullPath?: string,
+      localPath?: string
+    } | null => {
+      input = input.trim();
+      let owner = '', repo = '', type = 'github', fullPath;
+      let localPath: string | undefined;
+
+      const windowsPathRegex = /^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$/;
+      const customGitRegex = /^(?:https?:\/\/)?([^\/]+)\/(.+?)\/([^\/]+)(?:\.git)?\/?$/;
+
+      if (windowsPathRegex.test(input)) {
+        type = 'local';
+        localPath = input;
+        repo = input.split('\\').pop() || 'local-repo';
+        owner = 'local';
+      } else if (input.startsWith('/')) {
+        type = 'local';
+        localPath = input;
+        repo = input.split('/').filter(Boolean).pop() || 'local-repo';
+        owner = 'local';
+      } else if (customGitRegex.test(input)) {
+        const domain = input.match(/(?:https?:\/\/)?([^\/]+)/)?.[1] || '';
+        if (domain.includes('github.com')) {
+          type = 'github';
+        } else if (domain.includes('gitlab.com') || domain.includes('gitlab.')) {
+          type = 'gitlab';
+        } else if (domain.includes('bitbucket.org') || domain.includes('bitbucket.')) {
+          type = 'bitbucket';
+        } else if (domain.includes('dev.azure.com') || domain.includes('visualstudio.com')) {
+          type = 'azure';
+        } else {
+          type = 'web';
+        }
+
+        // Extract path from URL
+        const pathMatch = input.match(/(?:https?:\/\/)?[^\/]+\/(.+?)(?:\.git)?\/?$/);
+        fullPath = pathMatch?.[1] || '';
+        const parts = fullPath.split('/');
+
+        // Special handling for Azure DevOps URLs
+        // Format: {organization}/{project}/_git/{repository}
+        if (type === 'azure' && parts.includes('_git')) {
+          const gitIndex = parts.indexOf('_git');
+          if (gitIndex >= 1 && gitIndex + 1 < parts.length) {
+            owner = parts[gitIndex - 1]; // project name
+            repo = parts[gitIndex + 1]; // repository name
+          }
+        } else if (parts.length >= 2) {
+          repo = parts[parts.length - 1] || '';
+          owner = parts[parts.length - 2] || '';
+        }
+      } else {
+        return null;
+      }
+
+      if (!owner || !repo) return null;
+
+      owner = owner.trim();
+      repo = repo.trim();
+
+      if (repo.endsWith('.git')) {
+        repo = repo.slice(0, -4);
+      }
+
+      return { owner, repo, type, fullPath, localPath };
     };
 
     const parsedRepo = parseRepositoryInput(repositoryInput);
@@ -124,6 +176,7 @@ export default function WikiProjectsPage() {
     params.append('provider', provider);
     params.append('model', model);
     if (isCustomModel && customModel) params.append('custom_model', customModel);
+    if (branch && branch !== 'main') params.append('branch', branch);
     if (excludedDirs) params.append('excluded_dirs', excludedDirs);
     if (excludedFiles) params.append('excluded_files', excludedFiles);
     if (includedDirs) params.append('included_dirs', includedDirs);
@@ -137,53 +190,12 @@ export default function WikiProjectsPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-(--surface) border-b border-(--glass-border)">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo & Brand */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-linear-to-r from-(--gradient-from) to-(--gradient-to) rounded-lg blur opacity-50"></div>
-                <div className="relative bg-linear-to-r from-(--gradient-from) to-(--gradient-to) p-2 rounded-lg">
-                  <WikiIcon />
-                </div>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold font-display gradient-text">
-                  DeepWiki
-                </h1>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors">
-                Home
-              </Link>
-              <Link href="/wiki/projects" className="text-sm font-medium text-(--accent-primary) hover:text-foreground transition-colors flex items-center gap-2">
-                Indexed Wiki
-              </Link>
-              <Link href="/jobs" className="text-sm font-medium text-(--foreground-muted) hover:text-foreground transition-colors flex items-center gap-2">
-                Jobs
-                <span className="w-2 h-2 bg-(--accent-emerald) rounded-full pulse-glow"></span>
-              </Link>
-            </nav>
-
-            {/* CTA Button */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsConfigModalOpen(true)}
-                className="hidden md:flex items-center gap-2 btn-japanese text-sm px-6 py-2"
-              >
-                <RocketIcon />
-                Generate Wiki
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
+      <Header
+        currentPage="projects"
+        statusLabel="SYSTEM.WIKI"
+        actionLabel="Generate Wiki"
+        onActionClick={() => setIsConfigModalOpen(true)}
+      />
       {/* Main Content */}
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -200,6 +212,7 @@ export default function WikiProjectsPage() {
         isOpen={isConfigModalOpen}
         onClose={() => setIsConfigModalOpen(false)}
         repositoryInput={repositoryInput}
+        setRepositoryInput={setRepositoryInput}
         selectedLanguage={selectedLanguage}
         setSelectedLanguage={setSelectedLanguage}
         supportedLanguages={supportedLanguages}
@@ -217,6 +230,8 @@ export default function WikiProjectsPage() {
         setSelectedPlatform={setSelectedPlatform}
         accessToken={accessToken}
         setAccessToken={setAccessToken}
+        branch={branch}
+        setBranch={setBranch}
         excludedDirs={excludedDirs}
         setExcludedDirs={setExcludedDirs}
         excludedFiles={excludedFiles}

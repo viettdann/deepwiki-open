@@ -12,9 +12,10 @@ const dmSans = DM_Sans({
 
 const jetBrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800"],
   display: "swap",
   variable: "--font-jetbrains-mono",
+  preload: true,
 });
 
 const syne = Syne({
@@ -23,8 +24,8 @@ const syne = Syne({
 });
 
 export const metadata: Metadata = {
-  title: "Deepwiki Open Source | Sheing Ng",
-  description: "Created by Sheing Ng",
+  title: "Deepwiki Open Source",
+  description: "Deepwiki Open Source is a free and open-source version of Deepwiki, a tool that helps you create a knowledge base from your code repository.",
 };
 
 export default function RootLayout({

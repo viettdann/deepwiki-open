@@ -71,23 +71,25 @@ const WikiTreeView: React.FC<WikiTreeViewProps> = ({
     const isExpanded = expandedSections.has(sectionId);
 
     return (
-      <div key={sectionId} className="mb-2">
+      <div key={sectionId} className="mb-1">
         <button
-          className={`flex items-center w-full text-left px-2 py-1.5 rounded-md text-sm font-medium text-[var(--foreground)] hover:bg-[var(--background)]/70 transition-colors ${
-            level === 0 ? 'bg-[var(--background)]/50' : ''
+          className={`flex items-center w-full text-left px-2 py-1.5 rounded text-xs font-mono font-semibold transition-colors ${
+            level === 0
+              ? 'text-[var(--accent-cyan)] hover:bg-[var(--accent-primary)]/5'
+              : 'text-[var(--accent-secondary)] hover:bg-[var(--accent-primary)]/5'
           }`}
           onClick={(e) => toggleSection(sectionId, e)}
         >
           {isExpanded ? (
-            <FaChevronDown className="mr-2 text-xs" />
+            <FaChevronDown className="mr-2 text-[10px] text-[var(--accent-primary)]" />
           ) : (
-            <FaChevronRight className="mr-2 text-xs" />
+            <FaChevronRight className="mr-2 text-[10px] text-[var(--accent-primary)]" />
           )}
           <span className="truncate">{section.title}</span>
         </button>
 
         {isExpanded && (
-          <div className={`ml-4 mt-1 space-y-1 ${level > 0 ? 'pl-2 border-l border-[var(--border-color)]/30' : ''}`}>
+          <div className={`ml-3 mt-1 space-y-0.5 ${level > 0 ? 'pl-3 border-l border-[var(--accent-primary)]/20' : ''}`}>
             {/* Render pages in this section */}
             {section.pages.map(pageId => {
               const page = wikiStructure.pages.find(p => p.id === pageId);
@@ -96,24 +98,19 @@ const WikiTreeView: React.FC<WikiTreeViewProps> = ({
               return (
                 <button
                   key={pageId}
-                  className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+                  className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all ${
                     currentPageId === pageId
-                      ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
-                      : 'text-[var(--foreground)] hover:bg-[var(--background)] border border-transparent'
+                      ? 'bg-[var(--accent-primary)]/15 text-[var(--accent-cyan)] border border-[var(--accent-primary)]/40 shadow-sm'
+                      : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-primary)]/5 border border-transparent'
                   }`}
                   onClick={() => onPageSelect(pageId)}
                 >
-                  <div className="flex items-center">
-                    <div
-                      className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${
-                        page.importance === 'high'
-                          ? 'bg-[#9b7cb9]'
-                          : page.importance === 'medium'
-                          ? 'bg-[#d7c4bb]'
-                          : 'bg-[#e8927c]'
-                      }`}
-                    ></div>
-                    <span className="truncate">{page.title}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[var(--accent-primary)] opacity-50">→</span>
+                    <span className="truncate flex-1">{page.title}</span>
+                    {page.importance === 'high' && (
+                      <span className="w-1 h-1 rounded-full bg-[var(--accent-cyan)] flex-shrink-0"></span>
+                    )}
                   </div>
                 </button>
               );
@@ -133,28 +130,23 @@ const WikiTreeView: React.FC<WikiTreeViewProps> = ({
   if (!wikiStructure.sections || wikiStructure.sections.length === 0 || !wikiStructure.rootSections || wikiStructure.rootSections.length === 0) {
     console.log("WikiTreeView: Falling back to flat list view due to missing or empty sections/rootSections");
     return (
-      <ul className="space-y-2">
+      <ul className="space-y-0.5">
         {wikiStructure.pages.map(page => (
           <li key={page.id}>
             <button
-              className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+              className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all ${
                 currentPageId === page.id
-                  ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
-                  : 'text-[var(--foreground)] hover:bg-[var(--background)] border border-transparent'
+                  ? 'bg-[var(--accent-primary)]/15 text-[var(--accent-cyan)] border border-[var(--accent-primary)]/40 shadow-sm'
+                  : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-primary)]/5 border border-transparent'
               }`}
               onClick={() => onPageSelect(page.id)}
             >
-              <div className="flex items-center">
-                <div
-                  className={`w-2 h-2 rounded-full mr-2 flex-shrink-0 ${
-                    page.importance === 'high'
-                      ? 'bg-[#9b7cb9]'
-                      : page.importance === 'medium'
-                      ? 'bg-[#d7c4bb]'
-                      : 'bg-[#e8927c]'
-                  }`}
-                ></div>
-                <span className="truncate">{page.title}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[var(--accent-primary)] opacity-50">→</span>
+                <span className="truncate flex-1">{page.title}</span>
+                {page.importance === 'high' && (
+                  <span className="w-1 h-1 rounded-full bg-[var(--accent-cyan)] flex-shrink-0"></span>
+                )}
               </div>
             </button>
           </li>

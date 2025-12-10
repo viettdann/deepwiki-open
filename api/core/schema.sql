@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 
     -- Authentication (encrypted in production)
     access_token TEXT,  -- Optional for private repos
+    branch TEXT DEFAULT 'main',  -- Git branch to clone
 
     -- Configuration
     provider TEXT NOT NULL DEFAULT 'google',

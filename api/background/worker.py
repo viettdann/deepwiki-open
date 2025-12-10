@@ -303,7 +303,8 @@ class WikiGenerationWorker:
                 excluded_dirs,
                 excluded_files,
                 included_dirs,
-                included_files
+                included_files,
+                job.get('branch', 'main')
             )
         )
 

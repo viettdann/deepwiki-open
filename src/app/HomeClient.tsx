@@ -111,6 +111,7 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
   const [includedFiles, setIncludedFiles] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket' | 'azure'>('github');
   const [accessToken, setAccessToken] = useState('');
+  const [branch, setBranch] = useState('main');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
@@ -207,7 +208,16 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
 
       fullPath = extractUrlPath(input)?.replace(/\.git$/, '');
       const parts = fullPath?.split('/') ?? [];
-      if (parts.length >= 2) {
+
+      // Special handling for Azure DevOps URLs
+      // Format: {organization}/{project}/_git/{repository}
+      if (type === 'azure' && parts.includes('_git')) {
+        const gitIndex = parts.indexOf('_git');
+        if (gitIndex >= 1 && gitIndex + 1 < parts.length) {
+          owner = parts[gitIndex - 1]; // project name
+          repo = parts[gitIndex + 1]; // repository name
+        }
+      } else if (parts.length >= 2) {
         repo = parts[parts.length - 1] || '';
         owner = parts[parts.length - 2] || '';
       }
@@ -296,6 +306,7 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
     params.append('provider', provider);
     params.append('model', model);
     if (isCustomModel && customModel) params.append('custom_model', customModel);
+    if (branch && branch !== 'main') params.append('branch', branch);
     if (excludedDirs) params.append('excluded_dirs', excludedDirs);
     if (excludedFiles) params.append('excluded_files', excludedFiles);
     if (includedDirs) params.append('included_dirs', includedDirs);
@@ -443,6 +454,7 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
         isOpen={isConfigModalOpen}
         onClose={() => setIsConfigModalOpen(false)}
         repositoryInput={repositoryInput}
+        setRepositoryInput={setRepositoryInput}
         selectedLanguage={selectedLanguage}
         setSelectedLanguage={setSelectedLanguage}
         supportedLanguages={supportedLanguages}
@@ -460,6 +472,8 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
         setSelectedPlatform={setSelectedPlatform}
         accessToken={accessToken}
         setAccessToken={setAccessToken}
+        branch={branch}
+        setBranch={setBranch}
         excludedDirs={excludedDirs}
         setExcludedDirs={setExcludedDirs}
         excludedFiles={excludedFiles}

@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ConfigurationModal from '@/components/ConfigurationModal';
-import { FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaSync, FaTrash } from 'react-icons/fa';
+import { FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaTrash } from 'react-icons/fa';
+import Header from '@/components/Header';
 
 interface Job {
   id: string;
@@ -48,13 +49,6 @@ const statusFilters = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-const RocketIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-    <path fillRule="evenodd" d="M9.315 7.584C12.195 3.883 16.695 1.5 21.75 1.5a.75.75 0 0 1 .75.75c0 5.056-2.383 9.555-6.084 12.436A6.75 6.75 0 0 1 9.75 22.5a.75.75 0 0 1-.75-.75v-4.131A15.838 15.838 0 0 1 6.382 15H2.25a.75.75 0 0 1-.75-.75 6.75 6.75 0 0 1 7.815-6.666ZM15 6.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" clipRule="evenodd" />
-    <path d="M5.26 17.242a.75.75 0 1 0-.897-1.203 5.243 5.243 0 0 0-2.05 5.022.75.75 0 0 0 .625.627 5.243 5.243 0 0 0 5.022-2.051.75.75 0 1 0-1.202-.897 3.744 3.744 0 0 1-3.008 1.51c0-1.23.592-2.323 1.51-3.008Z" />
-  </svg>
-);
-
 export default function JobsPage() {
   const router = useRouter();
   const { language, setLanguage, supportedLanguages } = useLanguage();
@@ -69,7 +63,7 @@ export default function JobsPage() {
 
   // Modal state
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [repositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
+  const [repositoryInput, setRepositoryInput] = useState('http://github.com/viettdann/deepwiki-open');
   const [selectedLanguage, setSelectedLanguage] = useState<string>(language);
   const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
   const [provider, setProvider] = useState<string>('');
@@ -78,6 +72,7 @@ export default function JobsPage() {
   const [customModel, setCustomModel] = useState<string>('');
   const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket' | 'azure'>('github');
   const [accessToken, setAccessToken] = useState('');
+  const [branch, setBranch] = useState('main');
   const [excludedDirs, setExcludedDirs] = useState('');
   const [excludedFiles, setExcludedFiles] = useState('');
   const [includedDirs, setIncludedDirs] = useState('');
@@ -283,10 +278,75 @@ export default function JobsPage() {
     if (isSubmitting) return;
 
     setIsSubmitting(true);
-    const parseRepositoryInput = (input: string) => {
-      const match = input.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-      if (match) return { owner: match[1], repo: match[2].replace('.git', ''), type: 'github' };
-      return null;
+    const parseRepositoryInput = (input: string): {
+      owner: string,
+      repo: string,
+      type: string,
+      fullPath?: string,
+      localPath?: string
+    } | null => {
+      input = input.trim();
+      let owner = '', repo = '', type = 'github', fullPath;
+      let localPath: string | undefined;
+
+      const windowsPathRegex = /^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$/;
+      const customGitRegex = /^(?:https?:\/\/)?([^\/]+)\/(.+?)\/([^\/]+)(?:\.git)?\/?$/;
+
+      if (windowsPathRegex.test(input)) {
+        type = 'local';
+        localPath = input;
+        repo = input.split('\\').pop() || 'local-repo';
+        owner = 'local';
+      } else if (input.startsWith('/')) {
+        type = 'local';
+        localPath = input;
+        repo = input.split('/').filter(Boolean).pop() || 'local-repo';
+        owner = 'local';
+      } else if (customGitRegex.test(input)) {
+        const domain = input.match(/(?:https?:\/\/)?([^\/]+)/)?.[1] || '';
+        if (domain.includes('github.com')) {
+          type = 'github';
+        } else if (domain.includes('gitlab.com') || domain.includes('gitlab.')) {
+          type = 'gitlab';
+        } else if (domain.includes('bitbucket.org') || domain.includes('bitbucket.')) {
+          type = 'bitbucket';
+        } else if (domain.includes('dev.azure.com') || domain.includes('visualstudio.com')) {
+          type = 'azure';
+        } else {
+          type = 'web';
+        }
+
+        // Extract path from URL
+        const pathMatch = input.match(/(?:https?:\/\/)?[^\/]+\/(.+?)(?:\.git)?\/?$/);
+        fullPath = pathMatch?.[1] || '';
+        const parts = fullPath.split('/');
+
+        // Special handling for Azure DevOps URLs
+        // Format: {organization}/{project}/_git/{repository}
+        if (type === 'azure' && parts.includes('_git')) {
+          const gitIndex = parts.indexOf('_git');
+          if (gitIndex >= 1 && gitIndex + 1 < parts.length) {
+            owner = parts[gitIndex - 1]; // project name
+            repo = parts[gitIndex + 1]; // repository name
+          }
+        } else if (parts.length >= 2) {
+          repo = parts[parts.length - 1] || '';
+          owner = parts[parts.length - 2] || '';
+        }
+      } else {
+        return null;
+      }
+
+      if (!owner || !repo) return null;
+
+      owner = owner.trim();
+      repo = repo.trim();
+
+      if (repo.endsWith('.git')) {
+        repo = repo.slice(0, -4);
+      }
+
+      return { owner, repo, type, fullPath, localPath };
     };
 
     const parsedRepo = parseRepositoryInput(repositoryInput);
@@ -303,6 +363,7 @@ export default function JobsPage() {
     params.append('provider', provider);
     params.append('model', model);
     if (isCustomModel && customModel) params.append('custom_model', customModel);
+    if (branch && branch !== 'main') params.append('branch', branch);
     if (excludedDirs) params.append('excluded_dirs', excludedDirs);
     if (excludedFiles) params.append('excluded_files', excludedFiles);
     if (includedDirs) params.append('included_dirs', includedDirs);
@@ -314,68 +375,16 @@ export default function JobsPage() {
     router.push(`/${owner}/${repo}${queryString}`);
   };
 
-  const WikiIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-      <path d="M11.25 4.533A9.707 9.707 0 0 0 6 3a9.735 9.735 0 0 0-3.25.555.75.75 0 0 0-.5.707v14.25a.75.75 0 0 0 1 .707A8.237 8.237 0 0 1 6 18.75c1.995 0 3.823.707 5.25 1.886V4.533ZM12.75 20.636A8.214 8.214 0 0 1 18 18.75c.966 0 1.89.166 2.75.47a.75.75 0 0 0 1-.708V4.262a.75.75 0 0 0-.5-.707A9.735 9.735 0 0 0 18 3a9.707 9.707 0 0 0-5.25 1.533v16.103Z" />
-    </svg>
-  );
-
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-[var(--surface)] border-b border-[var(--glass-border)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo & Brand */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded-lg blur opacity-50"></div>
-                <div className="relative bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] p-2 rounded-lg">
-                  <WikiIcon />
-                </div>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold font-[family-name:var(--font-display)] gradient-text">
-                  DeepWiki
-                </h1>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              <Link href="/" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
-                Home
-              </Link>
-              <Link href="/wiki/projects" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
-                Indexed Wiki
-              </Link>
-              <Link href="/jobs" className="text-sm font-medium text-[var(--accent-primary)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
-                Jobs
-                <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
-              </Link>
-            </nav>
-
-            {/* CTA & Actions */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => fetchJobs()}
-                className="p-2 text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] transition-colors"
-                title="Refresh"
-              >
-                <FaSync className={isLoading ? 'animate-spin' : ''} />
-              </button>
-              <button
-                onClick={() => setIsConfigModalOpen(true)}
-                className="hidden md:flex items-center gap-2 btn-japanese text-sm px-6 py-2"
-              >
-                <RocketIcon />
-                Generate Wiki
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
+      <Header
+        currentPage="jobs"
+        statusLabel="SYSTEM.JOBS"
+        showRefresh={true}
+        onRefreshClick={() => window.location.reload()}
+        actionLabel="Generate Wiki"
+        onActionClick={() => setIsConfigModalOpen(true)}
+      />
       <main className="flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Filters */}
@@ -560,6 +569,7 @@ export default function JobsPage() {
         isOpen={isConfigModalOpen}
         onClose={() => setIsConfigModalOpen(false)}
         repositoryInput={repositoryInput}
+        setRepositoryInput={setRepositoryInput}
         selectedLanguage={selectedLanguage}
         setSelectedLanguage={setSelectedLanguage}
         supportedLanguages={supportedLanguages}
@@ -577,6 +587,8 @@ export default function JobsPage() {
         setSelectedPlatform={setSelectedPlatform}
         accessToken={accessToken}
         setAccessToken={setAccessToken}
+        branch={branch}
+        setBranch={setBranch}
         excludedDirs={excludedDirs}
         setExcludedDirs={setExcludedDirs}
         excludedFiles={excludedFiles}

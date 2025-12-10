@@ -5,6 +5,7 @@ import Ask from '@/components/Ask';
 import Markdown from '@/components/Markdown';
 import ModelSelectionModal from '@/components/ModelSelectionModal';
 import WikiTreeView from '@/components/WikiTreeView';
+import Header from '@/components/Header';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
@@ -44,44 +45,210 @@ interface WikiStructure {
 }
 
 const wikiStyles = `
+  /* Terminal Codex Wiki Styles */
+  .prose {
+    @apply text-[var(--foreground)] max-w-none;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-size: 15px;
+    line-height: 1.75;
+  }
+
+  .prose * {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
   .prose code {
-    @apply bg-[var(--background)]/70 px-1.5 py-0.5 rounded font-mono text-xs border border-[var(--border-color)];
+    @apply bg-[var(--accent-primary)]/10 px-2 py-1 rounded-md font-mono text-sm border border-[var(--accent-primary)]/20;
+    word-break: break-all;
+    white-space: pre-wrap;
+    max-width: 100%;
+    color: var(--accent-cyan);
+    font-weight: 500;
   }
 
   .prose pre {
-    @apply bg-[var(--background)]/80 text-[var(--foreground)] rounded-md p-4 overflow-x-auto border border-[var(--border-color)] shadow-sm;
+    @apply bg-[var(--background)] text-[var(--foreground)] rounded-lg p-5 overflow-x-auto border-2 border-[var(--accent-primary)]/30;
+    word-break: normal;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15), inset 0 0 0 1px rgba(139, 92, 246, 0.1);
+    position: relative;
   }
 
-  .prose h1, .prose h2, .prose h3, .prose h4 {
-    @apply font-serif text-[var(--foreground)];
+  .prose pre::before {
+    content: '◆';
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    color: var(--accent-primary);
+    opacity: 0.3;
+    font-size: 10px;
+  }
+
+  .prose h1 {
+    @apply font-mono text-[var(--foreground)] font-bold tracking-tight;
+    word-wrap: break-word;
+    font-size: 2.25rem;
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.025em;
+    background: linear-gradient(135deg, var(--gradient-from), var(--gradient-to));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .prose h2 {
+    @apply font-mono text-[var(--foreground)] font-bold;
+    word-wrap: break-word;
+    font-size: 1.75rem;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--accent-primary)/20;
+    letter-spacing: -0.015em;
+  }
+
+  .prose h2::before {
+    content: '▸ ';
+    color: var(--accent-primary);
+    margin-right: 0.5rem;
+    font-size: 0.9em;
+  }
+
+  .prose h3 {
+    @apply font-mono text-[var(--foreground)] font-semibold;
+    word-wrap: break-word;
+    font-size: 1.375rem;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    color: var(--accent-secondary);
+  }
+
+  .prose h3::before {
+    content: '› ';
+    color: var(--accent-cyan);
+    margin-right: 0.375rem;
+  }
+
+  .prose h4 {
+    @apply font-mono text-[var(--foreground)] font-semibold;
+    word-wrap: break-word;
+    font-size: 1.125rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
   }
 
   .prose p {
     @apply text-[var(--foreground)] leading-relaxed;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    margin-bottom: 1.25rem;
   }
 
   .prose a {
-    @apply text-[var(--accent-primary)] hover:text-[var(--highlight)] transition-colors no-underline border-b border-[var(--border-color)] hover:border-[var(--accent-primary)];
+    @apply text-[var(--accent-cyan)] hover:text-[var(--highlight)] transition-all no-underline;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-weight: 500;
+    position: relative;
+    border-bottom: 1px solid var(--accent-cyan)/30;
+    padding-bottom: 1px;
+  }
+
+  .prose a:hover {
+    border-bottom-color: var(--accent-cyan);
   }
 
   .prose blockquote {
-    @apply border-l-4 border-[var(--accent-primary)]/30 bg-[var(--background)]/30 pl-4 py-1 italic;
+    @apply border-l-4 border-[var(--accent-primary)] bg-[var(--accent-primary)]/5 pl-5 py-3 italic rounded-r-lg;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    margin: 1.5rem 0;
+    position: relative;
+  }
+
+  .prose blockquote::before {
+    content: '"';
+    position: absolute;
+    left: 12px;
+    top: -8px;
+    font-size: 3rem;
+    color: var(--accent-primary);
+    opacity: 0.2;
+    font-family: Georgia, serif;
   }
 
   .prose ul, .prose ol {
     @apply text-[var(--foreground)];
+    margin: 1.25rem 0;
+    padding-left: 1.75rem;
+  }
+
+  .prose li {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    margin-bottom: 0.5rem;
+    position: relative;
+  }
+
+  .prose ul > li::marker {
+    color: var(--accent-primary);
+  }
+
+  .prose ol > li::marker {
+    color: var(--accent-cyan);
+    font-weight: 600;
   }
 
   .prose table {
-    @apply border-collapse border border-[var(--border-color)];
+    @apply border-collapse border-2 border-[var(--accent-primary)]/20 rounded-lg overflow-hidden;
+    word-wrap: break-word;
+    margin: 2rem 0;
+    width: 100%;
   }
 
   .prose th {
-    @apply bg-[var(--background)]/70 text-[var(--foreground)] p-2 border border-[var(--border-color)];
+    @apply bg-[var(--accent-primary)]/10 text-[var(--foreground)] p-3 border border-[var(--accent-primary)]/20 font-mono font-semibold text-sm;
+    word-wrap: break-word;
+    text-align: left;
   }
 
   .prose td {
-    @apply p-2 border border-[var(--border-color)];
+    @apply p-3 border border-[var(--accent-primary)]/10;
+    word-wrap: break-word;
+  }
+
+  .prose tbody tr {
+    transition: background-color 0.2s ease;
+  }
+
+  .prose tbody tr:hover {
+    background-color: var(--accent-primary)/5;
+  }
+
+  .prose tbody tr:hover th,
+  .prose tbody tr:hover td {
+    border-color: var(--accent-primary)/30;
+  }
+
+  /* Handle very long text strings like source citations */
+  .prose :not(pre) > code {
+    word-break: break-all;
+    white-space: normal;
+  }
+
+  /* Details/Summary enhancement */
+  .prose details {
+    @apply border border-[var(--accent-primary)]/20 rounded-lg p-4 my-4 bg-[var(--background)]/50;
+  }
+
+  .prose summary {
+    @apply font-mono font-semibold cursor-pointer text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] transition-colors;
+  }
+
+  .prose summary::marker {
+    color: var(--accent-cyan);
   }
 `;
 
@@ -237,6 +404,7 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   const isCustomModelParam = searchParams?.get('is_custom_model') === 'true';
   const customModelParam = searchParams?.get('custom_model') || '';
   const language = searchParams?.get('language') || 'en';
+  const branchParam = searchParams?.get('branch') || 'main';
   const repoHost = (() => {
     if (!repoUrl) return '';
     try {
@@ -264,8 +432,9 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
     type: repoType,
     token: token || null,
     localPath: localPath || null,
-    repoUrl: repoUrl || null
-  }), [owner, repo, repoType, localPath, repoUrl, token]);
+    repoUrl: repoUrl || null,
+    branch: branchParam || null
+  }), [owner, repo, repoType, localPath, repoUrl, token, branchParam]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState<string | undefined>(
@@ -311,7 +480,7 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   const [authCode, setAuthCode] = useState<string>('');
   const [isAuthLoading] = useState<boolean>(false);
 
-  const [defaultBranch, setDefaultBranch] = useState<string>('main');
+  const [defaultBranch, setDefaultBranch] = useState<string>(branchParam);
 
   const generateFileUrl = useCallback((filePath: string): string => {
     if (effectiveRepoInfo.type === 'local') {
@@ -1099,7 +1268,8 @@ Return your analysis in the specified XML format.`
         modelExcludedDirs ? modelExcludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
         modelExcludedFiles ? modelExcludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,
         modelIncludedDirs ? modelIncludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
-        modelIncludedFiles ? modelIncludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined
+        modelIncludedFiles ? modelIncludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,
+        defaultBranch
       );
       router.push(jobRedirectUrl);
     } catch (jobError) {
@@ -1107,7 +1277,7 @@ Return your analysis in the specified XML format.`
       setIsLoading(false);
       setLoadingMessage(undefined);
     }
-  }, [effectiveRepoInfo, language, messages.loading?.initializing, messages.loading?.clearingCache, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, isComprehensiveView, authCode, authRequired, currentToken, router]);
+  }, [effectiveRepoInfo, language, messages.loading?.initializing, messages.loading?.clearingCache, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, isComprehensiveView, authCode, authRequired, currentToken, router, defaultBranch]);
 
   useEffect(() => {
     if (effectRan.current === false) {
@@ -1240,7 +1410,8 @@ Return your analysis in the specified XML format.`
             modelExcludedDirs ? modelExcludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
             modelExcludedFiles ? modelExcludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,
             modelIncludedDirs ? modelIncludedDirs.split(',').map(d => d.trim()).filter(Boolean) : undefined,
-            modelIncludedFiles ? modelIncludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined
+            modelIncludedFiles ? modelIncludedFiles.split(',').map(f => f.trim()).filter(Boolean) : undefined,
+            defaultBranch
           );
           router.push(jobRedirectUrl);
         } catch (jobError) {
@@ -1251,7 +1422,7 @@ Return your analysis in the specified XML format.`
       };
       loadData();
     }
-  }, [effectiveRepoInfo, language, messages.loading?.fetchingCache, isComprehensiveView, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, currentToken, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles]);
+  }, [effectiveRepoInfo, language, messages.loading?.fetchingCache, isComprehensiveView, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, currentToken, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, defaultBranch, messages.loading?.checkingJobs, messages.loading?.creatingJob, router]);
 
   useEffect(() => {
     const saveCache = async () => {
@@ -1289,49 +1460,20 @@ Return your analysis in the specified XML format.`
   const [isModelSelectionModalOpen, setIsModelSelectionModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--surface)]">
+    <div className="min-h-screen flex flex-col bg-[var(--background)] relative">
       <style>{wikiStyles}</style>
-      <header className="sticky top-0 z-40 bg-[var(--surface)]/90 backdrop-blur border-b border-[var(--glass-border)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded-lg blur opacity-50 group-hover:opacity-70 transition-opacity"></div>
-                <div className="relative bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] p-2 rounded-lg text-white shadow-sm">
-                  <FaBookOpen className="w-5 h-5" />
-                </div>
-              </div>
-              <div className="leading-tight">
-                <p className="text-lg font-bold font-[family-name:var(--font-display)]">
-                  {messages.common?.appName || 'DeepWiki'}
-                </p>
-                <p className="text-[11px] text-[var(--foreground-muted)]">AI wiki generator</p>
-              </div>
-            </Link>
-            <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-              <Link href="/" className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
-                {messages.common?.home || 'Home'}
-              </Link>
-              <Link href="/wiki/projects" className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
-                {messages.repoPage?.indexedWiki || 'Indexed Wiki'}
-              </Link>
-              <Link href="/jobs" className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">
-                {messages.common?.jobs || 'Jobs'}
-                <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
-              </Link>
-            </nav>
-            <div className="flex items-center gap-3">
-              <Link href="/" className="md:hidden text-sm font-medium text-[var(--accent-primary)] hover:text-[var(--highlight)] transition-colors">
-                {messages.repoPage?.home || 'Home'}
-              </Link>
-              <button onClick={() => setIsModelSelectionModalOpen(true)} className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-sm font-medium shadow-sm hover:bg-[var(--accent-primary)]/90 transition-colors">
-                <FaSync className={isLoading ? 'animate-spin' : ''} />
-                {messages.repoPage?.refreshWiki || 'Refresh Wiki'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+
+      {/* Terminal-style grid background */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.015]" style={{
+        backgroundImage: 'linear-gradient(var(--accent-primary) 1px, transparent 1px), linear-gradient(90deg, var(--accent-primary) 1px, transparent 1px)',
+        backgroundSize: '20px 20px'
+      }}></div>
+
+      <Header
+        currentPage="wiki"
+        statusLabel="SYSTEM.READY"
+        statusValue="WIKI.ACTIVE"
+      />
       <main className="flex-1 w-full">
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-10 flex flex-col gap-6 h-full">
         {isLoading ? (
@@ -1396,111 +1538,185 @@ Return your analysis in the specified XML format.`
             </div>
           </div>
         ) : wikiStructure ? (
-          <div className="flex flex-col lg:flex-row gap-6 w-full h-full">
-            <div className="w-full lg:w-[280px] xl:w-[320px] flex-shrink-0 rounded-2xl p-5 bg-[var(--surface)]/70 backdrop-blur-sm shadow-sm overflow-y-auto">
-              <h3 className="text-lg font-bold text-[var(--foreground)] mb-3 font-serif">{wikiStructure.title}</h3>
-              <p className="text-[var(--muted)] text-sm mb-5 leading-relaxed">{wikiStructure.description}</p>
-              <div className="text-xs text-[var(--muted)] mb-5 flex items-center">
-                {effectiveRepoInfo.type === 'local' ? (
-                  <div className="flex items-center">
-                    <FaFolder className="mr-2" />
-                    <span className="break-all">{effectiveRepoInfo.localPath}</span>
-                  </div>
-                ) : (
-                  <>
-                    {effectiveRepoInfo.type === 'github' ? (
-                      <FaGithub className="mr-2" />
-                    ) : effectiveRepoInfo.type === 'gitlab' ? (
-                      <FaGitlab className="mr-2" />
-                    ) : (
-                      <FaBitbucket className="mr-2" />
-                    )}
-                    <a href={effectiveRepoInfo.repoUrl ?? ''} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--accent-primary)] transition-colors border-b border-[var(--border-color)] hover:border-[var(--accent-primary)]">
-                      {effectiveRepoInfo.owner}/{effectiveRepoInfo.repo}
-                    </a>
-                  </>
-                )}
+          <div className="flex flex-col lg:flex-row gap-6 w-full h-full max-w-[1600px] mx-auto">
+            {/* Terminal-style sidebar */}
+            <aside className="w-full lg:w-[300px] xl:w-[340px] flex-shrink-0 rounded-lg border-2 border-[var(--accent-primary)]/20 bg-[var(--surface)]/80 backdrop-blur-sm shadow-xl overflow-hidden">
+              {/* Sidebar header */}
+              <div className="bg-[var(--accent-primary)]/5 border-b-2 border-[var(--accent-primary)]/20 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-emerald)]"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-warning)]"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)]"></span>
+                </div>
+                <h3 className="text-base font-bold font-mono text-[var(--foreground)] mb-1 tracking-tight">{wikiStructure.title}</h3>
+                <p className="text-[var(--muted)] text-xs leading-relaxed font-mono">{wikiStructure.description}</p>
               </div>
-              <div className="mb-3 flex items-center text-xs text-[var(--muted)]">
-                <span className="mr-2">Wiki Type:</span>
-                <span className={`px-2 py-0.5 rounded-full ${isComprehensiveView ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30' : 'bg-[var(--background)] text-[var(--foreground)] border border-[var(--border-color)]'}`}>
-                  {isComprehensiveView ? (messages.form?.comprehensive || 'Comprehensive') : (messages.form?.concise || 'Concise')}
-                </span>
-              </div>
-              <div className="mb-5">
-                <button onClick={() => setIsModelSelectionModalOpen(true)} disabled={isLoading} className="btn-japanese w-full flex items-center justify-center text-xs px-3 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
-                  <FaSync className={`mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                  {messages.repoPage?.refreshWiki || 'Refresh Wiki'}
-                </button>
-              </div>
-              {Object.keys(generatedPages).length > 0 && (
-                <div className="mb-5">
-                  <h4 className="text-sm font-semibold text-[var(--foreground)] mb-3 font-serif">{messages.repoPage?.exportWiki || 'Export Wiki'}</h4>
-                  <div className="flex flex-col gap-2">
-                    <button onClick={() => exportWiki('markdown')} disabled={isExporting} className="btn-japanese flex items-center text-xs px-3 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
-                      <FaDownload className="mr-2" />
-                      {messages.repoPage?.exportAsMarkdown || 'Export as Markdown'}
-                    </button>
-                    <button onClick={() => exportWiki('json')} disabled={isExporting} className="btn-japanese flex items-center text-xs px-3 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
-                      <FaFileExport className="mr-2" />
-                      {messages.repoPage?.exportAsJson || 'Export as JSON'}
-                    </button>
-                  </div>
-                  {exportError && (
-                    <div className="mt-2 text-xs text-[var(--highlight)]">{exportError}</div>
+
+              <div className="p-4 overflow-y-auto max-h-[calc(100vh-200px)]">
+                {/* Repository info */}
+                <div className="text-xs font-mono mb-4 p-3 rounded border border-[var(--accent-primary)]/10 bg-[var(--background)]/50">
+                  {effectiveRepoInfo.type === 'local' ? (
+                    <div className="flex items-center gap-2">
+                      <FaFolder className="text-[var(--accent-cyan)] flex-shrink-0" />
+                      <span className="break-all text-[var(--foreground-muted)]">{effectiveRepoInfo.localPath}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      {effectiveRepoInfo.type === 'github' ? (
+                        <FaGithub className="text-[var(--accent-cyan)] flex-shrink-0" />
+                      ) : effectiveRepoInfo.type === 'gitlab' ? (
+                        <FaGitlab className="text-[var(--accent-cyan)] flex-shrink-0" />
+                      ) : (
+                        <FaBitbucket className="text-[var(--accent-cyan)] flex-shrink-0" />
+                      )}
+                      <a href={effectiveRepoInfo.repoUrl ?? ''} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--accent-cyan)] transition-colors truncate text-[var(--foreground-muted)]">
+                        {effectiveRepoInfo.owner}/{effectiveRepoInfo.repo}
+                      </a>
+                    </div>
                   )}
                 </div>
-              )}
-              <h4 className="text-md font-semibold text-[var(--foreground)] mb-3 font-serif">{messages.repoPage?.pages || 'Pages'}</h4>
-              <WikiTreeView wikiStructure={wikiStructure} currentPageId={currentPageId} onPageSelect={handlePageSelect} messages={messages.repoPage} />
-            </div>
-            <div id="wiki-content" className="w-full flex-grow overflow-y-auto">
+
+                {/* Wiki type badge */}
+                <div className="mb-4 flex items-center gap-2 text-xs font-mono">
+                  <span className="text-[var(--foreground-muted)]">MODE:</span>
+                  <span className={`px-2 py-1 rounded border ${isComprehensiveView ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-[var(--accent-primary)]/30' : 'bg-[var(--background)] text-[var(--foreground)] border-[var(--border-color)]'}`}>
+                    {isComprehensiveView ? (messages.form?.comprehensive || 'FULL') : (messages.form?.concise || 'BRIEF')}
+                  </span>
+                </div>
+
+                {/* Action buttons */}
+                <div className="mb-5 space-y-2">
+                  <button
+                    onClick={() => setIsModelSelectionModalOpen(true)}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 text-xs font-mono px-3 py-2 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FaSync className={isLoading ? 'animate-spin' : ''} />
+                    {messages.repoPage?.refreshWiki || 'REFRESH'}
+                  </button>
+                </div>
+
+                {/* Export section */}
+                {Object.keys(generatedPages).length > 0 && (
+                  <div className="mb-5 p-3 rounded border border-[var(--accent-primary)]/10 bg-[var(--background)]/30">
+                    <h4 className="text-xs font-mono font-semibold text-[var(--accent-cyan)] mb-2 flex items-center gap-2">
+                      <span>▸</span> {messages.repoPage?.exportWiki || 'EXPORT'}
+                    </h4>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => exportWiki('markdown')}
+                        disabled={isExporting}
+                        className="flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 text-[var(--foreground)] transition-all disabled:opacity-50"
+                      >
+                        <FaDownload className="text-[var(--accent-cyan)]" />
+                        {messages.repoPage?.exportAsMarkdown || 'Markdown'}
+                      </button>
+                      <button
+                        onClick={() => exportWiki('json')}
+                        disabled={isExporting}
+                        className="flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 text-[var(--foreground)] transition-all disabled:opacity-50"
+                      >
+                        <FaFileExport className="text-[var(--accent-cyan)]" />
+                        {messages.repoPage?.exportAsJson || 'JSON'}
+                      </button>
+                    </div>
+                    {exportError && (
+                      <div className="mt-2 text-xs text-[var(--highlight)] font-mono">{exportError}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Navigation tree */}
+                <div className="mb-2">
+                  <h4 className="text-xs font-mono font-semibold text-[var(--accent-cyan)] mb-3 flex items-center gap-2">
+                    <span>▸</span> {messages.repoPage?.pages || 'NAVIGATION'}
+                  </h4>
+                  <WikiTreeView wikiStructure={wikiStructure} currentPageId={currentPageId} onPageSelect={handlePageSelect} messages={messages.repoPage} />
+                </div>
+              </div>
+            </aside>
+
+            {/* Main content area */}
+            <main id="wiki-content" className="flex-1 overflow-y-auto">
               {currentPageId && generatedPages[currentPageId] ? (
-                <div className="max-w-5xl mx-auto px-2 sm:px-4 lg:px-6">
-                  <h3 className="text-xl font-bold text-[var(--foreground)] mb-4 break-words font-serif">{generatedPages[currentPageId].title}</h3>
-                  <div className="prose prose-sm md:prose-base lg:prose-lg max-w-none">
+                <article className="max-w-4xl mx-auto">
+                  {/* Article metadata header */}
+                  <div className="mb-6 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-mono text-[var(--accent-cyan)]">
+                      <span>&#47;&#47;</span>
+                      <span className="text-[var(--foreground-muted)]">DOCUMENTATION</span>
+                    </div>
+                    {generatedPages[currentPageId].filePaths.length > 0 && (
+                      <div className="flex items-center gap-2 text-xs font-mono text-[var(--muted)]">
+                        <span className="text-[var(--accent-primary)]">◆</span>
+                        <span>{generatedPages[currentPageId].filePaths.length} source {generatedPages[currentPageId].filePaths.length === 1 ? 'file' : 'files'}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Article content */}
+                  <div className="prose prose-sm md:prose-base max-w-none">
                     <Markdown content={generatedPages[currentPageId].content} />
                   </div>
+
+                  {/* Related pages */}
                   {generatedPages[currentPageId].relatedPages.length > 0 && (
-                    <div className="mt-8 pt-4 border-t border-[var(--border-color)]">
-                      <h4 className="text-sm font-semibold text-[var(--muted)] mb-3">{messages.repoPage?.relatedPages || 'Related Pages:'}</h4>
+                    <div className="mt-12 pt-6 border-t-2 border-[var(--accent-primary)]/20">
+                      <h4 className="text-sm font-mono font-semibold text-[var(--accent-cyan)] mb-4 flex items-center gap-2">
+                        <span>▸</span> {messages.repoPage?.relatedPages || 'RELATED'}
+                      </h4>
                       <div className="flex flex-wrap gap-2">
                         {generatedPages[currentPageId].relatedPages.map(relatedId => {
                           const relatedPage = wikiStructure.pages.find(p => p.id === relatedId);
                           return relatedPage ? (
-                            <button key={relatedId} className="bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-xs text-[var(--accent-primary)] px-3 py-1.5 rounded-md transition-colors truncate max-w-full border border-[var(--accent-primary)]/20" onClick={() => handlePageSelect(relatedId)}>
-                              {relatedPage.title}
+                            <button
+                              key={relatedId}
+                              className="font-mono bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-xs text-[var(--accent-cyan)] px-3 py-2 rounded border border-[var(--accent-primary)]/30 hover:border-[var(--accent-primary)] transition-all truncate max-w-full"
+                              onClick={() => handlePageSelect(relatedId)}
+                            >
+                              → {relatedPage.title}
                             </button>
                           ) : null;
                         })}
                       </div>
                     </div>
                   )}
-                </div>
+                </article>
               ) : (
-                <div className="flex flex-col items-center justify-center p-8 text-[var(--muted)] h-full">
-                  <div className="relative mb-4">
-                    <div className="absolute -inset-2 bg-[var(--accent-primary)]/5 rounded-full blur-md"></div>
-                    <FaBookOpen className="text-4xl relative z-10" />
+                <div className="flex flex-col items-center justify-center p-12 text-center h-full">
+                  <div className="relative mb-6">
+                    <div className="absolute -inset-3 bg-[var(--accent-primary)]/10 rounded-full blur-xl"></div>
+                    <FaBookOpen className="text-5xl text-[var(--accent-primary)] relative z-10" />
                   </div>
-                  <p className="font-serif">{messages.repoPage?.selectPagePrompt || 'Select a page from the navigation to view its content'}</p>
+                  <p className="font-mono text-sm text-[var(--accent-cyan)] mb-2">NO PAGE SELECTED</p>
+                  <p className="font-mono text-xs text-[var(--muted)] max-w-md">{messages.repoPage?.selectPagePrompt || 'Select a page from the navigation to view its content'}</p>
                 </div>
               )}
-            </div>
+            </main>
           </div>
         ) : null}
         </div>
       </main>
-      <footer className="mt-auto bg-[var(--surface)] border-t border-[var(--glass-border)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex justify-center items-center text-center text-[var(--muted)] text-sm">
-            <p className="font-serif">{messages.footer?.copyright || 'DeepWiki - Generate Wiki from GitHub/Gitlab/Bitbucket repositories'}</p>
+      {/* Terminal-style footer */}
+      <footer className="mt-auto bg-[var(--surface)]/90 border-t-2 border-[var(--accent-primary)]/20 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-center items-center text-center">
+            <p className="font-mono text-xs text-[var(--muted)]">
+              <span className="text-[var(--accent-primary)]">◆</span> {messages.footer?.copyright || 'DeepWiki - AI-powered documentation for your repositories'}
+            </p>
           </div>
         </div>
       </footer>
+
+      {/* Terminal-style Ask button */}
       {!isLoading && wikiStructure && (
-        <button onClick={() => setIsAskModalOpen(true)} className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-[var(--accent-primary)] text-white shadow-lg flex items-center justify-center hover:bg-[var(--accent-primary)]/90 transition-all z-50" aria-label={messages.ask?.title || 'Ask about this repository'}>
-          <FaComments className="text-xl" />
+        <button
+          onClick={() => setIsAskModalOpen(true)}
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-lg bg-[var(--accent-primary)] text-white shadow-2xl flex items-center justify-center hover:bg-[var(--accent-secondary)] transition-all z-50 border-2 border-[var(--accent-primary)]/50 hover:border-[var(--accent-cyan)] group"
+          aria-label={messages.ask?.title || 'Ask about this repository'}
+        >
+          <FaComments className="text-xl group-hover:scale-110 transition-transform" />
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-[var(--accent-emerald)] rounded-full border-2 border-[var(--background)] pulse-glow"></span>
         </button>
       )}
       <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${isAskModalOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} backdrop-blur-sm bg-black/70`}>

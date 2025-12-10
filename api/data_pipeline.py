@@ -67,7 +67,7 @@ def count_tokens(text: str, embedder_type: str = None, is_ollama_embedder: bool 
         # Rough approximation: 4 characters per token
         return len(text) // 4
 
-def download_repo(repo_url: str, local_path: str, repo_type: str = None, access_token: str = None) -> str:
+def download_repo(repo_url: str, local_path: str, repo_type: str = None, access_token: str = None, branch: str = "main") -> str:
     """
     Downloads a Git repository (GitHub, GitLab, or Bitbucket) to a specified local path.
 
@@ -76,6 +76,7 @@ def download_repo(repo_url: str, local_path: str, repo_type: str = None, access_
         repo_url (str): The URL of the Git repository to clone.
         local_path (str): The local directory where the repository will be cloned.
         access_token (str, optional): Access token for private repositories.
+        branch (str, optional): Git branch to clone. Defaults to "main".
 
     Returns:
         str: The output message from the `git` command.
@@ -93,8 +94,84 @@ def download_repo(repo_url: str, local_path: str, repo_type: str = None, access_
         # Check if repository already exists
         if os.path.exists(local_path) and os.listdir(local_path):
             # Directory exists and is not empty
-            logger.warning(f"Repository already exists at {local_path}. Using existing repository.")
-            return f"Using existing repository at {local_path}"
+            logger.info(f"Repository already exists at {local_path}. Checking branch...")
+
+            try:
+                # Check current branch
+                current_branch_result = subprocess.run(
+                    ["git", "-C", local_path, "branch", "--show-current"],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                current_branch = current_branch_result.stdout.decode("utf-8").strip()
+                logger.info(f"Current branch: {current_branch}, Requested branch: {branch}")
+
+                if current_branch != branch:
+                    logger.info(f"Switching from branch '{current_branch}' to '{branch}'...")
+
+                    # Fetch the latest changes from remote
+                    logger.info("Fetching latest changes from remote...")
+                    subprocess.run(
+                        ["git", "-C", local_path, "fetch", "origin"],
+                        check=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+
+                    # Check if branch exists locally
+                    check_local_branch = subprocess.run(
+                        ["git", "-C", local_path, "rev-parse", "--verify", branch],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+
+                    if check_local_branch.returncode == 0:
+                        # Branch exists locally, just checkout
+                        subprocess.run(
+                            ["git", "-C", local_path, "checkout", branch],
+                            check=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                        )
+                        logger.info(f"Checked out existing local branch: {branch}")
+                    else:
+                        # Branch doesn't exist locally, checkout from remote
+                        subprocess.run(
+                            ["git", "-C", local_path, "checkout", "-b", branch, f"origin/{branch}"],
+                            check=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                        )
+                        logger.info(f"Checked out new branch from remote: {branch}")
+
+                    # Pull latest changes
+                    subprocess.run(
+                        ["git", "-C", local_path, "pull", "origin", branch],
+                        check=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    logger.info(f"Successfully switched to branch: {branch}")
+                else:
+                    logger.info(f"Already on the requested branch: {branch}")
+                    # Pull latest changes even if on the same branch
+                    subprocess.run(
+                        ["git", "-C", local_path, "pull", "origin", branch],
+                        check=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    logger.info(f"Pulled latest changes for branch: {branch}")
+
+                return f"Using existing repository at {local_path} (branch: {branch})"
+
+            except subprocess.CalledProcessError as e:
+                error_msg = e.stderr.decode('utf-8') if e.stderr else str(e)
+                logger.error(f"Error during branch checkout: {error_msg}")
+                # If branch switching fails, continue with existing state
+                logger.warning(f"Could not switch to branch {branch}, using existing state")
+                return f"Using existing repository at {local_path} (branch checkout failed)"
 
         # Ensure the local path exists
         os.makedirs(local_path, exist_ok=True)
@@ -105,36 +182,40 @@ def download_repo(repo_url: str, local_path: str, repo_type: str = None, access_
             parsed = urlparse(repo_url)
             # URL-encode the token to handle special characters
             encoded_token = quote(access_token, safe='')
+            # Strip any existing username from netloc to avoid double @ symbols
+            # (e.g., "user@host" -> "host")
+            clean_netloc = parsed.netloc.split('@')[-1] if '@' in parsed.netloc else parsed.netloc
+
             # Determine the repository type and format the URL accordingly
             if repo_type == "github":
                 # Format: https://{token}@{domain}/owner/repo.git
                 # Works for both github.com and enterprise GitHub domains
-                clone_url = urlunparse((parsed.scheme, f"{encoded_token}@{parsed.netloc}", parsed.path, '', '', ''))
+                clone_url = urlunparse((parsed.scheme, f"{encoded_token}@{clean_netloc}", parsed.path, '', '', ''))
             elif repo_type == "gitlab":
                 # Format: https://oauth2:{token}@gitlab.com/owner/repo.git
-                clone_url = urlunparse((parsed.scheme, f"oauth2:{encoded_token}@{parsed.netloc}", parsed.path, '', '', ''))
+                clone_url = urlunparse((parsed.scheme, f"oauth2:{encoded_token}@{clean_netloc}", parsed.path, '', '', ''))
             elif repo_type == "bitbucket":
                 # Format: https://x-token-auth:{token}@bitbucket.org/owner/repo.git
-                clone_url = urlunparse((parsed.scheme, f"x-token-auth:{encoded_token}@{parsed.netloc}", parsed.path, '', '', ''))
+                clone_url = urlunparse((parsed.scheme, f"x-token-auth:{encoded_token}@{clean_netloc}", parsed.path, '', '', ''))
             elif repo_type == "azure":
                 # Format: https://{token}@dev.azure.com/org/project/_git/repo
                 # Azure DevOps uses PAT directly as username (like GitHub)
                 # Works for both dev.azure.com and legacy *.visualstudio.com domains
-                clone_url = urlunparse((parsed.scheme, f"{encoded_token}@{parsed.netloc}", parsed.path, '', '', ''))
+                clone_url = urlunparse((parsed.scheme, f"{encoded_token}@{clean_netloc}", parsed.path, '', '', ''))
 
             logger.info("Using access token for authentication")
 
         # Clone the repository
-        logger.info(f"Cloning repository from {repo_url} to {local_path}")
+        logger.info(f"Cloning repository from {repo_url} (branch: {branch}) to {local_path}")
         # We use repo_url in the log to avoid exposing the token in logs
         result = subprocess.run(
-            ["git", "clone", "--depth=1", "--single-branch", clone_url, local_path],
+            ["git", "clone", "--depth=1", "--single-branch", "--branch", branch, clone_url, local_path],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
 
-        logger.info("Repository cloned successfully")
+        logger.info(f"Repository cloned successfully (branch: {branch})")
         return result.stdout.decode("utf-8")
 
     except subprocess.CalledProcessError as e:
@@ -834,7 +915,8 @@ class DatabaseManager:
     def prepare_database(self, repo_url_or_path: str, repo_type: str = None, access_token: str = None,
                          embedder_type: str = None, is_ollama_embedder: bool = None,
                          excluded_dirs: List[str] = None, excluded_files: List[str] = None,
-                         included_dirs: List[str] = None, included_files: List[str] = None) -> List[Document]:
+                         included_dirs: List[str] = None, included_files: List[str] = None,
+                         branch: str = "main") -> List[Document]:
         """
         Create a new database from the repository.
 
@@ -850,6 +932,7 @@ class DatabaseManager:
             excluded_files (List[str], optional): List of file patterns to exclude from processing
             included_dirs (List[str], optional): List of directories to include exclusively
             included_files (List[str], optional): List of file patterns to include exclusively
+            branch (str, optional): Git branch to clone. Defaults to "main"
 
         Returns:
             List[Document]: List of Document objects
@@ -857,9 +940,9 @@ class DatabaseManager:
         # Handle backward compatibility
         if embedder_type is None and is_ollama_embedder is not None:
             embedder_type = 'ollama' if is_ollama_embedder else None
-        
+
         self.reset_database()
-        self._create_repo(repo_url_or_path, repo_type, access_token)
+        self._create_repo(repo_url_or_path, repo_type, access_token, branch)
         return self.prepare_db_index(embedder_type=embedder_type, excluded_dirs=excluded_dirs, excluded_files=excluded_files,
                                    included_dirs=included_dirs, included_files=included_files)
 
@@ -919,7 +1002,7 @@ class DatabaseManager:
             repo_name = url_parts[-1].replace(".git", "")
         return repo_name
 
-    def _create_repo(self, repo_url_or_path: str, repo_type: str = None, access_token: str = None) -> None:
+    def _create_repo(self, repo_url_or_path: str, repo_type: str = None, access_token: str = None, branch: str = "main") -> None:
         """
         Download and prepare all paths.
         Paths:
@@ -930,6 +1013,7 @@ class DatabaseManager:
             repo_type(str): Type of repository
             repo_url_or_path (str): The URL or local path of the repository
             access_token (str, optional): Access token for private repositories
+            branch (str, optional): Git branch to clone. Defaults to "main"
         """
         logger.info(f"Preparing repo storage for {repo_url_or_path}...")
 
@@ -951,7 +1035,7 @@ class DatabaseManager:
                 # Check if the repository directory already exists and is not empty
                 if not (os.path.exists(save_repo_dir) and os.listdir(save_repo_dir)):
                     # Only download if the repository doesn't exist or is empty
-                    download_repo(repo_url_or_path, save_repo_dir, repo_type, access_token)
+                    download_repo(repo_url_or_path, save_repo_dir, repo_type, access_token, branch)
                 else:
                     logger.info(f"Repository already exists at {save_repo_dir}. Using existing repository.")
             else:  # local path
