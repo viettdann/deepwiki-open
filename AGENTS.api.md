@@ -459,6 +459,8 @@ class RepoInfo(BaseModel):
 - `OPENROUTER_API_KEY`: OpenRouter API key
 - `DEEPSEEK_API_KEY`: DeepSeek API key
 - `OLLAMA_HOST`: Ollama server URL (default: http://localhost:11434)
+- `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_VERSION`: Azure OpenAI credentials (classic data-plane uses `api-version`)
+- `AZURE_OPENAI_USE_V1`: Set to `true` to call the new Azure v1 endpoint via `{endpoint}/openai/v1` (skips `api-version`, uses standard OpenAI client); default is `false` to keep classic behavior.
 
 #### Authentication
 - `DEEPWIKI_AUTH_MODE`: Enable wiki authentication (true/false)

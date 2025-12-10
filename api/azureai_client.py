@@ -19,7 +19,7 @@ from openai import (
     BadRequestError,
 )
 
-from openai import AzureOpenAI, AsyncAzureOpenAI
+from openai import AzureOpenAI, AsyncAzureOpenAI, OpenAI, AsyncOpenAI
 from adalflow.core.types import ModelType
 from api.openai_client import OpenAIClient
 
@@ -51,6 +51,15 @@ class AzureAIClient(OpenAIClient):
         )
         self._azure_endpoint = azure_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
 
+        # Opt-in path for the new Azure v1 endpoint that drops the api-version
+        # query param and uses the standard OpenAI client. Keep default False to
+        # preserve classic behavior.
+        self._use_v1 = os.getenv("AZURE_OPENAI_USE_V1", "false").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+
         super().__init__(
             api_key=api_key,
             chat_completion_parser=chat_completion_parser,
@@ -69,6 +78,16 @@ class AzureAIClient(OpenAIClient):
         if not endpoint:
             raise ValueError(f"Environment variable {self._env_base_url_name} must be set")
 
+        if self._use_v1:
+            base_url = endpoint.rstrip("/") + "/openai/v1"
+            log.debug("Initializing OpenAI client against Azure v1 endpoint %s", base_url)
+            return OpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                # Azure v1 still expects `api-key` header, so send it explicitly.
+                default_headers={"api-key": api_key},
+            )
+
         log.debug("Initializing AzureOpenAI sync client")
         return AzureOpenAI(
             api_key=api_key,
@@ -84,6 +103,15 @@ class AzureAIClient(OpenAIClient):
             raise ValueError(f"Environment variable {self._env_api_key_name} must be set")
         if not endpoint:
             raise ValueError(f"Environment variable {self._env_base_url_name} must be set")
+
+        if self._use_v1:
+            base_url = endpoint.rstrip("/") + "/openai/v1"
+            log.debug("Initializing OpenAI async client against Azure v1 endpoint %s", base_url)
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers={"api-key": api_key},
+            )
 
         log.debug("Initializing AzureOpenAI async client")
         return AsyncAzureOpenAI(
