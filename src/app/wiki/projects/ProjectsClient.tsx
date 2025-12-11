@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProcessedProjects from '@/components/ProcessedProjects';
 import ConfigurationModal from '@/components/ConfigurationModal';
+import { RoleBasedButton } from '@/components/RoleBasedButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 type ProcessedProject = {
@@ -233,10 +234,14 @@ export default function ProjectsClient({ initialProjects, authRequiredInitial }:
             </nav>
 
             <div className="flex items-center gap-4">
-              <button onClick={() => setIsConfigModalOpen(true)} className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] text-xs font-mono font-medium transition-all hover:border-[var(--accent-primary)] terminal-btn">
+              <RoleBasedButton
+                onAdminClick={() => setIsConfigModalOpen(true)}
+                actionDescription="create new wiki generation job"
+                className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] text-xs font-mono font-medium transition-all hover:border-[var(--accent-primary)] terminal-btn"
+              >
                 <RocketIcon />
                 Generate
-              </button>
+              </RoleBasedButton>
             </div>
           </div>
         </div>

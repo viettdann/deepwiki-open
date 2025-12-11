@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ConfigurationModal from '@/components/ConfigurationModal';
+import { RoleBasedButton } from '@/components/RoleBasedButton';
 import { FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaPause, FaTimes, FaPlay, FaEye, FaGithub, FaGitlab, FaBitbucket, FaTrash } from 'react-icons/fa';
 import Header from '@/components/Header';
 
@@ -143,8 +144,7 @@ export default function JobsPage() {
     }
   }, [jobs, fetchJobs]);
 
-  const handlePause = async (jobId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handlePause = async (jobId: string) => {
     try {
       await fetch(`/api/wiki/jobs/${jobId}/pause`, { method: 'POST' });
       fetchJobs();
@@ -153,8 +153,7 @@ export default function JobsPage() {
     }
   };
 
-  const handleResume = async (jobId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleResume = async (jobId: string) => {
     try {
       await fetch(`/api/wiki/jobs/${jobId}/resume`, { method: 'POST' });
       fetchJobs();
@@ -163,8 +162,7 @@ export default function JobsPage() {
     }
   };
 
-  const handleCancel = async (jobId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCancel = async (jobId: string) => {
     if (!confirm('Cancel this job?')) return;
     try {
       await fetch(`/api/wiki/jobs/${jobId}`, { method: 'DELETE' });
@@ -174,8 +172,7 @@ export default function JobsPage() {
     }
   };
 
-  const handleDelete = async (jobId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = async (jobId: string) => {
     if (!confirm('Are you sure you want to permanently delete this job? This action cannot be undone.')) return;
     try {
       const response = await fetch(`/api/wiki/jobs/${jobId}/delete`, { method: 'POST' });
@@ -487,31 +484,34 @@ export default function JobsPage() {
                   </span>
                   <div className="flex items-center gap-2">
                     {['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(job.status) && (
-                      <button
-                        onClick={(e) => handlePause(job.id, e)}
+                      <RoleBasedButton
+                        onAdminClick={(e) => { e.stopPropagation(); handlePause(job.id); }}
+                        actionDescription={`pause job "${job.repo}"`}
                         className="p-1.5 text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded"
                         title="Pause"
                       >
                         <FaPause className="text-sm" />
-                      </button>
+                      </RoleBasedButton>
                     )}
                     {job.status === 'paused' && (
-                      <button
-                        onClick={(e) => handleResume(job.id, e)}
+                      <RoleBasedButton
+                        onAdminClick={(e) => { e.stopPropagation(); handleResume(job.id); }}
+                        actionDescription={`resume job "${job.repo}"`}
                         className="p-1.5 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/30 rounded"
                         title="Resume"
                       >
                         <FaPlay className="text-sm" />
-                      </button>
+                      </RoleBasedButton>
                     )}
                     {!['completed', 'partially_completed', 'failed', 'cancelled'].includes(job.status) && (
-                      <button
-                        onClick={(e) => handleCancel(job.id, e)}
+                      <RoleBasedButton
+                        onAdminClick={(e) => { e.stopPropagation(); handleCancel(job.id); }}
+                        actionDescription={`cancel job "${job.repo}"`}
                         className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
                         title="Cancel"
                       >
                         <FaTimes className="text-sm" />
-                      </button>
+                      </RoleBasedButton>
                     )}
                     {(job.status === 'completed' || job.status === 'partially_completed') && (
                       <Link
@@ -524,13 +524,14 @@ export default function JobsPage() {
                       </Link>
                     )}
                     {['completed', 'partially_completed', 'failed', 'cancelled'].includes(job.status) && (
-                      <button
-                        onClick={(e) => handleDelete(job.id, e)}
+                      <RoleBasedButton
+                        onAdminClick={(e) => { e.stopPropagation(); handleDelete(job.id); }}
+                        actionDescription={`permanently delete job "${job.repo}"`}
                         className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
                         title="Delete Job"
                       >
                         <FaTrash className="text-sm" />
-                      </button>
+                      </RoleBasedButton>
                     )}
                   </div>
                 </div>

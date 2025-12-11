@@ -6,6 +6,7 @@ import Markdown from '@/components/Markdown';
 import ModelSelectionModal from '@/components/ModelSelectionModal';
 import WikiTreeView from '@/components/WikiTreeView';
 import Header from '@/components/Header';
+import { RoleBasedButton } from '@/components/RoleBasedButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
@@ -1667,14 +1668,15 @@ Return your analysis in the specified XML format.`
 
                 {/* Action buttons */}
                 <div className="mb-5 space-y-2">
-                  <button
-                    onClick={() => setIsModelSelectionModalOpen(true)}
+                  <RoleBasedButton
+                    onAdminClick={() => setIsModelSelectionModalOpen(true)}
+                    actionDescription={`regenerate wiki for "${effectiveRepoInfo.repo}"`}
                     disabled={isLoading}
                     className="w-full flex items-center justify-center gap-2 text-xs font-mono px-3 py-2 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <FaSync className={isLoading ? 'animate-spin' : ''} />
                     {messages.repoPage?.refreshWiki || 'REFRESH'}
-                  </button>
+                  </RoleBasedButton>
                 </div>
 
                 {/* Export section */}

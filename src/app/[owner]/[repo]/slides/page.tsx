@@ -7,6 +7,7 @@ import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FaArrowLeft, FaSync, FaDownload, FaArrowRight, FaArrowUp, FaTimes } from 'react-icons/fa';
+import { RoleBasedButton } from '@/components/RoleBasedButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
@@ -1093,14 +1094,15 @@ Please return ONLY the HTML with no markdown formatting or code blocks. Just the
               </h1>
             </div>
             <div className="flex items-center space-x-3">
-              <button
-                onClick={generateSlidesContent}
+              <RoleBasedButton
+                onAdminClick={generateSlidesContent}
+                actionDescription={`regenerate slides content for "${repoInfo.repo}"`}
                 disabled={isLoading}
                 className={`p-2 rounded-md ${isLoading ? 'bg-[var(--button-disabled-bg)] text-[var(--button-disabled-text)]' : 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/20'} transition-colors`}
                 title={messages.slides?.regenerate || 'Regenerate Slides'}
               >
                 <FaSync className={`${isLoading ? 'animate-spin' : ''}`} />
-              </button>
+              </RoleBasedButton>
               <button
                 onClick={exportSlides}
                 disabled={!slides.length || isExporting}

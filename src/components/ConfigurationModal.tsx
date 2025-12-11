@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { RoleBasedButton } from './RoleBasedButton';
 import UserSelector from './UserSelector';
 
 interface ConfigurationModalProps {
@@ -484,14 +485,14 @@ export default function ConfigurationModal({
             >
               {t.common?.cancel || 'Cancel'}
             </button>
-            <button
-              type="button"
-              onClick={onSubmit}
+            <RoleBasedButton
+              onAdminClick={onSubmit}
+              actionDescription="create new wiki generation job"
               disabled={isSubmitting}
               className="px-4 py-2 text-sm font-mono font-medium rounded-md border-2 border-[var(--accent-primary)] bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed terminal-btn"
             >
               {isSubmitting ? (t.common?.processing || '› Processing...') : (t.common?.generateWiki || '▸ Generate Wiki')}
-            </button>
+            </RoleBasedButton>
           </div>
         </div>
       </div>
