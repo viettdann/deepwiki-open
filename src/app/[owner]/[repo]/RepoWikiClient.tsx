@@ -786,7 +786,7 @@ IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Vi
     });
   }, [generatedPages, currentToken, effectiveRepoInfo, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, language, activeContentRequests, generateFileUrl]);
 
-  const determineWikiStructure = useCallback(async (fileTree: string, readme: string, ownerLocal: string, repoLocal: string) => {
+  const determineWikiStructure = useCallback(async (fileTree: string, ownerLocal: string, repoLocal: string) => {
     if (!ownerLocal || !repoLocal) {
       setError('Invalid repository information. Owner and repo name are required.');
       setIsLoading(false);
@@ -807,17 +807,12 @@ IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Vi
           role: 'user',
           content: `Analyze this GitHub repository ${ownerLocal}/${repoLocal} and create a wiki structure for it.
 
-1. The complete file tree of the project:
+The complete file tree of the project:
 <file_tree>
 ${fileTree}
 </file_tree>
 
-2. The README file of the project:
-<readme>
-${readme}
-</readme>
-
-I want to create a wiki for this repository. Determine the most logical structure for a wiki based on the repository's content.
+I want to create a wiki for this repository. Determine the most logical structure for a wiki based on the repository's content and file structure.
 
 IMPORTANT: The wiki content will be generated in ${language === 'vi' ? 'Vietnamese (Tiếng Việt)' : 'English'} language.
 
@@ -980,7 +975,6 @@ Return your analysis in the specified XML format.`
       setIsLoading(true);
       setLoadingMessage(messages.loading?.fetchingStructure || 'Fetching repository structure...');
       let fileTreeData = '';
-      let readmeContent = '';
       if (effectiveRepoInfo.type === 'local' && effectiveRepoInfo.localPath) {
         const response = await fetch(`/local_repo/structure?path=${encodeURIComponent(effectiveRepoInfo.localPath)}`);
         if (!response.ok) {
@@ -989,7 +983,6 @@ Return your analysis in the specified XML format.`
         }
         const data = await response.json();
         fileTreeData = data.file_tree;
-        readmeContent = data.readme;
         setDefaultBranch('main');
       } else if (effectiveRepoInfo.type === 'github') {
         let treeData = null;
@@ -1047,14 +1040,6 @@ Return your analysis in the specified XML format.`
           .filter((item: { type: string; path: string }) => item.type === 'blob')
           .map((item: { type: string; path: string }) => item.path)
           .join('\n');
-        try {
-          const headers = createGithubHeaders(currentToken);
-          const readmeResponse = await fetch(`${githubApiBaseUrl}/repos/${owner}/${repo}/readme`, { headers });
-          if (readmeResponse.ok) {
-            const readmeData = await readmeResponse.json();
-            readmeContent = atob(readmeData.content);
-          }
-        } catch {}
       } else if (effectiveRepoInfo.type === 'gitlab') {
         const projectPath = extractUrlPath(effectiveRepoInfo.repoUrl ?? '')?.replace(/\.git$/, '') || `${owner}/${repo}`;
         const projectDomain = extractUrlDomain(effectiveRepoInfo.repoUrl ?? 'https://gitlab.com');
@@ -1100,13 +1085,6 @@ Return your analysis in the specified XML format.`
             .filter((item: { type: string; path: string }) => item.type === 'blob')
             .map((item: { type: string; path: string }) => item.path)
             .join('\n');
-          const readmeUrl = `${projectInfoUrl}/repository/files/README.md/raw`;
-          try {
-            const readmeResponse = await fetch(readmeUrl, { headers });
-            if (readmeResponse.ok) {
-              readmeContent = await readmeResponse.text();
-            }
-          } catch {}
         } catch (err) {
           throw err;
         }
@@ -1152,13 +1130,6 @@ Return your analysis in the specified XML format.`
           .filter((item: { type: string; path: string }) => item.type === 'commit_file')
           .map((item: { type: string; path: string }) => item.path)
           .join('\n');
-        try {
-          const headers = createBitbucketHeaders(currentToken);
-          const readmeResponse = await fetch(`https://api.bitbucket.org/2.0/repositories/${encodedRepoPath}/src/${defaultBranchLocal}/README.md`, { headers });
-          if (readmeResponse.ok) {
-            readmeContent = await readmeResponse.text();
-          }
-        } catch {}
       } else if (effectiveRepoInfo.type === 'azure') {
         const azureInfo = parseAzureRepoUrl(effectiveRepoInfo.repoUrl);
         if (!azureInfo) {
@@ -1196,17 +1167,8 @@ Return your analysis in the specified XML format.`
           .filter((item: { gitObjectType?: string; path?: string }) => item.gitObjectType === 'blob' && item.path)
           .map((item: { path: string }) => item.path.replace(/^\//, ''))
           .join('\n');
-        try {
-          const readmeUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}/items?path=${encodeURIComponent('/README.md')}&includeContent=true&versionDescriptor.version=${encodeURIComponent(defaultBranchLocal)}&api-version=7.1-preview.1`;
-          const readmeRes = await fetch(readmeUrl, { headers });
-          const readmeText = await readmeRes.text();
-          if (readmeRes.ok) {
-            const readmeData = JSON.parse(readmeText);
-            readmeContent = readmeData.content || '';
-          }
-        } catch {}
       }
-      await determineWikiStructure(fileTreeData, readmeContent, owner, repo);
+      await determineWikiStructure(fileTreeData, owner, repo);
     } catch (error) {
       setIsLoading(false);
       setError(error instanceof Error ? error.message : 'An unknown error occurred');
