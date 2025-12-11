@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_HOST || 'http://localhost:8001';
-const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
+import { proxyToBackend } from '@/lib/api-proxy';
 
 interface RouteParams {
   params: Promise<{ jobId: string; pageId: string }>;
@@ -13,15 +11,11 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { jobId, pageId } = await params;
-    const url = `${PYTHON_BACKEND_URL}/api/wiki/jobs/${jobId}/pages/${pageId}/retry${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
-    });
+    const response = await proxyToBackend(
+      `/api/wiki/jobs/${jobId}/pages/${pageId}/retry`,
+      { method: 'POST' }
+    );
 
     if (!response.ok) {
       let errorBody = { error: `Failed to retry page: ${response.statusText}` };

@@ -1,21 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_HOST || 'http://localhost:8001';
-const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
+import { proxyToBackend } from '@/lib/api-proxy';
 
 export async function GET(request: NextRequest) {
   try {
     const params = request.nextUrl.searchParams;
-    const url = `${PYTHON_BACKEND_URL}/local_repo/structure?${params.toString()}${API_KEY ? `&api_key=${encodeURIComponent(API_KEY)}` : ''}`;
+    const queryString = params.toString();
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
-      cache: 'no-store',
-    });
+    const response = await proxyToBackend(
+      `/local_repo/structure${queryString ? `?${queryString}` : ''}`,
+      { method: 'GET', cache: 'no-store' }
+    );
 
     if (!response.ok) {
       let errorBody: unknown = await response.text();

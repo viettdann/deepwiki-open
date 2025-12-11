@@ -8,6 +8,7 @@ import { cookies } from 'next/headers';
 
 interface ProxyOptions {
   method?: string;
+  cache?: string;
   body?: unknown;
   headers?: Record<string, string>;
 }
