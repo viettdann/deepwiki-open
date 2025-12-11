@@ -18,20 +18,16 @@ const nextConfig: NextConfig = {
         fs: false,
       };
     }
-    // Optimize bundle size
-    config.optimization = {
-      ...config.optimization,
-      splitChunks: {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
-          },
-        },
-      },
-    };
+
+    // Fix 'self is not defined' error for server-side
+    if (isServer) {
+      // Define 'self' as globalThis for server-side
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        self: 'globalThis',
+      };
+    }
+
     return config;
   },
   async rewrites() {
