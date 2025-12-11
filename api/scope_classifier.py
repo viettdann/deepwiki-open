@@ -55,6 +55,7 @@ async def classify_scope(
         # Create classification request based on provider
         if provider == "ollama":
             client = OllamaClient()
+            # Ollama supports temperature control
             model_kwargs = {
                 "model": model_config["model"],
                 "stream": False,
@@ -77,8 +78,7 @@ async def classify_scope(
             client = OpenRouterClient()
             model_kwargs = {
                 "model": model,
-                "stream": False,
-                "temperature": 0.0
+                "stream": False
             }
 
             api_kwargs = client.convert_inputs_to_api_kwargs(
@@ -92,10 +92,10 @@ async def classify_scope(
 
         elif provider == "openai":
             client = OpenAIClient()
+            # Use minimal kwargs - some models don't support custom temperature
             model_kwargs = {
                 "model": model,
-                "stream": False,
-                "temperature": 0.0
+                "stream": False
             }
 
             api_kwargs = client.convert_inputs_to_api_kwargs(
@@ -115,8 +115,7 @@ async def classify_scope(
             client = AzureAIClient()
             model_kwargs = {
                 "model": model,
-                "stream": False,
-                "temperature": 0.0
+                "stream": False
             }
 
             api_kwargs = client.convert_inputs_to_api_kwargs(
@@ -136,8 +135,7 @@ async def classify_scope(
             client = DeepSeekClient()
             model_kwargs = {
                 "model": model,
-                "stream": False,
-                "temperature": 0.0
+                "stream": False
             }
 
             api_kwargs = client.convert_inputs_to_api_kwargs(
@@ -154,6 +152,7 @@ async def classify_scope(
                 result = str(response)
 
         else:  # Google (default)
+            # Google supports temperature control
             model_instance = genai.GenerativeModel(
                 model_name=model_config["model"],
                 generation_config={
