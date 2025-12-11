@@ -661,6 +661,77 @@ async def delete_wiki_cache(
         logger.warning(f"Wiki cache not found, cannot delete: {cache_path}")
         raise HTTPException(status_code=404, detail="Wiki cache not found")
 
+
+@app.delete("/api/wiki_repository")
+async def delete_wiki_repository(
+    owner: str = Query(..., description="Repository owner"),
+    repo: str = Query(..., description="Repository name"),
+    repo_type: str = Query(..., description="Repository type (e.g., github, gitlab)"),
+    authorization_code: Optional[str] = Query(None, description="Authorization code"),
+    user = Depends(require_admin)
+):
+    """
+    Completely deletes all data for a repository including:
+    - Cloned repository directory
+    - Database/embedding files
+    - Wiki cache files for all languages
+    """
+    import shutil
+
+    if WIKI_AUTH_MODE:
+        logger.info("check the authorization code")
+        if not authorization_code or WIKI_AUTH_CODE != authorization_code:
+            raise HTTPException(status_code=401, detail="Authorization code is invalid")
+
+    logger.info(f"Attempting to delete all data for {owner}/{repo} ({repo_type})")
+
+    root_path = get_adalflow_default_root_path()
+    deleted_items = []
+    failed_items = []
+
+    # Remove cloned repository directory
+    repo_dir = os.path.join(root_path, "repos", f"{owner}_{repo}")
+    if os.path.exists(repo_dir):
+        try:
+            shutil.rmtree(repo_dir)
+            deleted_items.append(f"repository directory: {repo_dir}")
+            logger.info(f"Deleted repository directory: {repo_dir}")
+        except Exception as e:
+            failed_items.append(f"repository directory: {e}")
+            logger.error(f"Failed to delete repository directory {repo_dir}: {e}")
+
+    # Remove database file
+    db_file = os.path.join(root_path, "databases", f"{owner}_{repo}.pkl")
+    if os.path.exists(db_file):
+        try:
+            os.remove(db_file)
+            deleted_items.append(f"database file: {db_file}")
+            logger.info(f"Deleted database file: {db_file}")
+        except Exception as e:
+            failed_items.append(f"database file: {e}")
+            logger.error(f"Failed to delete database file {db_file}: {e}")
+
+    # Remove wiki cache files for all supported languages
+    cache_dir = os.path.join(root_path, "wikicache")
+    if os.path.exists(cache_dir):
+        try:
+            for language in configs["lang_config"]["supported_languages"]:
+                cache_file = f"deepwiki_cache_{repo_type}_{owner}_{repo}_{language}.json"
+                cache_path = os.path.join(cache_dir, cache_file)
+                if os.path.exists(cache_path):
+                    os.remove(cache_path)
+                    deleted_items.append(f"wiki cache ({language}): {cache_path}")
+                    logger.info(f"Deleted wiki cache file: {cache_path}")
+        except Exception as e:
+            failed_items.append(f"wiki cache files: {e}")
+            logger.error(f"Failed to delete wiki cache files: {e}")
+
+    return {
+        "message": f"Repository cleanup completed for {owner}/{repo}",
+        "deleted_items": deleted_items,
+        "failed_items": failed_items
+    }
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint for Docker and monitoring"""

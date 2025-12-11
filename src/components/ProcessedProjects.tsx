@@ -108,11 +108,29 @@ export default function ProcessedProjects({
   };
 
   const handleDelete = async (project: ProcessedProject) => {
-    if (!confirm(`Are you sure you want to delete project ${project.name}?`)) {
+    if (!confirm(`Are you sure you want to delete all data for ${project.name}?\n\nThis will permanently remove:\n- The cloned repository\n- All embeddings and database files\n- All wiki cache files for all languages`)) {
       return;
     }
     try {
-      const response = await fetch('/api/wiki/projects', {
+      // First delete all repository data from filesystem
+      const repoDeleteResponse = await fetch(
+        `/api/wiki_repository?owner=${encodeURIComponent(project.owner)}&repo=${encodeURIComponent(project.repo)}&repo_type=${encodeURIComponent(project.repo_type)}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      if (!repoDeleteResponse.ok) {
+        const errorBody = await repoDeleteResponse.json().catch(() => ({ error: repoDeleteResponse.statusText }));
+        throw new Error(errorBody.error || repoDeleteResponse.statusText);
+      }
+
+      const repoDeleteResult = await repoDeleteResponse.json();
+      console.log('Repository deletion result:', repoDeleteResult);
+
+      // Then delete the project from the projects list
+      const projectDeleteResponse = await fetch('/api/wiki/projects', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -122,11 +140,17 @@ export default function ProcessedProjects({
           language: project.language,
         }),
       });
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(errorBody.error || response.statusText);
+
+      if (!projectDeleteResponse.ok) {
+        const errorBody = await projectDeleteResponse.json().catch(() => ({ error: projectDeleteResponse.statusText }));
+        throw new Error(errorBody.error || projectDeleteResponse.statusText);
       }
+
+      // Remove project from UI
       setProjects(prev => prev.filter(p => p.id !== project.id));
+
+      // Show success message
+      alert(`Successfully deleted ${project.name} and all its data.`);
     } catch (e: unknown) {
       console.error('Failed to delete project:', e);
       alert(`Failed to delete project: ${e instanceof Error ? e.message : 'Unknown error'}`);
