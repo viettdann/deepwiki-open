@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Mermaid from '../components/Mermaid';
 import ConfigurationModal from '@/components/ConfigurationModal';
 import ProcessedProjects from '@/components/ProcessedProjects';
+import { RoleBasedButton } from '@/components/RoleBasedButton';
 import { extractUrlPath, extractUrlDomain } from '@/utils/urlDecoder';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -341,8 +342,8 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
               <Link href="/jobs" className="text-sm font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-2">Jobs<span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span></Link>
             </nav>
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => {
+              <RoleBasedButton
+                onAdminClick={() => {
                   if (repositoryInput.trim()) {
                     setIsConfigModalOpen(true);
                   } else {
@@ -351,10 +352,11 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
                     input?.focus();
                   }
                 }}
+                actionDescription="create new wiki generation job"
                 className="hidden md:block btn-japanese text-sm px-6 py-2"
               >
                 Generate Wiki
-              </button>
+              </RoleBasedButton>
             </div>
           </div>
         </div>
@@ -378,12 +380,17 @@ export default function HomeClient({ initialProjects, authRequiredInitial }: { i
                 <div className="glass-hover rounded-2xl p-6 border border-[var(--glass-border)]">
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input id="repo-input" type="text" value={repositoryInput} onChange={(e) => setRepositoryInput(e.target.value)} placeholder="http://github.com/viettdann/deepwiki-open or owner/repo" className="input-glass flex-1" />
-                    <button type="submit" className="btn-japanese whitespace-nowrap" disabled={isSubmitting}>
+                    <RoleBasedButton
+                      onAdminClick={(e) => handleFormSubmit(e)}
+                      actionDescription="create new wiki generation job"
+                      className="btn-japanese whitespace-nowrap"
+                      disabled={isSubmitting}
+                    >
                       <span className="flex items-center gap-2 justify-center">
                         <RocketIcon />
                         {isSubmitting ? t('common.processing') : 'Generate Wiki'}
                       </span>
-                    </button>
+                    </RoleBasedButton>
                   </div>
                   {error && (
                     <div className="mt-3 text-sm text-[var(--highlight)] text-left">{error}</div>

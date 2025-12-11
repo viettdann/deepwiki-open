@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 // The target backend server base URL, derived from environment variable or defaulted.
 // This should match the logic in your frontend's page.tsx for consistency.
@@ -14,14 +15,28 @@ export async function POST(req: NextRequest) {
 
     const targetUrl = `${TARGET_SERVER_BASE_URL}/chat/completions/stream`;
 
+    // Get JWT token from cookie
+    const cookieStore = await cookies();
+    const token = cookieStore.get('dw_token');
+
+    // Build headers with JWT token and API key
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token.value}`;
+    }
+
+    if (API_KEY) {
+      headers['X-API-Key'] = API_KEY;
+    }
+
     // Make the actual request to the backend service
     const backendResponse = await fetch(targetUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
+      headers,
       body: JSON.stringify(requestBody),
     });
 

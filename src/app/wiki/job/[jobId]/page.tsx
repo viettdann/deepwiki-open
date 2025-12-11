@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
+import { RoleBasedButton } from '@/components/RoleBasedButton';
 import { FaPause, FaPlay, FaTimes, FaCheck, FaExclamationTriangle, FaSpinner, FaClock, FaRedo, FaTrash } from 'react-icons/fa';
 import { createJobProgressStream, JobProgressUpdate } from '@/utils/streamingClient';
 
@@ -496,12 +497,13 @@ export default function JobProgressPage() {
                     </div>
                   </div>
                   {(page.status === 'failed' || page.status === 'permanent_failed') && (
-                    <button
-                      onClick={() => handleRetryPage(page.id)}
+                    <RoleBasedButton
+                      onAdminClick={() => handleRetryPage(page.id)}
+                      actionDescription={`retry failed page "${page.title}"`}
                       className="flex items-center gap-1.5 text-sm font-mono text-[var(--accent-primary)] hover:text-[var(--accent-cyan)] transition-colors"
                     >
                       <FaRedo /> Retry
-                    </button>
+                    </RoleBasedButton>
                   )}
                 </div>
               ))}
@@ -512,36 +514,40 @@ export default function JobProgressPage() {
         {/* Action Buttons */}
         <div className="flex gap-3 flex-wrap">
           {isRunning && (
-            <button
-              onClick={handlePause}
+            <RoleBasedButton
+              onAdminClick={handlePause}
+              actionDescription={`pause job "${jobDetail.job.repo}"`}
               className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-warning)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-warning)] hover:bg-[var(--accent-warning)]/90 transition-all shadow-lg hover:shadow-xl terminal-btn"
             >
               <FaPause /> Pause
-            </button>
+            </RoleBasedButton>
           )}
           {isPaused && (
-            <button
-              onClick={handleResume}
+            <RoleBasedButton
+              onAdminClick={handleResume}
+              actionDescription={`resume job "${jobDetail.job.repo}"`}
               className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-success)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-success)] hover:bg-[var(--accent-success)]/90 transition-all shadow-lg hover:shadow-xl terminal-btn"
             >
               <FaPlay /> Resume
-            </button>
+            </RoleBasedButton>
           )}
           {(isRunning || isPaused) && (
-            <button
-              onClick={handleCancel}
+            <RoleBasedButton
+              onAdminClick={handleCancel}
+              actionDescription={`cancel job "${jobDetail.job.repo}"`}
               className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-danger)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-danger)] hover:bg-[var(--accent-danger)]/90 transition-all shadow-lg hover:shadow-xl terminal-btn"
             >
               <FaTimes /> Cancel
-            </button>
+            </RoleBasedButton>
           )}
           {currentStatus === 'failed' && (
-            <button
-              onClick={handleRetryJob}
+            <RoleBasedButton
+              onAdminClick={handleRetryJob}
+              actionDescription={`retry failed job "${jobDetail.job.repo}"`}
               className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-primary)] hover:opacity-90 transition-all shadow-lg hover:shadow-xl terminal-btn"
             >
               <FaRedo /> Retry Job
-            </button>
+            </RoleBasedButton>
           )}
           {(currentStatus === 'completed' || currentStatus === 'partially_completed') && (
             <Link
@@ -552,13 +558,14 @@ export default function JobProgressPage() {
             </Link>
           )}
           {isFinished && (
-            <button
-              onClick={handleDelete}
+            <RoleBasedButton
+              onAdminClick={handleDelete}
+              actionDescription={`permanently delete job "${jobDetail.job.repo}"`}
               className="flex items-center gap-2 px-4 py-2 bg-[var(--foreground-muted)] text-white font-mono font-medium rounded-lg border-2 border-[var(--foreground-muted)] hover:bg-[var(--accent-danger)] hover:border-[var(--accent-danger)] transition-all shadow-lg hover:shadow-xl terminal-btn"
               title="Permanently delete this job"
             >
               <FaTrash /> Remove
-            </button>
+            </RoleBasedButton>
           )}
         </div>
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/contexts/LanguageContext';
 import ConfigurationModal from '@/components/ConfigurationModal';
+import { RoleBasedButton } from '@/components/RoleBasedButton';
 import { FaGithub, FaGitlab, FaBitbucket, FaSync, FaPause, FaPlay, FaTimes, FaEye, FaSpinner, FaExclamationTriangle, FaClock } from 'react-icons/fa';
 
 interface Job {
@@ -281,24 +282,21 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
 
   const totalPages = Math.ceil(total / limit);
 
-  const handlePause = async (jobId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handlePause = async (jobId: string) => {
     try {
       await fetch(`/api/wiki/jobs/${jobId}/pause`, { method: 'POST' });
       fetchJobs();
     } catch {}
   };
 
-  const handleResume = async (jobId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleResume = async (jobId: string) => {
     try {
       await fetch(`/api/wiki/jobs/${jobId}/resume`, { method: 'POST' });
       fetchJobs();
     } catch {}
   };
 
-  const handleCancel = async (jobId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCancel = async (jobId: string) => {
     if (!confirm('Cancel this job?')) return;
     try {
       await fetch(`/api/wiki/jobs/${jobId}`, { method: 'DELETE' });
@@ -355,13 +353,34 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
                 <span className="text-xs text-[var(--muted-foreground)]">{formatDate(job.created_at)}</span>
                 <div className="flex items-center gap-2">
                   {['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(job.status) && (
-                    <button onClick={(e) => handlePause(job.id, e)} className="p-1.5 text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded" title="Pause"><FaPause className="text-sm" /></button>
+                    <RoleBasedButton
+                      onAdminClick={(e) => { e.stopPropagation(); handlePause(job.id); }}
+                      actionDescription={`pause job "${job.repo}"`}
+                      className="p-1.5 text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded"
+                      title="Pause"
+                    >
+                      <FaPause className="text-sm" />
+                    </RoleBasedButton>
                   )}
                   {job.status === 'paused' && (
-                    <button onClick={(e) => handleResume(job.id, e)} className="p-1.5 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/30 rounded" title="Resume"><FaPlay className="text-sm" /></button>
+                    <RoleBasedButton
+                      onAdminClick={(e) => { e.stopPropagation(); handleResume(job.id); }}
+                      actionDescription={`resume job "${job.repo}"`}
+                      className="p-1.5 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/30 rounded"
+                      title="Resume"
+                    >
+                      <FaPlay className="text-sm" />
+                    </RoleBasedButton>
                   )}
                   {!['completed', 'failed', 'cancelled'].includes(job.status) && (
-                    <button onClick={(e) => handleCancel(job.id, e)} className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded" title="Cancel"><FaTimes className="text-sm" /></button>
+                    <RoleBasedButton
+                      onAdminClick={(e) => { e.stopPropagation(); handleCancel(job.id); }}
+                      actionDescription={`cancel job "${job.repo}"`}
+                      className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                      title="Cancel"
+                    >
+                      <FaTimes className="text-sm" />
+                    </RoleBasedButton>
                   )}
                   {job.status === 'completed' && (
                     <Link href={`/${job.owner}/${job.repo}?type=${job.repo_type}`} onClick={(e) => e.stopPropagation()} className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded" title="View Wiki"><FaEye className="text-sm" /></Link>
@@ -426,9 +445,13 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
               <button onClick={() => fetchJobs()} className="p-2 text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors rounded border border-transparent hover:border-[var(--accent-primary)]/30" title="Refresh">
                 <FaSync className={isLoading ? 'animate-spin' : ''} />
               </button>
-              <button onClick={() => setIsConfigModalOpen(true)} className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] text-xs font-mono font-medium transition-all hover:border-[var(--accent-primary)] terminal-btn">
+              <RoleBasedButton
+                onAdminClick={() => setIsConfigModalOpen(true)}
+                actionDescription="create new wiki generation job"
+                className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] text-xs font-mono font-medium transition-all hover:border-[var(--accent-primary)] terminal-btn"
+              >
                 Generate
-              </button>
+              </RoleBasedButton>
             </div>
           </div>
         </div>

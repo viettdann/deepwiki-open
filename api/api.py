@@ -1,6 +1,6 @@
 import os
 import logging
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from typing import List, Optional, Dict, Any, Literal
@@ -156,7 +156,22 @@ class ModelConfig(BaseModel):
 class AuthorizationConfig(BaseModel):
     code: str = Field(..., description="Authorization code")
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int = 2592000  # 30 days
+    user: 'UserInfo'
+
 from api.config import configs, WIKI_AUTH_MODE, WIKI_AUTH_CODE
+from api.auth import (
+    get_user_store, create_access_token, UserInfo,
+    get_current_user, require_auth, require_admin, optional_auth,
+    LOGIN_REQUIRED, JWT_EXPIRES_SECONDS
+)
 
 @app.get("/lang/config")
 async def get_lang_config():
@@ -175,6 +190,75 @@ async def validate_auth_code(request: AuthorizationConfig):
     Check authorization code.
     """
     return {"success": WIKI_AUTH_CODE == request.code}
+
+# --- User Authentication Endpoints ---
+
+@app.post("/auth/login", response_model=LoginResponse)
+async def login(request: LoginRequest):
+    """
+    Authenticate user and return JWT token
+
+    Returns:
+        - access_token: JWT token valid for 30 days
+        - token_type: Always "bearer"
+        - expires_in: Token expiration in seconds (30 days)
+        - user: User info (id, username, role)
+    """
+    user_store = get_user_store()
+    user = user_store.authenticate(request.username, request.password)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password"
+        )
+
+    # Generate JWT token
+    token = create_access_token(user)
+
+    # Return token and user info
+    return LoginResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=JWT_EXPIRES_SECONDS,
+        user=UserInfo(
+            id=user.id,
+            username=user.username,
+            role=user.role
+        )
+    )
+
+@app.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout():
+    """
+    Logout endpoint (stateless - frontend clears cookie)
+    Returns 204 No Content
+    """
+    # JWT is stateless, logout handled by frontend clearing cookie
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@app.get("/auth/me", response_model=UserInfo)
+async def get_current_user_info(user = Depends(require_auth)):
+    """
+    Get current authenticated user info
+
+    Requires valid JWT token in Authorization header
+    """
+    return UserInfo(
+        id=user.id,
+        username=user.username,
+        role=user.role
+    )
+
+@app.get("/auth/login-required")
+async def check_login_required():
+    """
+    Check if login is required
+
+    Returns:
+        - required: Boolean indicating if login is enforced
+    """
+    return {"required": LOGIN_REQUIRED}
 
 @app.get("/models/config", response_model=ModelConfig)
 async def get_model_config():
@@ -523,7 +607,7 @@ async def get_cached_wiki(
         return None
 
 @app.post("/api/wiki_cache")
-async def store_wiki_cache(request_data: WikiCacheRequest):
+async def store_wiki_cache(request_data: WikiCacheRequest, user = Depends(require_admin)):
     """
     Stores generated wiki data (structure and pages) to the server-side cache.
     """
@@ -546,7 +630,8 @@ async def delete_wiki_cache(
     repo: str = Query(..., description="Repository name"),
     repo_type: str = Query(..., description="Repository type (e.g., github, gitlab)"),
     language: str = Query(..., description="Language of the wiki content"),
-    authorization_code: Optional[str] = Query(None, description="Authorization code")
+    authorization_code: Optional[str] = Query(None, description="Authorization code"),
+    user = Depends(require_admin)
 ):
     """
     Deletes a specific wiki cache from the file system.

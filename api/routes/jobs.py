@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Depends
 from fastapi.responses import StreamingResponse
 
 from api.background.models import (
@@ -16,6 +16,7 @@ from api.background.models import (
 from api.background.job_manager import JobManager
 from api.background.worker import get_worker
 from api.core.database import get_db
+from api.auth import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ router = APIRouter(prefix="/api/wiki/jobs", tags=["jobs"])
 
 
 @router.post("", response_model=dict)
-async def create_job(request: CreateJobRequest):
+async def create_job(request: CreateJobRequest, user = Depends(require_admin)):
     """
     Create a new wiki generation job.
     Returns job_id immediately, processing happens in background.
@@ -66,7 +67,7 @@ async def list_jobs(
 
 
 @router.delete("/{job_id}")
-async def cancel_job(job_id: str):
+async def cancel_job(job_id: str, user = Depends(require_admin)):
     """
     Cancel a running job.
     Note: This CANCELS the job (changes status to 'cancelled'), it does not delete it.
@@ -82,7 +83,7 @@ async def cancel_job(job_id: str):
 
 
 @router.post("/{job_id}/delete")
-async def delete_job_permanently(job_id: str):
+async def delete_job_permanently(job_id: str, user = Depends(require_admin)):
     """
     Permanently delete a job and all its pages from the database.
     Only allowed for completed, failed, or cancelled jobs.
@@ -112,7 +113,7 @@ async def delete_job_permanently(job_id: str):
 
 
 @router.post("/{job_id}/pause")
-async def pause_job(job_id: str):
+async def pause_job(job_id: str, user = Depends(require_admin)):
     """
     Pause a running job.
     """
@@ -126,7 +127,7 @@ async def pause_job(job_id: str):
 
 
 @router.post("/{job_id}/resume")
-async def resume_job(job_id: str):
+async def resume_job(job_id: str, user = Depends(require_admin)):
     """
     Resume a paused job.
     """
@@ -140,7 +141,7 @@ async def resume_job(job_id: str):
 
 
 @router.post("/{job_id}/retry")
-async def retry_job(job_id: str):
+async def retry_job(job_id: str, user = Depends(require_admin)):
     """
     Retry a failed job.
     """
@@ -154,7 +155,7 @@ async def retry_job(job_id: str):
 
 
 @router.post("/{job_id}/pages/{page_id}/retry")
-async def retry_page(job_id: str, page_id: str):
+async def retry_page(job_id: str, page_id: str, user = Depends(require_admin)):
     """
     Retry a failed page.
     """

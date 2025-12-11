@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { FaTimes, FaTh, FaList } from 'react-icons/fa';
+import { RoleBasedButton } from './RoleBasedButton';
 
 // Interface should match the structure from the API
 interface ProcessedProject {
@@ -201,14 +202,14 @@ export default function ProcessedProjects({
             {filteredProjects.map((project) => (
             viewMode === 'card' ? (
               <div key={project.id} className="relative p-4 border border-[var(--border-color)] rounded-lg bg-[var(--card-bg)] shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.02]">
-                <button
-                  type="button"
-                  onClick={() => handleDelete(project)}
+                <RoleBasedButton
+                  onAdminClick={() => handleDelete(project)}
+                  actionDescription={`delete project "${project.name}"`}
                   className="absolute top-2 right-2 text-[var(--muted)] hover:text-[var(--foreground)]"
                   title="Delete project"
                 >
                   <FaTimes className="h-4 w-4" />
-                </button>
+                </RoleBasedButton>
                 <Link
                   href={`/${project.owner}/${project.repo}?type=${project.repo_type}&language=${project.language}`}
                   className="block"
@@ -231,14 +232,14 @@ export default function ProcessedProjects({
               </div>
             ) : (
               <div key={project.id} className="relative p-3 border border-[var(--border-color)] rounded-lg bg-[var(--card-bg)] hover:bg-[var(--background)] transition-colors">
-                <button
-                  type="button"
-                  onClick={() => handleDelete(project)}
+                <RoleBasedButton
+                  onAdminClick={() => handleDelete(project)}
+                  actionDescription={`delete project "${project.name}"`}
                   className="absolute top-2 right-2 text-[var(--muted)] hover:text-[var(--foreground)]"
                   title="Delete project"
                 >
                   <FaTimes className="h-4 w-4" />
-                </button>
+                </RoleBasedButton>
                 <Link
                   href={`/${project.owner}/${project.repo}?type=${project.repo_type}&language=${project.language}`}
                   className="flex items-center justify-between"

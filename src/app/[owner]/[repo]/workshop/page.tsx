@@ -9,6 +9,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FaArrowLeft, FaSync, FaDownload } from 'react-icons/fa';
 import Markdown from '@/components/Markdown';
+import { RoleBasedButton } from '@/components/RoleBasedButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
@@ -523,14 +524,15 @@ Estimated time: 20-30 minutes | Combines concepts from all exercises
             </h1>
           </div>
           <div className="flex items-center space-x-3">
-            <button
-              onClick={generateWorkshopContent}
+            <RoleBasedButton
+              onAdminClick={generateWorkshopContent}
+              actionDescription={`regenerate workshop content for "${repoInfo.repo}"`}
               disabled={isLoading}
               className={`p-2 rounded-md ${isLoading ? 'bg-[var(--button-disabled-bg)] text-[var(--button-disabled-text)]' : 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/20'} transition-colors`}
               title={messages.workshop?.regenerate || 'Regenerate Workshop'}
             >
               <FaSync className={`${isLoading ? 'animate-spin' : ''}`} />
-            </button>
+            </RoleBasedButton>
             <button
               onClick={exportWorkshop}
               disabled={!workshopContent || isExporting}
