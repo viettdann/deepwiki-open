@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_HOST || 'http://localhost:8001';
-const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
+import { proxyToBackend } from '@/lib/api-proxy';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const url = `${PYTHON_BACKEND_URL}/export/wiki${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`;
 
-    const response = await fetch(url, {
+    const response = await proxyToBackend('/export/wiki', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
-      body: JSON.stringify(body),
+      body
     });
 
     if (!response.ok) {

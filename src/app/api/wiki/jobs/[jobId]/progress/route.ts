@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// Backend server configuration
-const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
-const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
+import { proxyToBackend } from '@/lib/api-proxy';
 
 /**
  * GET handler for job progress streaming
- * Proxies requests to backend with server-side API key
+ * Proxies requests to backend with proper authentication
  */
 export async function GET(
   _req: NextRequest,
@@ -27,17 +24,17 @@ export async function GET(
 
     console.log(`Proxying job progress stream for job: ${jobId}`);
 
-    const targetUrl = `${TARGET_SERVER_BASE_URL}/api/wiki/jobs/${jobId}/progress/stream`;
-
-    // Make the request to the backend
-    const backendResponse = await fetch(targetUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
-    });
+    // Use proxyToBackend to handle authentication
+    const backendResponse = await proxyToBackend(
+      `/api/wiki/jobs/${jobId}/progress/stream`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+        }
+      }
+    );
 
     // If backend returned an error, forward it to the client
     if (!backendResponse.ok) {
