@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_HOST || 'http://localhost:8001';
-const JOBS_API_ENDPOINT = `${PYTHON_BACKEND_URL}/api/wiki/jobs`;
-const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
+import { proxyToBackend } from '@/lib/api-proxy';
 
 /**
  * GET /api/wiki/jobs - List jobs with optional filters
@@ -18,14 +15,8 @@ export async function GET(request: NextRequest) {
       if (value) params.append(key, value);
     });
 
-    const url = `${JOBS_API_ENDPOINT}?${params}${API_KEY ? `&api_key=${encodeURIComponent(API_KEY)}` : ''}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
-      cache: 'no-store',
+    const response = await proxyToBackend(`/api/wiki/jobs?${params}`, {
+      method: 'GET'
     });
 
     if (!response.ok) {
@@ -56,13 +47,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const response = await fetch(`${JOBS_API_ENDPOINT}${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`, {
+    const response = await proxyToBackend('/api/wiki/jobs', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
-      body: JSON.stringify(body),
+      body
     });
 
     if (!response.ok) {

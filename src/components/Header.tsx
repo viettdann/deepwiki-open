@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   currentPage?: 'home' | 'jobs' | 'projects' | 'wiki';
@@ -36,6 +37,20 @@ export default function Header({
   onRefreshClick,
   isRefreshing = false,
 }: HeaderProps) {
+  const { user, isAuthenticated, isLoading, loginRequired, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      // Redirect to login page after successful logout
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      setIsLoggingOut(false);
+    }
+  };
   return (
     <header className="sticky top-0 z-50 bg-[var(--surface)]/95 backdrop-blur-xl border-b-2 border-[var(--accent-primary)]/30 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -51,6 +66,41 @@ export default function Header({
                 <span className="hidden sm:block">|</span>
                 <span className="hidden sm:block text-[var(--accent-cyan)]">{statusValue}</span>
               </>
+            )}
+          </div>
+
+          {/* Authentication Status Display */}
+          <div className="flex items-center gap-3">
+            {isLoading ? (
+              <span className="text-[var(--foreground-muted)]">AUTH.CHECKING...</span>
+            ) : loginRequired && isAuthenticated && user ? (
+              <>
+                <span className="hidden sm:block text-[var(--accent-emerald)]">
+                  user:{user.username}[{user.role.toUpperCase()}]
+                </span>
+                <span className="sm:hidden text-[var(--accent-emerald)]">
+                  {user.role === 'admin' ? 'ADM' : 'RD'}
+                </span>
+                <span className="text-[var(--foreground-muted)]">|</span>
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="text-[var(--foreground-muted)] hover:text-[var(--accent-danger)] transition-colors disabled:opacity-50 font-mono"
+                  title={isLoggingOut ? 'Logging out...' : 'Logout'}
+                >
+                  {isLoggingOut ? 'LOGGING.OUT' : 'LOGOUT'}
+                </button>
+              </>
+            ) : loginRequired ? (
+              <button
+                onClick={() => window.location.href = '/login'}
+                className="text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors font-mono"
+                title="Login"
+              >
+                LOGIN
+              </button>
+            ) : (
+              <span className="text-[var(--accent-emerald)]">OPEN.ACCESS</span>
             )}
           </div>
         </div>

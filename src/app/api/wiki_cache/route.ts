@@ -1,20 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_HOST || 'http://localhost:8001';
-const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
+import { proxyToBackend } from '@/lib/api-proxy';
 
 export async function GET(request: NextRequest) {
   try {
     const params = request.nextUrl.searchParams;
-    const url = `${PYTHON_BACKEND_URL}/api/wiki_cache?${params.toString()}${API_KEY ? `&api_key=${encodeURIComponent(API_KEY)}` : ''}`;
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
-      cache: 'no-store',
+    const response = await proxyToBackend(`/api/wiki_cache?${params.toString()}`, {
+      method: 'GET'
     });
 
     if (!response.ok) {
@@ -39,15 +30,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const url = `${PYTHON_BACKEND_URL}/api/wiki_cache${API_KEY ? `?api_key=${encodeURIComponent(API_KEY)}` : ''}`;
-
-    const response = await fetch(url, {
+    const response = await proxyToBackend('/api/wiki_cache', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
-      body: JSON.stringify(body),
+      body
     });
 
     if (!response.ok) {
@@ -72,14 +57,8 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const params = request.nextUrl.searchParams;
-    const url = `${PYTHON_BACKEND_URL}/api/wiki_cache?${params.toString()}${API_KEY ? `&api_key=${encodeURIComponent(API_KEY)}` : ''}`;
-
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
-      },
+    const response = await proxyToBackend(`/api/wiki_cache?${params.toString()}`, {
+      method: 'DELETE'
     });
 
     if (!response.ok) {
