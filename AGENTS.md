@@ -9,6 +9,7 @@ Primary guidance for AI agents when working with code in this repository.
 - **Frontend Guide**: See AGENTS.frontend.md
 - **HTTP Streaming & Real-time Updates**: See AGENTS.streaming.md
 - **Workflow/Processing**: See AGENTS.workflow.md
+- **Authentication & Authorization**: See AGENTS.auth.md
 
 ## Project Overview
 
@@ -67,9 +68,20 @@ docker-compose up     # Run full stack
   - Higher values increase speed but also memory usage and API rate limit pressure
 
 
-### Authorization
-- `DEEPWIKI_AUTH_MODE`: Enable authorization (`true` or `1`, default: `false`)
-- `DEEPWIKI_AUTH_CODE`: Required auth code when `DEEPWIKI_AUTH_MODE` enabled
+### Authentication & Authorization
+For detailed authentication setup and configuration, see **AGENTS.auth.md**.
+
+The system includes:
+- JWT-based authentication with role-based access control (admin/readonly)
+- Terminal Codex-themed login interface
+- Role-based UI components with elegant permission handling
+- HttpOnly cookies for secure session management
+
+Key environment variables:
+- `DEEPWIKI_AUTH_LOGIN_REQUIRED`: Enable JWT authentication (default: `false`)
+- `DEEPWIKI_AUTH_STORE_PATH`: Path to users.json file
+- `DEEPWIKI_AUTH_JWT_SECRET`: Secret key for JWT signing
+- `DEEPWIKI_FRONTEND_API_KEY`: API key for frontend-backend communication
 
 ## Architecture Overview
 
@@ -79,6 +91,13 @@ docker-compose up     # Run full stack
 - Wiki display: `src/app/[owner]/[repo]/page.tsx`
 - Background jobs UI: `src/app/jobs/page.tsx`
 - Components: Mermaid diagram renderer, Markdown with syntax highlighting, model selection
+
+**Authentication & Role-Based UI:**
+- `src/contexts/AuthContext.tsx` - React authentication context
+- `src/contexts/PermissionContext.tsx` - Permission context for role-based UI
+- `src/components/RoleBasedButton.tsx` - Reusable permission-aware button component
+- `src/components/PermissionDeniedModal.tsx` - Terminal Codex permission modal
+- `src/app/login/page.tsx` - Terminal Codex themed login page
 
 ### Backend (`api/`)
 - **FastAPI** server (`api/api.py`) with CORS enabled
@@ -118,6 +137,8 @@ docker-compose up     # Run full stack
 **HTTP Streaming**: All real-time features use HTTP streaming for chat completions (`POST /chat/completions/stream`) and job progress tracking (`GET /api/wiki/jobs/{job_id}/progress/stream`).
 
 **Background Jobs**: Wiki generation uses async job system with checkpointing and progress tracking via HTTP streaming.
+
+**Role-Based UI**: Use `RoleBasedButton` component for admin-only actions. It automatically handles permission checks and shows a Terminal Codex permission modal for readonly users.
 
 ## Common Tasks
 
