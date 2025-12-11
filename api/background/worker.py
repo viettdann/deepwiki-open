@@ -778,6 +778,49 @@ class WikiGenerationWorker:
 
         language_name = "Vietnamese (Tiếng Việt)" if language == 'vi' else "English"
 
+        # Detect repository type based on file tree
+        doc_extensions = {'.md', '.mdx', '.rst', '.adoc', '.tex', '.txt'}
+        code_extensions = {'.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.cpp', '.c', '.cs', '.go', '.rb', '.php', '.swift', '.kt', '.rs', '.scala', '.m', '.h', '.sh', '.sql'}
+        
+        file_lines = [line.strip() for line in file_tree.split('\n') if line.strip()]
+        doc_files = sum(1 for line in file_lines if any(line.endswith(ext) for ext in doc_extensions))
+        code_files = sum(1 for line in file_lines if any(line.endswith(ext) for ext in code_extensions))
+        total_files = max(doc_files + code_files, 1)
+        doc_ratio = doc_files / total_files
+
+        # Adaptive analysis instruction based on repository content
+        if doc_ratio > 0.6:
+            # Documentation-heavy repository (technical docs, SDLC, policy repos)
+            analysis_instruction = """Analyze documentation structure and content. Treat documentation files (.md, .rst, .adoc, .tex) as primary source material.
+Ignore README.md (often outdated) - focus on actual documentation content.
+
+Tasks:
+- Examine documentation organization and hierarchy
+- Identify key topics, processes, and information architecture
+- Map documentation relationships and dependencies
+- Structure wiki based on documentation content
+- Use code files (if any) as supplementary context"""
+        elif doc_ratio > 0.3:
+            # Balanced repository (code + substantial documentation)
+            analysis_instruction = """Analyze both code implementation and documentation. Cross-reference for completeness and accuracy.
+Ignore README.md (often outdated) - prioritize actual code and structured docs.
+
+Tasks:
+- Examine code organization and architecture
+- Review structured documentation for design decisions
+- Identify components, modules, and their relationships
+- Map implemented functionality against documented design
+- Structure wiki based on code reality, supplemented by docs where helpful"""
+        else:
+            # Code-heavy repository
+            analysis_instruction = """Analyze source code directly. Ignore README.md (often outdated).
+
+Tasks:
+- Examine code organization
+- Identify components, modules, relationships
+- Map implemented functionality
+- Structure wiki based on current code"""
+
         # Build prompt (ported from frontend)
         if is_comprehensive:
             structure_format = """
@@ -912,13 +955,7 @@ File tree:
 {file_tree}
 </file_tree>
 
-Analyze source code directly. Ignore README/docs (may be outdated).
-
-Tasks:
-- Examine code organization
-- Identify components, modules, relationships
-- Map implemented functionality
-- Structure wiki based on current code
+{analysis_instruction}
 
 Wiki language: {language_name}
 
