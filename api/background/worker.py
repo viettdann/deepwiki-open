@@ -1037,11 +1037,6 @@ Tasks:
         # Build prompt (ported from frontend)
         if is_comprehensive:
             structure_format = """
-INPUT:
-1. Repository name: {owner}/{repo}
-2. File tree (all directories/files)
-3. Target language
-
 GUIDELINES:
 
 Relevant pages:
@@ -1071,11 +1066,11 @@ REQUIRED SECTIONS (if applicable):
 - Backend Systems: If server code → server-side components/APIs
 - Model Integration: If AI/ML models → integration/usage
 - Deployment/Infrastructure: If deployment configs → setup/infrastructure
-- Extensibility: If architecture supports (plugins, hooks, theming) → how to extend
+- Extensibility and Customization: If the project architecture supports it, explain how to extend or customize its functionality (e.g., plugins, theming, custom modules, hooks).
 
-Each section: 2-5 pages typically. Example: "Frontend Components" → "Home Page", "Repository Wiki Page", "Ask Component".
+Each section should contain 2-5 relevant pages. For example, the "Frontend Components" section might include pages for "Home Page", "Repository Wiki Page", "Ask Component", etc.
 
-Return XML format:
+Return your analysis in the following XML format:
 
 <wiki_structure>
   <title>[Overall title for the wiki]</title>
@@ -1169,6 +1164,8 @@ File tree:
 </file_tree>
 
 {analysis_instruction}
+
+I want to create a wiki for this repository. Determine the most logical structure for a wiki based on the repository's content.
 
 IMPORTANT: The wiki content will be generated in {language_name} language.
 
