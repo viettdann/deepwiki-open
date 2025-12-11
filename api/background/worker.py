@@ -319,13 +319,13 @@ class WikiGenerationWorker:
         await JobManager.update_job_status(job_id, JobStatus.GENERATING_STRUCTURE, phase=1, progress=10.0)
         await self._notify_progress(job_id, JobStatus.GENERATING_STRUCTURE, 1, 10.0, "Generating wiki structure...")
 
-        # Get repository file tree and README
-        file_tree, readme = await self._get_repo_structure(job)
+        # Get repository file tree
+        file_tree = await self._get_repo_structure(job)
 
         await self._notify_progress(job_id, JobStatus.GENERATING_STRUCTURE, 1, 20.0, "Analyzing repository...")
 
         # Generate wiki structure using LLM
-        structure_xml = await self._generate_wiki_structure_xml(job, file_tree, readme)
+        structure_xml = await self._generate_wiki_structure_xml(job, file_tree)
 
         await self._notify_progress(job_id, JobStatus.GENERATING_STRUCTURE, 1, 40.0, "Parsing wiki structure...")
 
@@ -686,8 +686,8 @@ class WikiGenerationWorker:
             
             return False
 
-    async def _get_repo_structure(self, job: Dict[str, Any]) -> tuple:
-        """Get repository file tree and README content."""
+    async def _get_repo_structure(self, job: Dict[str, Any]) -> str:
+        """Get repository file tree."""
         repo_url = job['repo_url']
         repo_type = job['repo_type']
         token = job.get('access_token')
@@ -695,22 +695,19 @@ class WikiGenerationWorker:
         repo = job['repo']
 
         file_tree = ""
-        readme = ""
 
         try:
             async with aiohttp.ClientSession() as session:
                 if repo_type == "github":
                     file_tree = await self._fetch_github_tree(session, owner, repo, token)
-                    readme = await self._fetch_github_readme(session, owner, repo, token)
                 elif repo_type == "gitlab":
                     file_tree = await self._fetch_gitlab_tree(session, owner, repo, token)
-                    readme = await self._fetch_gitlab_readme(session, owner, repo, token)
                 # Add other providers as needed
 
         except Exception as e:
             logger.error(f"Error getting repo structure: {e}")
 
-        return file_tree, readme
+        return file_tree
 
     async def _fetch_github_tree(self, session: aiohttp.ClientSession, owner: str, repo: str, token: Optional[str]) -> str:
         """Fetch file tree from GitHub API."""
@@ -750,26 +747,6 @@ class WikiGenerationWorker:
 
         return ""
 
-    async def _fetch_github_readme(self, session: aiohttp.ClientSession, owner: str, repo: str, token: Optional[str]) -> str:
-        """Fetch README from GitHub API."""
-        headers = {"Accept": "application/vnd.github.v3+json"}
-        if token:
-            headers["Authorization"] = f"token {token}"
-
-        url = f"https://api.github.com/repos/{owner}/{repo}/readme"
-        try:
-            async with session.get(url, headers=headers) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    content = data.get("content", "")
-                    if content:
-                        import base64
-                        return base64.b64decode(content).decode("utf-8", errors="ignore")
-        except Exception as e:
-            logger.debug(f"Failed to fetch README: {e}")
-
-        return ""
-
     async def _fetch_gitlab_tree(self, session: aiohttp.ClientSession, owner: str, repo: str, token: Optional[str]) -> str:
         """Fetch file tree from GitLab API."""
         headers = {}
@@ -792,29 +769,7 @@ class WikiGenerationWorker:
 
         return ""
 
-    async def _fetch_gitlab_readme(self, session: aiohttp.ClientSession, owner: str, repo: str, token: Optional[str]) -> str:
-        """Fetch README from GitLab API."""
-        headers = {}
-        if token:
-            headers["PRIVATE-TOKEN"] = token
-
-        from urllib.parse import quote
-        project_path = quote(f"{owner}/{repo}", safe="")
-
-        for readme_file in ["README.md", "readme.md", "README", "README.txt"]:
-            file_path = quote(readme_file, safe="")
-            url = f"https://gitlab.com/api/v4/projects/{project_path}/repository/files/{file_path}/raw?ref=main"
-
-            try:
-                async with session.get(url, headers=headers) as resp:
-                    if resp.status == 200:
-                        return await resp.text()
-            except Exception:
-                continue
-
-        return ""
-
-    async def _generate_wiki_structure_xml(self, job: Dict[str, Any], file_tree: str, readme: str) -> str:
+    async def _generate_wiki_structure_xml(self, job: Dict[str, Any], file_tree: str) -> str:
         """Generate wiki structure XML using LLM."""
         owner = job['owner']
         repo = job['repo']
@@ -826,20 +781,45 @@ class WikiGenerationWorker:
         # Build prompt (ported from frontend)
         if is_comprehensive:
             structure_format = """
-Create a structured wiki with the following main sections:
-- Overview (general information about the project)
-- System Architecture (how the system is designed)
-- Core Features (key functionality)
-- Data Management/Flow: If applicable, how data is stored, processed, accessed, and managed (e.g., database schema, data pipelines, state management).
-- Frontend Components (UI elements, if applicable.)
-- Backend Systems (server-side components)
-- Model Integration (AI model connections)
-- Deployment/Infrastructure (how to deploy, what's the infrastructure like)
-- Extensibility and Customization: If the project architecture supports it, explain how to extend or customize its functionality (e.g., plugins, theming, custom modules, hooks).
+INPUT:
+1. Repository name: {owner}/{repo}
+2. File tree (all directories/files)
+3. Target language
 
-Each section should contain relevant pages. For example, the "Frontend Components" section might include pages for "Home Page", "Repository Wiki Page", "Ask Component", etc.
+GUIDELINES:
 
-Return your analysis in the following XML format:
+Relevant pages:
+- Distinct functionality areas/major components
+- One cohesive topic per page (e.g., "Authentication System", "Payment API")
+- Max one page per major component/module
+- Skip pages for missing functionality
+
+If applicable:
+- Include section ONLY if matching code/files exist
+- Data Management/Flow: If database/storage/state code exists
+- Frontend Components: If UI code exists (React, Vue, HTML)
+- Model Integration: If AI/ML model code exists
+- Omit section if not applicable
+
+Brief description:
+- 1-2 sentences, 30-50 words
+- Focus on page content, not implementation
+- Example: "Explains user auth flow: login, registration, session management."
+
+REQUIRED SECTIONS (if applicable):
+- Overview (project info) - ALWAYS REQUIRED
+- System Architecture (design) - ALWAYS REQUIRED
+- Core Features (key functionality) - ALWAYS REQUIRED
+- Data Management/Flow: If database/storage/state code → how data is stored, processed, accessed
+- Frontend Components: If UI code → interface elements/pages
+- Backend Systems: If server code → server-side components/APIs
+- Model Integration: If AI/ML models → integration/usage
+- Deployment/Infrastructure: If deployment configs → setup/infrastructure
+- Extensibility: If architecture supports (plugins, hooks, theming) → how to extend
+
+Each section: 2-5 pages typically. Example: "Frontend Components" → "Home Page", "Repository Wiki Page", "Ask Component".
+
+Return XML format:
 
 <wiki_structure>
   <title>[Overall title for the wiki]</title>
@@ -859,10 +839,14 @@ Return your analysis in the following XML format:
   <pages>
     <page id="page-1">
       <title>[Page title]</title>
-      <description>[Brief description of what this page will cover]</description>
+      <description>[Brief description of what this page will cover, 1-2 sentences, 30-50 words]</description>
       <importance>high|medium|low</importance>
+      <!-- Importance levels:
+           high = core functionality, essential to understand the project
+           medium = supporting features, important but not critical
+           low = optional features, nice-to-have documentation -->
       <relevant_files>
-        <file_path>[Path to a relevant file]</file_path>
+        <file_path>[Path to actual file that exists in the repository]</file_path>
       </relevant_files>
       <related_pages>
         <related>page-2</related>
@@ -872,10 +856,28 @@ Return your analysis in the following XML format:
   </pages>
 </wiki_structure>
 """
-            page_count = "8-12"
+            page_count = "8-16"
             wiki_type = "comprehensive"
         else:
             structure_format = """
+INPUT SPECIFICATION:
+You will receive:
+1. Repository name: {owner}/{repo}
+2. Complete file tree showing all directories and files in the project
+3. Target language for wiki content generation
+
+ANALYSIS GUIDELINES:
+
+"Relevant pages" means:
+- Pages covering distinct functionality areas or major components
+- Each page focuses on one cohesive topic
+- Skip creating pages for missing functionality
+
+"Brief description" means:
+- 1-2 sentences maximum
+- 30-50 words total
+- Focus on what the page covers, not implementation details
+
 Return your analysis in the following XML format:
 
 <wiki_structure>
@@ -884,10 +886,14 @@ Return your analysis in the following XML format:
   <pages>
     <page id="page-1">
       <title>[Page title]</title>
-      <description>[Brief description of what this page will cover]</description>
+      <description>[Brief description of what this page will cover, 1-2 sentences, 30-50 words]</description>
       <importance>high|medium|low</importance>
+      <!-- Importance levels:
+           high = core functionality, essential to understand the project
+           medium = supporting features, important but not critical
+           low = optional features, nice-to-have documentation -->
       <relevant_files>
-        <file_path>[Path to a relevant file]</file_path>
+        <file_path>[Path to actual file that exists in the repository]</file_path>
       </relevant_files>
       <related_pages>
         <related>page-2</related>
@@ -896,28 +902,29 @@ Return your analysis in the following XML format:
   </pages>
 </wiki_structure>
 """
-            page_count = "4-6"
+            page_count = "4-8"
             wiki_type = "concise"
 
-        prompt = f"""Analyze this GitHub repository {owner}/{repo} and create a wiki structure for it.
+        prompt = f"""Analyze {owner}/{repo} and create wiki structure.
 
-1. The complete file tree of the project:
+File tree:
 <file_tree>
 {file_tree}
 </file_tree>
 
-2. The README file of the project:
-<readme>
-{readme}
-</readme>
+Analyze source code directly. Ignore README/docs (may be outdated).
 
-I want to create a wiki for this repository. Determine the most logical structure for a wiki based on the repository's content.
+Tasks:
+- Examine code organization
+- Identify components, modules, relationships
+- Map implemented functionality
+- Structure wiki based on current code
 
-IMPORTANT: The wiki content will be generated in {language_name} language.
+Wiki language: {language_name}
 
-When designing the wiki structure, include pages that would benefit from visual diagrams, such as:
+Include pages needing visual diagrams:
 - Architecture overviews
-- Data flow descriptions
+- Data flow
 - Component relationships
 - Process workflows
 - State machines
@@ -925,18 +932,17 @@ When designing the wiki structure, include pages that would benefit from visual 
 
 {structure_format}
 
-IMPORTANT FORMATTING INSTRUCTIONS:
-- Return ONLY the valid XML structure specified above
-- DO NOT wrap the XML in markdown code blocks (no ``` or ```xml)
-- DO NOT include any explanation text before or after the XML
-- Ensure the XML is properly formatted and valid
-- Start directly with <wiki_structure> and end with </wiki_structure>
+FORMAT RULES:
+- Return ONLY valid XML structure specified above
+- NO markdown code blocks (no ``` or ```xml)
+- NO explanation text before/after XML
+- Start with <wiki_structure>, end with </wiki_structure>
 
-IMPORTANT:
-1. Create {page_count} pages that would make a {wiki_type} wiki for this repository
-2. Each page should focus on a specific aspect of the codebase (e.g., architecture, key features, setup)
-3. The relevant_files should be actual files from the repository that would be used to generate that page
-4. Return ONLY valid XML with the structure specified above, with no markdown code block delimiters"""
+REQUIREMENTS:
+1. Create {page_count} pages for {wiki_type} wiki
+2. Each page = specific codebase aspect (architecture, features, setup)
+3. relevant_files = actual repo files for generating that page
+4. Return ONLY valid XML structure specified above, no markdown delimiters"""
 
         response = await self._call_llm(job, prompt)
 

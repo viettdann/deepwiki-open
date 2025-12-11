@@ -370,7 +370,7 @@ async def export_wiki(request: WikiExportRequest):
 
 @app.get("/local_repo/structure")
 async def get_local_repo_structure(path: str = Query(None, description="Path to local repository")):
-    """Return the file tree and README content for a local repository."""
+    """Return the file tree for a local repository."""
     if not path:
         return JSONResponse(
             status_code=400,
@@ -386,7 +386,6 @@ async def get_local_repo_structure(path: str = Query(None, description="Path to 
     try:
         logger.info(f"Processing local repository at: {path}")
         file_tree_lines = []
-        readme_content = ""
 
         for root, dirs, files in os.walk(path):
             # Exclude hidden dirs/files and virtual envs
@@ -397,17 +396,9 @@ async def get_local_repo_structure(path: str = Query(None, description="Path to 
                 rel_dir = os.path.relpath(root, path)
                 rel_file = os.path.join(rel_dir, file) if rel_dir != '.' else file
                 file_tree_lines.append(rel_file)
-                # Find README.md (case-insensitive)
-                if file.lower() == 'readme.md' and not readme_content:
-                    try:
-                        with open(os.path.join(root, file), 'r', encoding='utf-8') as f:
-                            readme_content = f.read()
-                    except Exception as e:
-                        logger.warning(f"Could not read README.md: {str(e)}")
-                        readme_content = ""
 
         file_tree_str = '\n'.join(sorted(file_tree_lines))
-        return {"file_tree": file_tree_str, "readme": readme_content}
+        return {"file_tree": file_tree_str}
     except Exception as e:
         logger.error(f"Error processing local repository: {str(e)}")
         return JSONResponse(
