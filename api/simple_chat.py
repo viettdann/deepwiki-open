@@ -24,7 +24,6 @@ from api.prompts import (
     DEEP_RESEARCH_INTERMEDIATE_ITERATION_PROMPT,
     SIMPLE_CHAT_SYSTEM_PROMPT
 )
-from api.scope_classifier import classify_scope, get_out_of_scope_message
 
 # Configure logging
 from api.logging_config import setup_logging
@@ -187,39 +186,6 @@ async def chat_completions_stream(request: ChatCompletionRequest):
         # Get the query from the last message
         query = last_message.content
 
-        # Get repository information for scope classification
-        repo_url = request.repo_url
-        repo_name = repo_url.split("/")[-1] if "/" in repo_url else repo_url
-        repo_type = request.type
-
-        # Get language information
-        language_code = request.language or configs["lang_config"]["default"]
-        supported_langs = configs["lang_config"]["supported_languages"]
-        language_name = supported_langs.get(language_code, "English")
-
-        # === SCOPE CLASSIFICATION (Protection against prompt injection) ===
-        # Classify the query BEFORE RAG to prevent malicious queries
-        scope = await classify_scope(
-            repo_name=repo_name,
-            user_query=query,
-            provider=request.provider,
-            model=request.model
-        )
-
-        if scope == "OUT_OF_SCOPE":
-            # Return rejection message immediately without RAG
-            rejection_message = get_out_of_scope_message(repo_name, language_name)
-            logger.info(f"Query rejected as OUT_OF_SCOPE: {query[:100]}...")
-
-            # Create a simple streaming response with the rejection message
-            async def rejection_stream():
-                yield rejection_message
-
-            return StreamingResponse(rejection_stream(), media_type="text/event-stream")
-
-        # === Query is IN_SCOPE, proceed with RAG ===
-        logger.info("Query classified as IN_SCOPE, proceeding with RAG")
-
         # Only retrieve documents if input is not too large
         context_text = ""
         retrieved_documents = None
@@ -272,6 +238,18 @@ async def chat_completions_stream(request: ChatCompletionRequest):
             except Exception as e:
                 logger.error(f"Error retrieving documents: {str(e)}")
                 context_text = ""
+
+        # Get repository information
+        repo_url = request.repo_url
+        repo_name = repo_url.split("/")[-1] if "/" in repo_url else repo_url
+
+        # Determine repository type
+        repo_type = request.type
+
+        # Get language information
+        language_code = request.language or configs["lang_config"]["default"]
+        supported_langs = configs["lang_config"]["supported_languages"]
+        language_name = supported_langs.get(language_code, "English")
 
         # Create system prompt
         if is_deep_research:
