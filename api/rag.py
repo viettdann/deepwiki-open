@@ -211,18 +211,15 @@ class RAG(adal.Component):
         data_parser = adal.DataClassParser(data_class=RAGAnswer, return_data_class=True)
 
         # Format instructions to ensure proper output structure
-        format_instructions = data_parser.get_output_format_str() + """
-
+        format_instructions = """
 IMPORTANT FORMATTING RULES:
-1. DO NOT include your thinking or reasoning process in the output
-2. Provide only the final, polished answer
-3. DO NOT include ```markdown fences at the beginning or end of your answer
-4. DO NOT wrap your response in any kind of fences
-5. Start your response directly with the content
-6. The content will already be rendered as markdown
-7. Do not use backslashes before special characters like [ ] { } in your answer
-8. When listing tags or similar items, write them as plain text without escape characters
-9. For pipe characters (|) in text, write them directly without escaping them"""
+1. Provide only the final, polished answer (no thinking/reasoning process)
+2. DO NOT include ```markdown fences at the beginning or end
+3. Start directly with content—it will be rendered as markdown
+4. Write special characters ([]{}) as plain text without backslashes
+5. Write pipe characters (|) directly without escaping
+
+""" + data_parser.get_output_format_str()
 
         # Get model configuration based on provider and model
         from api.config import get_model_config

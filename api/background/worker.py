@@ -634,6 +634,12 @@ class WikiGenerationWorker:
             if not content:
                 raise ValueError("Empty response from LLM")
 
+            # Validate and fix Mermaid diagrams
+            try:
+                content = await self._validate_and_fix_mermaid_diagrams(job, content)
+            except Exception as e:
+                logger.warning(f"Mermaid diagram validation failed: {e}. Continuing with original content.")
+
             # Update page with content
             await JobManager.update_page_status(page_id, PageStatus.COMPLETED, content=content)
             
@@ -769,14 +775,221 @@ class WikiGenerationWorker:
 
         return ""
 
+    def _extract_mermaid_diagrams(self, markdown_content: str) -> list[tuple[str, int, int]]:
+        """Extract Mermaid diagrams from markdown. Returns list of (diagram_code, start_pos, end_pos)."""
+        diagrams = []
+        # More flexible pattern: handles optional newlines and whitespace
+        pattern = r'```mermaid\s*\n?(.*?)\n?```'
+
+        for match in re.finditer(pattern, markdown_content, re.DOTALL):
+            diagram_code = match.group(1).strip()
+            if diagram_code:  # Only add non-empty diagrams
+                diagrams.append((diagram_code, match.start(), match.end()))
+
+        return diagrams
+
+    def _validate_mermaid_syntax(self, diagram_code: str) -> tuple[bool, str]:
+        """Basic Mermaid syntax validation. Returns (is_valid, error_message)."""
+        lines = diagram_code.strip().split('\n')
+
+        if not lines:
+            return False, "Empty diagram"
+
+        first_line = lines[0].strip()
+
+        # Check for valid diagram types
+        valid_types = [
+            'graph TD', 'graph LR', 'graph TB', 'graph RL', 'graph BT',
+            'sequenceDiagram', 'classDiagram', 'stateDiagram', 'stateDiagram-v2',
+            'erDiagram', 'journey', 'gantt', 'pie', 'gitGraph', 'flowchart TD',
+            'flowchart LR', 'flowchart TB', 'flowchart RL', 'flowchart BT'
+        ]
+
+        if not any(first_line.startswith(t) for t in valid_types):
+            return False, f"Invalid diagram type. First line: '{first_line}'"
+
+        # Check for common syntax errors
+        for i, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line or line.startswith('%%'):  # Empty or comment
+                continue
+
+            # Check for unmatched brackets
+            if line.count('[') != line.count(']'):
+                return False, f"Unmatched square brackets on line {i}: '{line}'"
+            if line.count('(') != line.count(')'):
+                return False, f"Unmatched parentheses on line {i}: '{line}'"
+            if line.count('{') != line.count('}'):
+                return False, f"Unmatched curly braces on line {i}: '{line}'"
+
+            # Check for invalid arrow syntax in graph diagrams
+            if first_line.startswith(('graph', 'flowchart')):
+                # Common arrow patterns: -->, --->, -.->, ==>, etc.
+                if '--' in line or '==' in line or '-.' in line:
+                    # Basic check: arrows should have nodes on both sides
+                    arrow_patterns = ['-->', '-.->', '==>', '---', '-.-.', '===']
+                    for arrow in arrow_patterns:
+                        if arrow in line:
+                            parts = line.split(arrow)
+                            if len(parts) == 2:
+                                left, right = parts
+                                # Check that both sides have content
+                                if not left.strip() or not right.strip():
+                                    return False, f"Invalid arrow syntax on line {i}: missing node"
+
+        # Check for graph TD specifically (required by prompt)
+        if first_line.startswith('graph') and 'TD' not in first_line and 'TB' not in first_line:
+            logger.warning(f"Graph diagram not using TD/TB orientation: {first_line}")
+
+        return True, ""
+
+    async def _validate_and_fix_mermaid_diagrams(self, job: Dict[str, Any], content: str) -> str:
+        """Validate and fix Mermaid diagrams in markdown content."""
+        diagrams = self._extract_mermaid_diagrams(content)
+
+        if not diagrams:
+            return content  # No diagrams to validate
+
+        logger.info(f"Found {len(diagrams)} Mermaid diagram(s) to validate")
+
+        fixed_content = content
+        # Process in reverse order to maintain positions
+        for diagram_code, start_pos, end_pos in reversed(diagrams):
+            is_valid, error_msg = self._validate_mermaid_syntax(diagram_code)
+
+            if not is_valid:
+                logger.warning(f"Invalid Mermaid diagram: {error_msg}")
+                logger.debug(f"Problematic diagram:\n{diagram_code[:200]}")
+
+                # Try to fix the diagram using LLM
+                try:
+                    fix_prompt = f"""The following Mermaid diagram has a syntax error: {error_msg}
+
+Please fix the diagram to make it valid Mermaid syntax. Return ONLY the corrected diagram code, without the ```mermaid wrapper.
+
+REQUIREMENTS:
+- Use 'graph TD' for flowcharts (top-down orientation)
+- Ensure all brackets are matched: [], (), {{}}
+- Ensure proper arrow syntax: A --> B
+- Keep it concise and clear
+
+INVALID DIAGRAM:
+{diagram_code}
+
+Return ONLY the corrected Mermaid code, no explanations or markdown blocks."""
+
+                    fixed_diagram = await self._call_llm(job, fix_prompt)
+                    fixed_diagram = fixed_diagram.strip()
+
+                    # Remove any markdown wrappers the LLM might have added
+                    fixed_diagram = re.sub(r'^```mermaid\s*\n?', '', fixed_diagram)
+                    fixed_diagram = re.sub(r'\n?```\s*$', '', fixed_diagram)
+
+                    # Validate the fixed version
+                    is_valid_fixed, _ = self._validate_mermaid_syntax(fixed_diagram)
+
+                    if is_valid_fixed:
+                        logger.info("Successfully fixed Mermaid diagram")
+                        # Replace the diagram in content
+                        fixed_content = (
+                            fixed_content[:start_pos] +
+                            f"```mermaid\n{fixed_diagram}\n```" +
+                            fixed_content[end_pos:]
+                        )
+                    else:
+                        # If fix failed, remove the diagram
+                        logger.warning("Failed to fix Mermaid diagram, removing it")
+                        removal_note = "\n\n> **Note:** A diagram was removed due to syntax errors.\n\n"
+                        fixed_content = (
+                            fixed_content[:start_pos] +
+                            removal_note +
+                            fixed_content[end_pos:]
+                        )
+
+                except Exception as e:
+                    logger.error(f"Error fixing Mermaid diagram: {e}")
+                    # Remove the problematic diagram
+                    logger.warning("Removing problematic Mermaid diagram")
+                    removal_note = "\n\n> **Note:** A diagram was removed due to syntax errors.\n\n"
+                    fixed_content = (
+                        fixed_content[:start_pos] +
+                        removal_note +
+                        fixed_content[end_pos:]
+                    )
+            else:
+                logger.debug("Mermaid diagram validated successfully")
+
+        return fixed_content
+
+    async def _validate_and_fix_xml(self, job: Dict[str, Any], xml_text: str, attempt: int) -> tuple[str, bool]:
+        """Validate XML and attempt to fix if invalid. Returns (xml_text, is_valid)."""
+        # Clean up common issues
+        xml_text = xml_text.replace("```xml", "").replace("```", "").strip()
+
+        # Extract XML content
+        match = re.search(r'<wiki_structure>[\s\S]*?</wiki_structure>', xml_text)
+        if not match:
+            logger.warning(f"No wiki_structure tag found in XML (attempt {attempt})")
+            return xml_text, False
+
+        xml_content = match.group(0)
+
+        # Remove invalid characters
+        xml_content = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', xml_content)
+
+        # Escape & characters that are not part of an entity
+        xml_content = re.sub(r'&(?!(?:amp|lt|gt|apos|quot|#\d+|#x[0-9a-fA-F]+);)', '&amp;', xml_content)
+
+        # Try to parse
+        try:
+            ET.fromstring(xml_content)
+            logger.info(f"XML validation successful (attempt {attempt})")
+            return xml_content, True
+        except ET.ParseError as e:
+            logger.warning(f"XML validation failed (attempt {attempt}): {e}")
+
+            # On retry, ask LLM to fix the XML
+            if attempt > 1:
+                try:
+                    fix_prompt = f"""The following XML structure has a parsing error: {e}
+
+Please fix the XML to make it valid. Return ONLY the corrected XML, no explanations.
+
+INVALID XML:
+{xml_content[:2000]}
+
+Return the corrected XML starting with <wiki_structure> and ending with </wiki_structure>.
+Do NOT include markdown code blocks or any text before/after the XML."""
+
+                    fixed_xml = await self._call_llm(job, fix_prompt)
+                    fixed_xml = fixed_xml.replace("```xml", "").replace("```", "").strip()
+
+                    # Try to validate the fixed version
+                    match = re.search(r'<wiki_structure>[\s\S]*?</wiki_structure>', fixed_xml)
+                    if match:
+                        fixed_content = match.group(0)
+                        fixed_content = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', fixed_content)
+                        fixed_content = re.sub(r'&(?!(?:amp|lt|gt|apos|quot|#\d+|#x[0-9a-fA-F]+);)', '&amp;', fixed_content)
+
+                        ET.fromstring(fixed_content)
+                        logger.info(f"XML self-correction successful (attempt {attempt})")
+                        return fixed_content, True
+                except Exception as fix_error:
+                    logger.warning(f"XML self-correction failed (attempt {attempt}): {fix_error}")
+
+            return xml_content, False
+
     async def _generate_wiki_structure_xml(self, job: Dict[str, Any], file_tree: str) -> str:
-        """Generate wiki structure XML using LLM."""
+        """Generate wiki structure XML using LLM with retry logic."""
         owner = job['owner']
         repo = job['repo']
         language = job['language']
         is_comprehensive = bool(job['is_comprehensive'])
 
         language_name = "Vietnamese (Tiếng Việt)" if language == 'vi' else "English"
+
+        max_retries = 3
+        last_error = None
 
         # Detect repository type based on file tree
         doc_extensions = {'.md', '.mdx', '.rst', '.adoc', '.tex', '.txt'}
@@ -957,11 +1170,12 @@ File tree:
 
 {analysis_instruction}
 
-Wiki language: {language_name}
+IMPORTANT: The wiki content will be generated in {language_name} language.
 
-Include pages needing visual diagrams:
+When designing the wiki structure, include pages that would benefit from visual diagrams, such as:
+
 - Architecture overviews
-- Data flow
+- Data flow descriptions
 - Component relationships
 - Process workflows
 - State machines
@@ -969,27 +1183,69 @@ Include pages needing visual diagrams:
 
 {structure_format}
 
-FORMAT RULES:
-- Return ONLY valid XML structure specified above
-- NO markdown code blocks (no ``` or ```xml)
-- NO explanation text before/after XML
-- Start with <wiki_structure>, end with </wiki_structure>
+IMPORTANT FORMATTING INSTRUCTIONS:
+- Return ONLY the valid XML structure specified above
+- DO NOT wrap the XML in markdown code blocks (no ``` or ```xml)
+- DO NOT include any explanation text before or after the XML
+- Ensure the XML is properly formatted and valid
+- Start directly with <wiki_structure> and end with </wiki_structure>
 
-REQUIREMENTS:
-1. Create {page_count} pages for {wiki_type} wiki
-2. Each page = specific codebase aspect (architecture, features, setup)
-3. relevant_files = actual repo files for generating that page
-4. Return ONLY valid XML structure specified above, no markdown delimiters"""
+IMPORTANT:
+1. Create {page_count} pages that would make a {wiki_type} wiki for this repository
+2. Each page should focus on a specific aspect of the codebase (e.g., architecture, key features, setup)
+3. The relevant_files should be actual files from the repository that would be used to generate that page
+4. Return ONLY valid XML with the structure specified above, with no markdown code block delimiters"""
 
-        response = await self._call_llm(job, prompt)
+        # Retry loop with validation
+        for attempt in range(1, max_retries + 1):
+            try:
+                logger.info(f"Generating wiki structure XML (attempt {attempt}/{max_retries})")
 
-        # Clean up response
-        response = response.replace("```xml", "").replace("```", "").strip()
+                # Add retry-specific guidance to prompt
+                if attempt > 1:
+                    retry_note = f"\n\nIMPORTANT: Previous attempt failed with error: {last_error}. Please ensure the XML is valid and well-formed."
+                    current_prompt = prompt + retry_note
+                else:
+                    current_prompt = prompt
 
-        return response
+                # Generate XML from LLM
+                response = await self._call_llm(job, current_prompt)
+
+                # Validate and fix if needed
+                validated_xml, is_valid = await self._validate_and_fix_xml(job, response, attempt)
+
+                if is_valid:
+                    logger.info(f"Successfully generated valid wiki structure XML (attempt {attempt})")
+                    return validated_xml
+                else:
+                    last_error = "Invalid XML structure"
+                    logger.warning(f"XML validation failed on attempt {attempt}/{max_retries}")
+
+                    # Wait before retry (exponential backoff)
+                    if attempt < max_retries:
+                        wait_time = 2 ** attempt  # 2s, 4s, 8s
+                        logger.info(f"Waiting {wait_time}s before retry...")
+                        await asyncio.sleep(wait_time)
+
+            except Exception as e:
+                last_error = str(e)
+                logger.error(f"Error generating wiki structure XML (attempt {attempt}/{max_retries}): {e}")
+
+                if attempt < max_retries:
+                    wait_time = 2 ** attempt
+                    logger.info(f"Waiting {wait_time}s before retry...")
+                    await asyncio.sleep(wait_time)
+                else:
+                    raise ValueError(f"Failed to generate valid wiki structure XML after {max_retries} attempts: {last_error}")
+
+        # If we get here, all retries failed
+        raise ValueError(f"Failed to generate valid wiki structure XML after {max_retries} attempts: {last_error}")
 
     def _parse_wiki_structure(self, xml_text: str, is_comprehensive: bool) -> tuple:
-        """Parse wiki structure XML into structure dict and pages list."""
+        """Parse wiki structure XML into structure dict and pages list.
+
+        Note: XML validation should be done before calling this method using _validate_and_fix_xml.
+        """
         structure = {
             "id": "wiki",
             "title": "",
@@ -1001,36 +1257,9 @@ REQUIREMENTS:
         pages = []
 
         try:
-            # Extract XML content
-            match = re.search(r'<wiki_structure>[\s\S]*?</wiki_structure>', xml_text)
-            if not match:
-                logger.error("No wiki_structure tag found in XML")
-                return structure, pages
-
-            xml_content = match.group(0)
-            # Remove invalid characters
-            xml_content = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', xml_content)
-            
-            # Escape & characters that are not part of an entity
-            xml_content = re.sub(r'&(?!(?:amp|lt|gt|apos|quot|#\d+|#x[0-9a-fA-F]+);)', '&amp;', xml_content)
-
-            try:
-                root = ET.fromstring(xml_content)
-            except ET.ParseError as e:
-                logger.error(f"Error parsing wiki structure XML: {e}")
-                logger.error(f"Problematic XML content (first 500 chars): {xml_content[:500]}")
-                
-                # Attempt fallback: try to wrap content in a root tag if missing or recover from simple errors
-                try:
-                    # Sometimes the root tag might be malformed or missing attributes causing issues
-                    # Let's try to re-parse with a cleaner approach if possible, or just raise
-                    # For now, we'll try to wrap in a dummy root if it looks like a fragment
-                    if not xml_content.strip().startswith('<wiki_structure>'):
-                         root = ET.fromstring(f"<wiki_structure>{xml_content}</wiki_structure>")
-                    else:
-                        raise ValueError(f"Invalid wiki structure XML: {e}")
-                except Exception:
-                     raise ValueError(f"Invalid wiki structure XML: {e}")
+            # XML should already be validated, just parse it
+            # The xml_text at this point should be clean and valid
+            root = ET.fromstring(xml_text)
 
             # Extract title and description
             title_el = root.find("title")
@@ -1092,9 +1321,13 @@ REQUIREMENTS:
             logger.info(f"Parsed wiki structure: {len(pages)} pages, {len(structure.get('sections', []))} sections")
 
         except ET.ParseError as e:
-            logger.error(f"Error parsing wiki structure XML: {e}")
-            if 'xml_content' in locals():
-                logger.error(f"Problematic XML content (first 500 chars): {xml_content[:500]}")
+            # This should not happen since XML is validated before this method is called
+            logger.error(f"Unexpected XML parsing error (XML should be pre-validated): {e}")
+            logger.error(f"Problematic XML content (first 500 chars): {xml_text[:500]}")
+            raise ValueError(f"Failed to parse pre-validated XML: {e}")
+        except Exception as e:
+            logger.error(f"Error parsing wiki structure: {e}")
+            raise
 
         return structure, pages
 

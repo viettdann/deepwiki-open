@@ -638,95 +638,67 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
         }));
         const repoUrlResolved = getRepoUrl(effectiveRepoInfo);
         const promptContent =
-`You are a senior software architect (10+ years experience) and technical writer.
-Your task is to generate a clear, comprehensive, and actionable technical wiki page in Markdown about a specific feature, system, or module in this project.
+`Senior architect + tech writer. Generate clear, actionable Markdown wiki for "${page.title}".
 
-You will be given:
-1. The "[WIKI_PAGE_TOPIC]" for the page you need to create.
-2. A list of "[RELEVANT_SOURCE_FILES]" from the project that you MUST use as the sole basis for the content. You have access to the full content of these files. You MUST use AT LEAST 5 relevant source files for comprehensive coverage - if fewer are provided, search for additional related files in the codebase.
+Input:
+1. [WIKI_PAGE_TOPIC]: ${page.title}
+2. [RELEVANT_SOURCE_FILES]: ≥4 files (find more if <4)
 
 Override: Absolute, Concise
+Language: Plain. Banned: comprehensive, robust, leverage, utilize, facilitate, seamless, cutting-edge, holistic, synergy, streamline.
 
-Language Style:
-- Plain, direct words only. No corporate/academic buzzwords.
-- Banned: comprehensive, robust, leverage, utilize, facilitate, seamless, cutting-edge, holistic, synergy, streamline.
-- Use instead: "use" not "utilize", "complete" not "comprehensive", "strong" not "robust".
-
-CRITICAL STARTING INSTRUCTION:
-The very first thing on the page MUST be a <details> block listing ALL the [RELEVANT_SOURCE_FILES] you used to generate the content. There MUST be AT LEAST 5 source files listed - if fewer were provided, you MUST find additional related files to include.
-Format it exactly like this:
+START <details> (no preface):
 <details>
 <summary>Relevant source files</summary>
 
-Remember, do not provide any acknowledgements, disclaimers, apologies, or any other preface before the <details> block. JUST START with the <details> block.
-The following files were used as context for generating this wiki page:
-
 ${filePaths.map(path => `- [${path}](${generateFileUrl(path)})`).join('\n')}
-<!-- Add additional relevant files if fewer than 5 were provided -->
+<!-- Add if <4 -->
 </details>
 
-Immediately after the <details> block, add the H1 title: # ${page.title}.
+H1: # ${page.title}
 
-Quality Standards:
-- Multi-dimensional analysis: Functional behavior, Architectural design, Implementation details, Operational concerns, and Evolution/maintainability.
-- Production-ready insights: performance, scalability, security, reliability/fault tolerance, and observability.
-- Explain design decisions and trade-offs grounded in the source files.
-- Make it actionable: specific guidance to use, extend, and safely modify the code.
+Quality:
+- Multi-dimensional: Functional, Architectural, Implementation, Operations, Maintainability
+- Production: performance, scalability, security, reliability, observability
+- Design decisions/trade-offs from source
+- Actionable: use, extend, modify
 
-Based ONLY on the content of the [RELEVANT_SOURCE_FILES]:
+From [RELEVANT_SOURCE_FILES] ONLY:
 
-1.  **Introduction:** Start with a concise introduction (1-2 paragraphs) explaining the purpose, scope, and high-level overview of "${page.title}" within the context of the overall project. If relevant, and if information is available in the provided files, link to other potential wiki pages using the format [Link Text](#page-anchor-or-id).
+1. **Intro:** 1-2 para → purpose, scope, overview. Link: [Text](#anchor)
 
-2.  **Detailed Sections:** Break down "${page.title}" into logical sections using H2 (##) and H3 (###) Markdown headings. For each section:
-    *   Explain the architecture, components, data flow, or logic relevant to the section's focus, as evidenced in the source files.
-    *   Identify key functions, classes, data structures, API endpoints, or configuration elements pertinent to that section.
+2. **Sections:** H2/H3
+   - Architecture, components, flow, logic
+   - Functions, classes, structures, APIs, config
 
-3.  **Mermaid Diagrams (when essential):**
-    *   Include at most 1–2 diagrams (e.g., graph TD, sequenceDiagram, classDiagram, erDiagram) only if they materially improve clarity.
-    *   Keep diagrams concise and derived from code; CRITICAL: follow strict top-down orientation:
-       - Use "graph TD" (top-down) directive for flow diagrams
-       - NEVER use "graph LR" (left-right)
-       - Maximum node width should be 3-4 words
-       - For sequence diagrams:
-         - Start with "sequenceDiagram" directive on its own line
-         - Define ALL participants at the beginning using "participant" keyword
-         - Optionally specify participant types: actor, boundary, control, entity, database, collections, queue
-         - Use descriptive but concise participant names, or use aliases: "participant A as Alice"
-         - Use the correct Mermaid arrow syntax (8 types available):
-           - -> solid line without arrow
-           - --> dotted line without arrow
-           - ->> solid line with arrowhead
-           - -->> dotted line with arrowhead
-           - ->x solid line with X at end
-           - -->x dotted line with X at end
-           - -) solid line with open arrow
-           - --) dotted line with open arrow
-         - Examples: A->>B: Request, B-->>A: Response, A->xB: Error, A-)B: Async event
-         - Use +/- suffix for activation boxes: A->>+B: Start, B-->>-A: End
-         - Group related participants using "box": box GroupName ... end
-         - Use structural elements for complex flows: loop, alt, opt, par, critical, break
-         - Add notes for clarification
-         - Use autonumber directive to add sequence numbers to messages
-         - NEVER use flowchart-style labels like A--|label|-->B. Always use a colon for labels: A->>B: My Label
+3. **Mermaid (≤3, if essential):**
+   - "graph TD" (NOT "graph LR")
+   - Max node: 3-4 words
+   - Sequence:
+     * "sequenceDiagram" line
+     * Participants: "participant A as Alice"
+     * Types: actor, boundary, control, entity, database, collections, queue
+     * Arrows: -> --> ->> -->> ->x -->x -) --)
+     * Ex: A->>B: Request, B-->>A: Response, A->xB: Error, A-)B: Async
+     * Activation: A->>+B: Start, B-->>-A: End
+     * Group: box Name ... end
+     * Structure: loop, alt, opt, par, critical, break
+     * Notes, autonumber
+     * Colon labels: A->>B: Label (NOT A--|label|-->B)
 
-4.  **Tables:**
-    *   Use Markdown tables to summarize information.
+4. **Tables:** Summarize
 
-5.  **Code Snippets (optional):**
-    *   Include short, focused snippets.
+5. **Snippets:** Short
 
-6.  **Source Citations:**
-    *   For EVERY piece of significant information, cite the specific source file(s) and relevant line numbers.
-    *   Use the exact format: Sources: [filename.ext:start_line-end_line]() or [file.ext:line]()
-    *   Cite AT LEAST 5 different source files across the page.
+6. **Citations:** [file.ext:line-line]() for key points. ≥4 files
 
-7.  **Technical Accuracy:** All information must be derived SOLELY from the [RELEVANT_SOURCE_FILES].
+7. **Accuracy:** Only [RELEVANT_SOURCE_FILES]
 
-8.  **Clarity and Conciseness:** Use clear, professional, and concise technical language.
+8. **Clarity:** Concise
 
-9.  **Conclusion/Summary:** End with a brief summary paragraph.
+9. **Summary:** Brief
 
-IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Việt)' : 'English'}.
+Lang: ${language === 'vi' ? 'Vietnamese' : 'English'}
 `;
         const requestBody: RequestBody = {
           repo_url: repoUrlResolved,
@@ -805,7 +777,7 @@ IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Vi
         type: effectiveRepoInfo.type,
         messages: [{
           role: 'user',
-          content: `Analyze this GitHub repository ${ownerLocal}/${repoLocal} and create a wiki structure for it.
+          content: `Analyze this repository ${ownerLocal}/${repoLocal} and create a wiki structure for it.
 
 The complete file tree of the project:
 <file_tree>
