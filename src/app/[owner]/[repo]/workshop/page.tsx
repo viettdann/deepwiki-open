@@ -553,15 +553,15 @@ Estimated time: 20-30 minutes | Combines concepts from all exercises
             <p className="text-[var(--foreground)]">{loadingMessage}</p>
           </div>
         ) : error ? (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
-            <h3 className="text-red-800 dark:text-red-400 font-medium mb-2">{messages.common?.error || 'Error'}</h3>
-            <p className="text-red-700 dark:text-red-300">{error}</p>
+          <div className="border border-[var(--accent-danger)]/30 bg-[var(--accent-danger)]/10 rounded-md p-4 mb-6">
+            <h3 className="text-[var(--accent-danger)] font-medium mb-2">{messages.common?.error || 'Error'}</h3>
+            <p className="text-[var(--foreground)]">{error}</p>
           </div>
         ) : (
           <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-sm p-6">
             {exportError && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3 mb-4">
-                <p className="text-red-700 dark:text-red-300 text-sm">{exportError}</p>
+              <div className="border border-[var(--accent-danger)]/30 bg-[var(--accent-danger)]/10 rounded-md p-3 mb-4">
+                <p className="text-[var(--foreground)] text-sm">{exportError}</p>
               </div>
             )}
             <Markdown content={workshopContent} />

@@ -32,6 +32,58 @@
   --highlight: #a78bfa;
   --muted: #64748b;
   --link-color: #a78bfa;
+
+  /* Theme effect intensities */
+  --mesh-opacity: 0.15;
+  --blur-intensity: 12px;
+}
+
+/* Light Theme - Terminal Codex Light (Day Mode) */
+.light {
+  /* Backgrounds - warm paper tones */
+  --background: #f0eeea; /* Slightly deeper paper */
+  --surface: #f8f6f2; /* Soft off-white for cards */
+  --surface-hover: #e7e5df; /* Deeper hover */
+
+  /* Text - deep navy for readability */
+  --foreground: #1a1a2e; /* Almost black navy */
+  --foreground-muted: #64748b; /* Slate gray */
+
+  /* Shadows & glows - softer for light */
+  --shadow-color: rgba(0, 0, 0, 0.12);
+  --glow-color: rgba(139, 92, 246, 0.1);
+
+  /* Gradients - same brand colors work on light */
+  --gradient-from: #8b5cf6;
+  --gradient-via: #a78bfa;
+  --gradient-to: #06b6d4;
+
+  /* Accents - slightly darker for contrast on light bg */
+  --accent-primary: #7c3aed; /* Deeper purple */
+  --accent-secondary: #8b5cf6; /* Standard purple */
+  --accent-cyan: #0891b2; /* Deeper cyan */
+  --accent-emerald: #059669; /* Deeper emerald */
+  --accent-success: #059669;
+  --accent-danger: #dc2626; /* Deeper red */
+  --accent-warning: #d97706; /* Deeper amber */
+
+  /* Borders - purple tint maintained */
+  --border-color: rgba(139, 92, 246, 0.15);
+  --border-subtle: rgba(100, 116, 139, 0.12);
+
+  /* Glass effects - white base for light mode */
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(139, 92, 246, 0.2);
+
+  /* Other */
+  --highlight: #7c3aed;
+  --muted: #94a3b8;
+  --link-color: #7c3aed;
+
+  /* Reduced effects for light mode */
+  --mesh-opacity: 0.08;
+  --blur-intensity: 10px;
 }
 
 /* Fix for unreadable <select> options in Chrome */
@@ -116,9 +168,9 @@ body::before {
   width: 200%;
   height: 200%;
   background:
-    radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 40% 20%, rgba(167, 139, 250, 0.1) 0%, transparent 50%);
+    radial-gradient(circle at 20% 50%, rgba(139, 92, 246, var(--mesh-opacity)) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(6, 182, 212, var(--mesh-opacity)) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, rgba(167, 139, 250, calc(var(--mesh-opacity) * 0.67)) 0%, transparent 50%);
   animation: gradient-shift 20s ease infinite;
   pointer-events: none;
   z-index: 0;
@@ -150,8 +202,8 @@ body > * {
 /* Glassmorphism effect */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(var(--blur-intensity));
+  -webkit-backdrop-filter: blur(var(--blur-intensity));
   border: 1px solid var(--glass-border);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
@@ -166,6 +218,16 @@ body > * {
   border-color: var(--accent-primary);
   box-shadow: 0 12px 40px 0 rgba(139, 92, 246, 0.2);
   transform: translateY(-2px);
+}
+
+/* Light mode glass adjustments */
+.light .glass {
+  box-shadow: 0 4px 16px 0 var(--shadow-color);
+}
+
+.light .glass-hover:hover {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 24px 0 rgba(139, 92, 246, 0.12);
 }
 
 /* Modal defaults: more opaque surfaces and backdrop */
@@ -263,6 +325,15 @@ body > * {
 
 .input-glass::placeholder {
   color: var(--muted);
+}
+
+/* Light mode input adjustments */
+.light .input-glass {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.light .input-glass:focus {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 /* Glass cards */
@@ -414,6 +485,27 @@ html {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-cyan);
+}
+
+/* Light mode scrollbar */
+.light ::-webkit-scrollbar-track {
+  background: var(--background);
+  border-left: 1px solid var(--border-subtle);
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cyan);
+}
+
+/* Light mode select fix */
+.light select option {
+  background: var(--surface);
+  color: var(--foreground);
 }
 
 /* Terminal scan-line effect (subtle) */

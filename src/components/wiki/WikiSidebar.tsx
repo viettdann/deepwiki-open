@@ -103,22 +103,19 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
               ) : (
                 <FaBitbucket className="text-[var(--accent-cyan)] flex-shrink-0" />
               )}
-              <a href={effectiveRepoInfo.repoUrl ?? ''} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--accent-cyan)] transition-colors truncate text-[var(--foreground-muted)]">
+              <a
+                href={effectiveRepoInfo.repoUrl ?? ''}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[var(--accent-cyan)] transition-colors truncate text-[var(--foreground-muted)]"
+              >
                 {effectiveRepoInfo.owner}/{effectiveRepoInfo.repo}
               </a>
+              <span className="text-[var(--muted)] whitespace-nowrap">
+                ({isComprehensiveView ? 'FULL_MODE' : 'SUMMARY_MODE'})
+              </span>
             </div>
           )}
-        </div>
-
-        {/* Wiki type badge */}
-        <div className="mb-4 flex items-center gap-2 text-xs font-mono">
-          <span className="text-gray-500">$ mode:</span>
-          <span className={`px-3 py-1 border font-mono text-xs relative overflow-hidden group ${isComprehensiveView ? 'bg-purple-950/50 text-purple-400 border-purple-500/50' : 'bg-gray-900 text-gray-400 border-gray-700'}`}>
-            <span className="relative z-10">{isComprehensiveView ? 'FULL' : 'BRIEF'}</span>
-            {isComprehensiveView && (
-              <span className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></span>
-            )}
-          </span>
         </div>
 
         {/* Action buttons */}
@@ -132,28 +129,28 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
             <button
               onClick={() => setShowRegenerateMenu(!showRegenerateMenu)}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 text-xs font-mono px-4 py-3 bg-black/50 border border-cyan-500/30 rounded-none font-mono text-cyan-400 hover:bg-cyan-950/30 hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
+              className="w-full flex items-center justify-center gap-2 text-xs font-mono px-4 py-3 bg-[var(--surface)]/90 border border-[var(--border-color)] rounded-none text-[var(--accent-cyan)] hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)]/60 hover:shadow-[0_0_18px_rgba(6,182,212,0.25)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
             >
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-700"></span>
-              <FaSync className={`relative z-10 ${isLoading ? 'animate-spin' : ''} text-cyan-400`} />
-              <span className="relative z-10">REGENERATE_WIKI.EXE</span>
-              <FaChevronDown className={`ml-auto relative z-10 transition-transform duration-200 ${showRegenerateMenu ? 'rotate-180' : ''} text-cyan-400`} />
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--accent-cyan)]/12 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-700"></span>
+              <FaSync className={`relative z-10 ${isLoading ? 'animate-spin' : ''}`} />
+              <span className="relative z-10 tracking-tight">REGENERATE_WIKI.SH</span>
+              <FaChevronDown className={`ml-auto relative z-10 transition-transform duration-200 ${showRegenerateMenu ? 'rotate-180' : ''}`} />
             </button>
 
             {showRegenerateMenu && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-black/90 border border-cyan-500/50 rounded-none shadow-[0_0_30px_rgba(6,182,212,0.5)] overflow-hidden z-50">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--background)] border border-[var(--border-color)] rounded-md shadow-[0_12px_40px_rgba(0,0,0,0.35)] overflow-hidden z-50">
                 {/* Terminal header */}
-                <div className="bg-gradient-to-r from-gray-900 to-black px-3 py-1 border-b border-cyan-500/30 flex items-center gap-2">
+                <div className="bg-[var(--surface-hover)] px-3 py-1 border-b border-[var(--border-color)] flex items-center gap-2">
                   <div className="flex gap-1">
                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
                     <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
                     <div className="w-2 h-2 rounded-full bg-green-500"></div>
                   </div>
-                  <span className="text-xs text-cyan-400 font-mono flex-1 text-center">regenerate_options.sh</span>
+                  <span className="text-xs text-[var(--foreground-muted)] font-mono flex-1 text-center">regenerate_options.sh</span>
                 </div>
 
                 {/* Menu options */}
-                <div className="p-1">
+                <div className="p-1 bg-[var(--background)]">
                   <RoleBasedButton
                     onAdminClick={() => {
                       setShowRegenerateMenu(false);
@@ -162,18 +159,18 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
                     }}
                     actionDescription={`refresh wiki for "${effectiveRepoInfo.repo}" with existing data`}
                     disabled={isLoading}
-                    className="w-full flex items-center gap-3 text-xs font-mono px-4 py-3 border-0 bg-transparent hover:bg-purple-950/30 hover:text-purple-400 text-gray-400 transition-all duration-200 text-left group relative overflow-hidden"
+                    className="w-full flex items-center gap-3 text-xs font-mono px-4 py-3 border-0 bg-transparent hover:bg-[var(--accent-primary)]/10 hover:text-[var(--accent-primary)] text-[var(--foreground-muted)] transition-all duration-200 text-left group relative overflow-hidden"
                   >
-                    <span className="text-purple-400">▸</span>
+                    <span className="text-[var(--accent-primary)]">▸</span>
                     <div className="flex-1">
-                      <div className="text-purple-400 group-hover:text-purple-300">01_REFRESH_CACHE</div>
-                      <div className="text-xs text-gray-500 mt-1 font-mono opacity-70"># Keep existing repo and embeddings</div>
+                      <div className="text-[var(--accent-primary)] group-hover:text-[var(--accent-primary)]/90">01_REFRESH_CACHE</div>
+                      <div className="text-xs text-[var(--muted)] mt-1 font-mono opacity-80"># Keep existing repo and embeddings</div>
                     </div>
-                    <FaSync className="text-purple-500 group-hover:text-purple-400" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/5 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
+                    <FaSync className="text-[var(--accent-primary)] group-hover:text-[var(--accent-primary)]/90" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--accent-primary)]/6 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
                   </RoleBasedButton>
 
-                  <div className="border-t border-cyan-500/20 my-1"></div>
+                  <div className="border-t border-[var(--border-subtle)] my-1"></div>
 
                   <RoleBasedButton
                     onAdminClick={() => {
@@ -183,20 +180,20 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
                     }}
                     actionDescription={`clean regenerate wiki for "${effectiveRepoInfo.repo}" with fresh data`}
                     disabled={isLoading}
-                    className="w-full flex items-center gap-3 text-xs font-mono px-4 py-3 border-0 bg-transparent hover:bg-red-950/30 hover:text-red-400 text-gray-400 transition-all duration-200 text-left group relative overflow-hidden"
+                    className="w-full flex items-center gap-3 text-xs font-mono px-4 py-3 border-0 bg-transparent hover:bg-[var(--accent-danger)]/10 hover:text-[var(--accent-danger)] text-[var(--foreground-muted)] transition-all duration-200 text-left group relative overflow-hidden"
                   >
-                    <span className="text-red-400">▸</span>
+                    <span className="text-[var(--accent-danger)]">▸</span>
                     <div className="flex-1">
-                      <div className="text-red-400 group-hover:text-red-300">02_CLEAN_GENERATE</div>
-                      <div className="text-xs text-gray-500 mt-1 font-mono opacity-70"># Fresh clone, new embeddings</div>
+                      <div className="text-[var(--accent-danger)] group-hover:text-[var(--accent-danger)]/90">02_CLEAN_GENERATE</div>
+                      <div className="text-xs text-[var(--muted)] mt-1 font-mono opacity-80"># Fresh clone, new embeddings</div>
                     </div>
-                    <FaTrash className="text-red-500 group-hover:text-red-400" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/5 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
+                    <FaTrash className="text-[var(--accent-danger)] group-hover:text-[var(--accent-danger)]/90" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--accent-danger)]/8 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
                   </RoleBasedButton>
                 </div>
 
                 {/* Terminal footer */}
-                <div className="bg-black/50 px-3 py-1 border-t border-cyan-500/30">
+                <div className="bg-[var(--surface-hover)]/80 px-3 py-1 border-t border-[var(--border-color)]/60">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-green-400 font-mono">ready</span>
                     <span className="text-xs text-gray-500 font-mono animate-pulse">_</span>
@@ -216,7 +213,7 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
                 <span className="animate-pulse">▸</span> export_wiki.sh
               </h4>
             </div>
-            <div className="bg-black/40 border border-cyan-500/20 rounded-none overflow-hidden">
+            <div className="bg-[var(--surface)]/80 border border-[var(--border-color)]/60 rounded-none overflow-hidden">
               <div className="p-2 space-y-1">
                 <ExportButton
                   wikiStructure={wikiStructure}
@@ -242,7 +239,7 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
               <span className="animate-pulse">▸</span> navigation_tree.sh
             </h4>
           </div>
-          <div className="bg-black/40 border border-cyan-500/20 rounded-none p-2 max-h-96 overflow-y-auto custom-scrollbar">
+          <div className="bg-[var(--surface)]/80 border border-[var(--border-color)]/60 rounded-none p-2 max-h-96 overflow-y-auto custom-scrollbar">
             <WikiTreeView
               wikiStructure={wikiStructure}
               currentPageId={currentPageId}
