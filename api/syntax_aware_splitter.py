@@ -48,8 +48,26 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 MAX_FILE_SIZE_BYTES: int = 500 * 1024  # 500 KB
 MAX_NESTING_DEPTH: int = 2
-MAX_EMBEDDING_TOKENS: int = 8192  # OpenAI embedding model limit
 OVERLAP_LINES: int = 4  # Number of context lines to include at block boundaries
+
+def _compute_max_embedding_tokens() -> int:
+    """
+    Compute the maximum token limit based on the current embedder model configuration.
+
+    Returns:
+        int: Maximum embedding tokens (16384 for text-embedding-3-large, 8000 otherwise)
+    """
+    try:
+        # Import here to avoid circular dependency
+        from api.data_pipeline import MAX_EMBEDDING_TOKENS
+        return MAX_EMBEDDING_TOKENS
+    except ImportError:
+        # Fallback to default if import fails
+        return 8000
+
+# Maximum token limit for embedding models (computed at module load time)
+# 16384 for text-embedding-3-large, 8000 for other models
+MAX_EMBEDDING_TOKENS: int = _compute_max_embedding_tokens()
 
 # Rough token-to-word ratio when tokenizer fails (conservative estimate)
 FALLBACK_TOKEN_RATIO: float = 1.3
@@ -785,9 +803,10 @@ class CodeAwareTextSplitter(TextSplitter):
                 # Handle oversized blocks by falling back to base splitter
                 if token_count > MAX_EMBEDDING_TOKENS:
                     log.warning(
-                        "Block '%s' too large (%d tokens); sub-splitting",
+                        "Block '%s' too large (%d tokens > %d); sub-splitting",
                         block.symbol_name,
                         token_count,
+                        MAX_EMBEDDING_TOKENS,
                     )
                     temp_doc = Document(
                         text=block.text,

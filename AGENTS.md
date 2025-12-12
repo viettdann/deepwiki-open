@@ -56,10 +56,74 @@ docker-compose up     # Run full stack
 - `NODE_ENV`: `development` or `production`
 
 ### Embedder Configuration
-- `DEEPWIKI_EMBEDDER_TYPE`: `openai` (default), `google`, `ollama`, `openrouter`, or `azure`
+- `DEEPWIKI_EMBEDDER_TYPE`: `openai` (default), `google`, `ollama`, `openrouter`, `azure`, or `azure_ha`
 - `USE_SYNTAX_AWARE_CHUNKING`: Enable syntax-aware code chunking (`true` or `false`, default: `false`; `.env.example` now ships with it set to `true`)
   - Respects code boundaries for C#, TypeScript, and JavaScript
   - Requires regenerating embeddings for existing repositories after enabling
+
+### Azure High Availability (HA) Embedder Configuration (for `azure_ha` embedder)
+When using `DEEPWIKI_EMBEDDER_TYPE=azure_ha`, you can configure multiple Azure OpenAI endpoints for automatic failover:
+
+**Option 1: Array Format (Most Concise)**
+```bash
+# Format: ["endpoint1:key1", "endpoint2:key2", ...]
+# Optional: Include version: ["endpoint1:key1:version1", "endpoint2:key2:version2", ...]
+export AZURE_EMBEDDING_HA='["https://primary.openai.azure.com/:key1", "https://secondary.openai.azure.com/:key2"]'
+```
+
+**Option 2: JSON Configuration File (Recommended)**
+```bash
+# Set path to configuration file
+export AZURE_HA_CONFIG="/path/to/azure_ha_endpoints.json"
+```
+Example `azure_ha_endpoints.json`:
+```json
+{
+  "endpoints": [
+    {
+      "name": "primary",
+      "endpoint": "https://primary-resource.openai.azure.com/",
+      "api_key": "your-primary-api-key-here",
+      "api_version": "2025-04-01-preview",
+      "use_v1": false
+    },
+    {
+      "name": "secondary",
+      "endpoint": "https://secondary-resource.openai.azure.com/",
+      "api_key": "your-secondary-api-key-here",
+      "api_version": "2025-04-01-preview",
+      "use_v1": false
+    }
+  ]
+}
+```
+
+**Option 3: JSON String in Environment Variable**
+```bash
+export AZURE_HA_ENDPOINTS='[
+  {
+    "name": "primary",
+    "endpoint": "https://primary-resource.openai.azure.com/",
+    "api_key": "your-primary-api-key-here",
+    "api_version": "2025-04-01-preview",
+    "use_v1": false
+  },
+  {
+    "name": "secondary",
+    "endpoint": "https://secondary-resource.openai.azure.com/",
+    "api_key": "your-secondary-api-key-here",
+    "api_version": "2025-04-01-preview",
+    "use_v1": false
+  }
+]'
+```
+
+**HA Behavior:**
+- Automatically switches to next available endpoint when rate limits are hit
+- Tracks rate limit retry-after headers and respects cooldown periods
+- Rotates through endpoints in round-robin fashion
+- Marks endpoints with repeated failures as temporarily unavailable
+- Logs all endpoint switches and rate limit events
 
 ### Worker Concurrency (Optional)
 - `DEEPWIKI_PAGE_CONCURRENCY`: Number of pages to generate in parallel within a single job (default: `1`)

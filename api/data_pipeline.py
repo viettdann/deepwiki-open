@@ -22,8 +22,45 @@ from api.tools.embedder import get_embedder
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Maximum token limit for OpenAI embedding models
-MAX_EMBEDDING_TOKENS = 8192
+def _compute_max_embedding_tokens() -> int:
+    """
+    Compute the maximum token limit based on the current embedder model configuration.
+
+    Returns:
+        int: Maximum embedding tokens (16384 for text-embedding-3-large, 8000 otherwise)
+    """
+    from api.config import get_embedder_type
+
+    # Determine embedder type from configuration
+    embedder_type = get_embedder_type()
+
+    # Get the embedder configuration
+    if embedder_type == 'google':
+        embedder_config = configs.get("embedder_google", {})
+    elif embedder_type == 'ollama':
+        embedder_config = configs.get("embedder_ollama", {})
+    elif embedder_type == 'openrouter':
+        embedder_config = configs.get("embedder_openrouter", {})
+    elif embedder_type == 'azure':
+        embedder_config = configs.get("embedder_azure", {})
+    elif embedder_type == 'azure_ha':
+        embedder_config = configs.get("embedder_azure_ha", {})
+    else:
+        embedder_config = configs.get("embedder", {})
+
+    # Get model name from configuration
+    model_name = embedder_config.get("model_kwargs", {}).get("model", "")
+
+    # Check if the model is text-embedding-3-large (handles both direct and openrouter format)
+    if "text-embedding-3-large" in model_name:
+        return 16384
+
+    # Default to 8000 for all other models
+    return 8000
+
+# Maximum token limit for embedding models (computed at module load time)
+# 16384 for text-embedding-3-large, 8000 for other models
+MAX_EMBEDDING_TOKENS = _compute_max_embedding_tokens()
 
 def count_tokens(text: str, embedder_type: str = None, is_ollama_embedder: bool = None) -> int:
     """
@@ -408,7 +445,7 @@ def read_all_documents(path: str, embedder_type: str = None, is_ollama_embedder:
                     # Check token count
                     token_count = count_tokens(content, embedder_type)
                     if token_count > MAX_EMBEDDING_TOKENS * 10:
-                        logger.warning(f"Skipping large file {relative_path}: Token count ({token_count}) exceeds limit")
+                        logger.warning(f"Skipping large file {relative_path}: Token count ({token_count}) exceeds limit ({MAX_EMBEDDING_TOKENS * 10})")
                         continue
 
                     doc = Document(
@@ -442,7 +479,7 @@ def read_all_documents(path: str, embedder_type: str = None, is_ollama_embedder:
                     # Check token count
                     token_count = count_tokens(content, embedder_type)
                     if token_count > MAX_EMBEDDING_TOKENS:
-                        logger.warning(f"Skipping large file {relative_path}: Token count ({token_count}) exceeds limit")
+                        logger.warning(f"Skipping large file {relative_path}: Token count ({token_count}) exceeds limit ({MAX_EMBEDDING_TOKENS})")
                         continue
 
                     doc = Document(

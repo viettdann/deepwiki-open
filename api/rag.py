@@ -45,8 +45,29 @@ from api.data_pipeline import DatabaseManager
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Maximum token limit for embedding models
-MAX_INPUT_TOKENS = 7500  # Safe threshold below 8192 token limit
+# Dynamic maximum token limit for embedding models
+def _compute_max_input_tokens() -> int:
+    """
+    Compute the maximum input token limit based on the current embedder model configuration.
+    Rounds to nearest thousand for safety margins.
+
+    Returns:
+        int: Maximum input tokens (rounded down to nearest thousand)
+    """
+    from api.data_pipeline import _compute_max_embedding_tokens
+
+    # Get the maximum embedding tokens from data_pipeline
+    max_embedding_tokens = _compute_max_embedding_tokens()
+
+    # Round down to nearest thousand for safety margin
+    # Examples: 16384 -> 16000, 8000 -> 8000, 8192 -> 8000
+    rounded_limit = (max_embedding_tokens // 1000) * 1000
+
+    logger.info(f"Computed max input tokens: {rounded_limit} (from {max_embedding_tokens} embedding limit)")
+    return rounded_limit
+
+# Compute MAX_INPUT_TOKENS at module load time
+MAX_INPUT_TOKENS = _compute_max_input_tokens()
 
 class Memory(adal.core.component.DataComponent):
     """Simple conversation management with a list of dialog turns."""

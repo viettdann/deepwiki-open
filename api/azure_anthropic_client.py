@@ -167,7 +167,7 @@ class AzureAnthropicClient(ModelClient):
 
             # Ensure max_tokens is set (required for Anthropic)
             if "max_tokens" not in final_kwargs:
-                final_kwargs["max_tokens"] = 4096
+                final_kwargs["max_tokens"] = 8096
 
             # CRITICAL: Claude API does not allow both temperature and top_p
             if "temperature" in final_kwargs and "top_p" in final_kwargs:

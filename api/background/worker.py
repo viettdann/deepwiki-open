@@ -9,6 +9,7 @@ import os
 import re
 import time
 import xml.etree.ElementTree as ET
+from xml.dom.minidom import parseString
 from typing import Optional, Dict, Any, List, Callable, Awaitable
 
 import google.generativeai as genai
@@ -946,6 +947,174 @@ IMPORTANT:
 
         return response
 
+    def _validate_and_fix_wiki_structure_xml(self, content: str) -> str:
+        """Validate and fix wiki_structure XML content.
+
+        This method ensures the XML is properly formatted and valid by:
+        1. Extracting the wiki_structure XML
+        2. Validating it can be parsed
+        3. Attempting to rebuild it if validation fails
+
+        Args:
+            content: Raw content from LLM that may contain wiki_structure XML
+
+        Returns:
+            Validated/fixed XML content, or original content if not wiki_structure XML
+        """
+        # First, remove markdown code blocks if present
+        cleaned_content = content.strip()
+        if cleaned_content.startswith("```xml"):
+            cleaned_content = cleaned_content.replace("```xml", "", 1).strip()
+        if cleaned_content.startswith("```"):
+            cleaned_content = cleaned_content.replace("```", "", 1).strip()
+        if cleaned_content.endswith("```"):
+            cleaned_content = cleaned_content.rsplit("```", 1)[0].strip()
+
+        # Check if it's likely XML
+        if not (cleaned_content.startswith("<") and ">" in cleaned_content):
+            logger.debug("Content doesn't appear to be XML")
+            return content
+
+        # Check if it's a wiki_structure XML
+        if "<wiki_structure>" not in cleaned_content:
+            logger.debug("Content doesn't contain wiki_structure tag")
+            return content
+
+        # Use cleaned content from here on
+        content = cleaned_content
+
+        logger.info("Found wiki_structure XML, ensuring proper format")
+
+        # Extract just the wiki_structure XML
+        wiki_match = re.search(r'<wiki_structure>[\s\S]*?</wiki_structure>', content)
+        if not wiki_match:
+            logger.warning("Could not extract wiki_structure XML with regex")
+            if "</wiki_structure>" not in content:
+                logger.error("Closing tag </wiki_structure> is MISSING! XML is incomplete - response may have been truncated")
+            # Return the cleaned content anyway (without markdown blocks)
+            return content
+
+        # Get the raw XML
+        raw_xml = wiki_match.group(0)
+
+        # Clean the XML by removing any leading/trailing whitespace
+        clean_xml = raw_xml.strip()
+
+        # Try to fix common XML issues
+        try:
+            # Replace problematic characters in XML
+            fixed_xml = clean_xml
+
+            # Replace & with &amp; if not already part of an entity
+            fixed_xml = re.sub(r'&(?!amp;|lt;|gt;|apos;|quot;)', '&amp;', fixed_xml)
+
+            # Fix other common XML issues
+            fixed_xml = fixed_xml.replace('</', '</').replace('  >', '>')
+
+            # Try to parse the fixed XML
+            dom = parseString(fixed_xml)
+
+            # Get the pretty-printed XML with proper indentation
+            pretty_xml = dom.toprettyxml()
+
+            # Remove XML declaration
+            if pretty_xml.startswith('<?xml'):
+                pretty_xml = pretty_xml[pretty_xml.find('?>')+2:].strip()
+
+            logger.info("Successfully validated and formatted XML")
+            return pretty_xml
+
+        except Exception as xml_parse_error:
+            logger.warning(f"XML validation failed: {str(xml_parse_error)}, attempting to rebuild")
+
+            # If XML validation fails, try a more aggressive approach
+            try:
+                # Use regex to extract just the structure without any problematic characters
+
+                # Extract the basic structure
+                structure_match = re.search(r'<wiki_structure>(.*?)</wiki_structure>', clean_xml, re.DOTALL)
+                if not structure_match:
+                    logger.warning("Could not extract wiki_structure content")
+                    return clean_xml
+
+                structure = structure_match.group(1).strip()
+
+                # Rebuild a clean XML structure
+                clean_structure = "<wiki_structure>\n"
+
+                # Extract title
+                title_match = re.search(r'<title>(.*?)</title>', structure, re.DOTALL)
+                if title_match:
+                    title = title_match.group(1).strip()
+                    # Escape XML special characters
+                    title = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    clean_structure += f"  <title>{title}</title>\n"
+
+                # Extract description
+                desc_match = re.search(r'<description>(.*?)</description>', structure, re.DOTALL)
+                if desc_match:
+                    desc = desc_match.group(1).strip()
+                    # Escape XML special characters
+                    desc = desc.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    clean_structure += f"  <description>{desc}</description>\n"
+
+                # Add pages section
+                clean_structure += "  <pages>\n"
+
+                # Extract pages
+                pages = re.findall(r'<page id="(.*?)">(.*?)</page>', structure, re.DOTALL)
+                for page_id, page_content in pages:
+                    # Escape page_id
+                    page_id = page_id.replace('&', '&amp;').replace('"', '&quot;')
+                    clean_structure += f'    <page id="{page_id}">\n'
+
+                    # Extract page title
+                    page_title_match = re.search(r'<title>(.*?)</title>', page_content, re.DOTALL)
+                    if page_title_match:
+                        page_title = page_title_match.group(1).strip()
+                        page_title = page_title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                        clean_structure += f"      <title>{page_title}</title>\n"
+
+                    # Extract page description
+                    page_desc_match = re.search(r'<description>(.*?)</description>', page_content, re.DOTALL)
+                    if page_desc_match:
+                        page_desc = page_desc_match.group(1).strip()
+                        page_desc = page_desc.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                        clean_structure += f"      <description>{page_desc}</description>\n"
+
+                    # Extract importance
+                    importance_match = re.search(r'<importance>(.*?)</importance>', page_content, re.DOTALL)
+                    if importance_match:
+                        importance = importance_match.group(1).strip()
+                        clean_structure += f"      <importance>{importance}</importance>\n"
+
+                    # Extract relevant files
+                    clean_structure += "      <relevant_files>\n"
+                    file_paths = re.findall(r'<file_path>(.*?)</file_path>', page_content, re.DOTALL)
+                    for file_path in file_paths:
+                        file_path = file_path.strip().replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                        clean_structure += f"        <file_path>{file_path}</file_path>\n"
+                    clean_structure += "      </relevant_files>\n"
+
+                    # Extract related pages
+                    clean_structure += "      <related_pages>\n"
+                    related_pages = re.findall(r'<related>(.*?)</related>', page_content, re.DOTALL)
+                    for related in related_pages:
+                        related = related.strip()
+                        clean_structure += f"        <related>{related}</related>\n"
+                    clean_structure += "      </related_pages>\n"
+
+                    clean_structure += "    </page>\n"
+
+                clean_structure += "  </pages>\n</wiki_structure>"
+
+                logger.info("Successfully rebuilt clean XML structure")
+                return clean_structure
+
+            except Exception as rebuild_error:
+                logger.warning(f"Failed to rebuild XML: {str(rebuild_error)}, using raw XML")
+                return clean_xml
+
     def _parse_wiki_structure(self, xml_text: str, is_comprehensive: bool) -> tuple:
         """Parse wiki structure XML into structure dict and pages list."""
         structure = {
@@ -1227,7 +1396,7 @@ IMPORTANT: Generate the content in {language_name}."""
                 model_kwargs = {
                     "model": model,
                     "stream": True,
-                    "max_tokens": model_config.get("max_tokens", 4096),
+                    "max_tokens": model_config.get("max_tokens", 16384),
                 }
                 if "temperature" in model_config:
                     model_kwargs["temperature"] = model_config["temperature"]
@@ -1327,6 +1496,9 @@ IMPORTANT: Generate the content in {language_name}."""
         except Exception as e:
             logger.error(f"LLM call failed: {e}")
             raise
+
+        # Validate and fix wiki_structure XML if present
+        content = self._validate_and_fix_wiki_structure_xml(content)
 
         return content
 

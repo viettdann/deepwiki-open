@@ -12,6 +12,7 @@ from api.openrouter_client import OpenRouterClient
 from api.google_embedder_client import GoogleEmbedderClient
 from api.deepseek_client import DeepSeekClient
 from api.azureai_client import AzureAIClient
+from api.azure_ha_client import AzureHAClient
 from api.azure_anthropic_client import AzureAnthropicClient
 from adalflow import GoogleGenAIClient, OllamaClient
 
@@ -74,6 +75,7 @@ CLIENT_CLASSES = {
     "DeepSeekClient": DeepSeekClient,
     "AzureAIClient": AzureAIClient,
     "AzureAnthropicClient": AzureAnthropicClient,
+    "AzureHAClient": AzureHAClient,
 }
 
 def replace_env_placeholders(config: Union[Dict[str, Any], List[Any], str, Any]) -> Union[Dict[str, Any], List[Any], str, Any]:
@@ -165,7 +167,7 @@ def load_embedder_config():
     embedder_config = load_json_config("embedder.json")
 
     # Process client classes
-    for key in ["embedder", "embedder_ollama", "embedder_google", "embedder_openrouter", "embedder_azure"]:
+    for key in ["embedder", "embedder_ollama", "embedder_google", "embedder_openrouter", "embedder_azure", "embedder_azure_ha"]:
         if key in embedder_config and "client_class" in embedder_config[key]:
             class_name = embedder_config[key]["client_class"]
             if class_name in CLIENT_CLASSES:
@@ -253,9 +255,9 @@ def is_azure_embedder():
 def get_embedder_type():
     """
     Get the current embedder type based on configuration.
-    
+
     Returns:
-        str: 'ollama', 'google', 'openrouter', 'azure', or 'openai' (default)
+        str: 'ollama', 'google', 'openrouter', 'azure', 'azure_ha', or 'openai' (default)
     """
     if is_ollama_embedder():
         return 'ollama'
@@ -263,6 +265,8 @@ def get_embedder_type():
         return 'google'
     elif is_openrouter_embedder():
         return 'openrouter'
+    elif EMBEDDER_TYPE == 'azure_ha':
+        return 'azure_ha'
     elif is_azure_embedder():
         return 'azure'
     else:
@@ -358,7 +362,7 @@ if generator_config:
 
 # Update embedder configuration
 if embedder_config:
-    for key in ["embedder", "embedder_ollama", "embedder_google", "embedder_openrouter", "embedder_azure", "retriever", "text_splitter"]:
+    for key in ["embedder", "embedder_ollama", "embedder_google", "embedder_openrouter", "embedder_azure", "embedder_azure_ha", "retriever", "text_splitter"]:
         if key in embedder_config:
             configs[key] = embedder_config[key]
 

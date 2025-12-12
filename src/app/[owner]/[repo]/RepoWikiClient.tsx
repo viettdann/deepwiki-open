@@ -15,7 +15,7 @@ import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { findActiveJob, startBackgroundWikiGeneration } from '@/utils/backgroundJobClient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FaBitbucket, FaBookOpen, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes } from 'react-icons/fa';
+import { FaBitbucket, FaBookOpen, FaChevronDown, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes, FaTrash } from 'react-icons/fa';
 
 interface WikiSection {
   id: string;
@@ -47,12 +47,72 @@ interface WikiStructure {
 
 const wikiStyles = `
   /* Terminal Codex Wiki Styles */
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, rgba(6, 182, 212, 0.6), rgba(6, 182, 212, 0.3));
+    border-radius: 3px;
+    transition: all 0.3s ease;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to bottom, rgba(6, 182, 212, 0.8), rgba(6, 182, 212, 0.5));
+    box-shadow: 0 0 5px rgba(6, 182, 212, 0.5);
+  }
+
+  /* Scanline effect */
+  @keyframes scanline {
+    0% {
+      background-position: 0 0;
+    }
+    100% {
+      background-position: 0 10px;
+    }
+  }
+
+  .scanline-effect::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(to bottom, transparent, rgba(6, 182, 212, 0.3), transparent);
+    animation: scanline 8s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Terminal cursor blink */
+  @keyframes cursor-blink {
+    0%, 49% {
+      opacity: 1;
+    }
+    50%, 100% {
+      opacity: 0;
+    }
+  }
+
+  .terminal-cursor {
+    animation: cursor-blink 1s infinite;
+  }
+
   .prose {
     @apply text-[var(--foreground)] max-w-none;
     word-wrap: break-word;
     overflow-wrap: break-word;
     font-size: 15px;
     line-height: 1.75;
+    position: relative;
   }
 
   .prose * {
@@ -453,6 +513,23 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   const [currentToken, setCurrentToken] = useState(token);
   const [effectiveRepoInfo, setEffectiveRepoInfo] = useState(repoInfo);
   const [embeddingError, setEmbeddingError] = useState(false);
+  const [showRegenerateMenu, setShowRegenerateMenu] = useState(false);
+  const [cleanRegenerateMode, setCleanRegenerateMode] = useState(false);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showRegenerateMenu) {
+        const target = event.target as Element;
+        if (!target.closest('.regenerate-dropdown')) {
+          setShowRegenerateMenu(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showRegenerateMenu]);
 
   const [selectedProviderState, setSelectedProviderState] = useState(providerParam);
   const [selectedModelState, setSelectedModelState] = useState(modelParam);
@@ -1271,7 +1348,10 @@ Return your analysis in the specified XML format.`
   }, [wikiStructure, generatedPages, effectiveRepoInfo, language]);
 
   const confirmRefresh = useCallback(async (newToken?: string, config?: {provider: string, model: string, isCustomModel: boolean, customModel: string, isComprehensiveView: boolean}) => {
-    setLoadingMessage(messages.loading?.clearingCache || 'Clearing server cache...');
+    setLoadingMessage(cleanRegenerateMode ?
+      (messages.loading?.clearingAllData || 'Removing all cached data and repository...') :
+      (messages.loading?.clearingCache || 'Clearing server cache...')
+    );
     setIsLoading(true);
 
     // Use config values if provided, otherwise fall back to state
@@ -1282,13 +1362,12 @@ Return your analysis in the specified XML format.`
     const comprehensive = config?.isComprehensiveView ?? isComprehensiveView;
 
     try {
-      // DELETE only needs: owner, repo, repo_type, language, authorization_code
-      // Cache filename doesn't include provider/model/comprehensive/filters
+      // For clean regenerate, delete everything; otherwise just delete cache
+      const endpoint = cleanRegenerateMode ? '/api/wiki_repository' : '/api/wiki_cache';
       const params = new URLSearchParams({
         owner: effectiveRepoInfo.owner,
         repo: effectiveRepoInfo.repo,
         repo_type: effectiveRepoInfo.type,
-        language: language,
       });
       if (authCode) {
         params.append('authorization_code', authCode);
@@ -1298,7 +1377,7 @@ Return your analysis in the specified XML format.`
         setError('Authorization code is required');
         return;
       }
-      const response = await fetch(`/api/wiki_cache?${params.toString()}`, { method: 'DELETE', headers: { 'Accept': 'application/json' } });
+      const response = await fetch(`${endpoint}?${params.toString()}`, { method: 'DELETE', headers: { 'Accept': 'application/json' } });
       if (!response.ok) {
         const errorText = await response.text();
         if(response.status == 401) {
@@ -1307,6 +1386,8 @@ Return your analysis in the specified XML format.`
           setError('Failed to validate the authorization code');
           return;
         }
+        // Log the error but continue - cache might not exist
+        console.warn(`Warning: ${endpoint} returned ${response.status}: ${errorText}`);
       }
     } catch (err) {
       setIsLoading(false);
@@ -1358,7 +1439,7 @@ Return your analysis in the specified XML format.`
       setIsLoading(false);
       setLoadingMessage(undefined);
     }
-  }, [effectiveRepoInfo, language, messages.loading?.initializing, messages.loading?.clearingCache, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, isComprehensiveView, authCode, authRequired, currentToken, router, defaultBranch]);
+  }, [effectiveRepoInfo, language, messages.loading?.initializing, messages.loading?.clearingCache, messages.loading?.clearingAllData, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, isComprehensiveView, authCode, authRequired, currentToken, router, defaultBranch, cleanRegenerateMode]);
 
   useEffect(() => {
     if (effectRan.current === false) {
@@ -1660,61 +1741,157 @@ Return your analysis in the specified XML format.`
 
                 {/* Wiki type badge */}
                 <div className="mb-4 flex items-center gap-2 text-xs font-mono">
-                  <span className="text-[var(--foreground-muted)]">MODE:</span>
-                  <span className={`px-2 py-1 rounded border ${isComprehensiveView ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-[var(--accent-primary)]/30' : 'bg-[var(--background)] text-[var(--foreground)] border-[var(--border-color)]'}`}>
-                    {isComprehensiveView ? (messages.form?.comprehensive || 'FULL') : (messages.form?.concise || 'BRIEF')}
+                  <span className="text-gray-500">$ mode:</span>
+                  <span className={`px-3 py-1 border font-mono text-xs relative overflow-hidden group ${isComprehensiveView ? 'bg-purple-950/50 text-purple-400 border-purple-500/50' : 'bg-gray-900 text-gray-400 border-gray-700'}`}>
+                    <span className="relative z-10">{isComprehensiveView ? 'FULL' : 'BRIEF'}</span>
+                    {isComprehensiveView && (
+                      <span className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></span>
+                    )}
                   </span>
                 </div>
 
                 {/* Action buttons */}
                 <div className="mb-5 space-y-2">
-                  <RoleBasedButton
-                    onAdminClick={() => setIsModelSelectionModalOpen(true)}
-                    actionDescription={`regenerate wiki for "${effectiveRepoInfo.repo}"`}
-                    disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-2 text-xs font-mono px-3 py-2 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <FaSync className={isLoading ? 'animate-spin' : ''} />
-                    {messages.repoPage?.refreshWiki || 'REFRESH'}
-                  </RoleBasedButton>
+                  <div className="relative regenerate-dropdown">
+                    <div className="flex items-center gap-1 mb-2">
+                      <span className="text-[var(--foreground-muted)] text-xs font-mono">$</span>
+                      <span className="text-[var(--foreground-muted)] text-xs font-mono">command:</span>
+                    </div>
+
+                    <button
+                      onClick={() => setShowRegenerateMenu(!showRegenerateMenu)}
+                      disabled={isLoading}
+                      className="w-full flex items-center justify-center gap-2 text-xs font-mono px-4 py-3 bg-black/50 border border-cyan-500/30 rounded-none font-mono text-cyan-400 hover:bg-cyan-950/30 hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-700"></span>
+                      <FaSync className={`relative z-10 ${isLoading ? 'animate-spin' : ''} text-cyan-400`} />
+                      <span className="relative z-10">REGENERATE_WIKI.EXE</span>
+                      <FaChevronDown className={`ml-auto relative z-10 transition-transform duration-200 ${showRegenerateMenu ? 'rotate-180' : ''} text-cyan-400`} />
+                    </button>
+
+                    {showRegenerateMenu && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-black/90 border border-cyan-500/50 rounded-none shadow-[0_0_30px_rgba(6,182,212,0.5)] overflow-hidden z-50">
+                        {/* Terminal header */}
+                        <div className="bg-gradient-to-r from-gray-900 to-black px-3 py-1 border-b border-cyan-500/30 flex items-center gap-2">
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                            <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          </div>
+                          <span className="text-xs text-cyan-400 font-mono flex-1 text-center">regenerate_options.sh</span>
+                        </div>
+
+                        {/* Menu options */}
+                        <div className="p-1">
+                          <RoleBasedButton
+                            onAdminClick={() => {
+                              setShowRegenerateMenu(false);
+                              setIsModelSelectionModalOpen(true);
+                              setCleanRegenerateMode(false);
+                            }}
+                            actionDescription={`refresh wiki for "${effectiveRepoInfo.repo}" with existing data`}
+                            disabled={isLoading}
+                            className="w-full flex items-center gap-3 text-xs font-mono px-4 py-3 border-0 bg-transparent hover:bg-purple-950/30 hover:text-purple-400 text-gray-400 transition-all duration-200 text-left group relative overflow-hidden"
+                          >
+                            <span className="text-purple-400">▸</span>
+                            <div className="flex-1">
+                              <div className="text-purple-400 group-hover:text-purple-300">01_REFRESH_CACHE</div>
+                              <div className="text-xs text-gray-500 mt-1 font-mono opacity-70"># Keep existing repo and embeddings</div>
+                            </div>
+                            <FaSync className="text-purple-500 group-hover:text-purple-400" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/5 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
+                          </RoleBasedButton>
+
+                          <div className="border-t border-cyan-500/20 my-1"></div>
+
+                          <RoleBasedButton
+                            onAdminClick={() => {
+                              setShowRegenerateMenu(false);
+                              setIsModelSelectionModalOpen(true);
+                              setCleanRegenerateMode(true);
+                            }}
+                            actionDescription={`clean regenerate wiki for "${effectiveRepoInfo.repo}" with fresh data`}
+                            disabled={isLoading}
+                            className="w-full flex items-center gap-3 text-xs font-mono px-4 py-3 border-0 bg-transparent hover:bg-red-950/30 hover:text-red-400 text-gray-400 transition-all duration-200 text-left group relative overflow-hidden"
+                          >
+                            <span className="text-red-400">▸</span>
+                            <div className="flex-1">
+                              <div className="text-red-400 group-hover:text-red-300">02_CLEAN_GENERATE</div>
+                              <div className="text-xs text-gray-500 mt-1 font-mono opacity-70"># Fresh clone, new embeddings</div>
+                            </div>
+                            <FaTrash className="text-red-500 group-hover:text-red-400" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/5 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
+                          </RoleBasedButton>
+                        </div>
+
+                        {/* Terminal footer */}
+                        <div className="bg-black/50 px-3 py-1 border-t border-cyan-500/30">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-green-400 font-mono">ready</span>
+                            <span className="text-xs text-gray-500 font-mono animate-pulse">_</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Export section */}
                 {Object.keys(generatedPages).length > 0 && (
-                  <div className="mb-5 p-3 rounded border border-[var(--accent-primary)]/10 bg-[var(--background)]/30">
-                    <h4 className="text-xs font-mono font-semibold text-[var(--accent-cyan)] mb-2 flex items-center gap-2">
-                      <span>▸</span> {messages.repoPage?.exportWiki || 'EXPORT'}
-                    </h4>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => exportWiki('markdown')}
-                        disabled={isExporting}
-                        className="flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 text-[var(--foreground)] transition-all disabled:opacity-50"
-                      >
-                        <FaDownload className="text-[var(--accent-cyan)]" />
-                        {messages.repoPage?.exportAsMarkdown || 'Markdown'}
-                      </button>
-                      <button
-                        onClick={() => exportWiki('json')}
-                        disabled={isExporting}
-                        className="flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 text-[var(--foreground)] transition-all disabled:opacity-50"
-                      >
-                        <FaFileExport className="text-[var(--accent-cyan)]" />
-                        {messages.repoPage?.exportAsJson || 'JSON'}
-                      </button>
+                  <div className="mb-5 relative">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-gray-500 text-xs font-mono">$</span>
+                      <h4 className="text-xs font-mono font-semibold text-cyan-400 flex items-center gap-2">
+                        <span className="animate-pulse">▸</span> export_wiki.sh
+                      </h4>
+                    </div>
+                    <div className="bg-black/40 border border-cyan-500/20 rounded-none overflow-hidden">
+                      <div className="p-2 space-y-1">
+                        <button
+                          onClick={() => exportWiki('markdown')}
+                          disabled={isExporting}
+                          className="w-full flex items-center gap-3 text-xs font-mono px-4 py-2 border border-cyan-500/20 bg-transparent hover:bg-cyan-950/20 hover:border-cyan-500/40 text-cyan-400 transition-all duration-200 group relative overflow-hidden"
+                        >
+                          <span className="text-cyan-500">01</span>
+                          <span className="flex-1 text-left">export_markdown()</span>
+                          <FaDownload className="text-cyan-500 group-hover:text-cyan-300 transition-colors" />
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/5 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
+                        </button>
+                        <div className="border-t border-cyan-500/10"></div>
+                        <button
+                          onClick={() => exportWiki('json')}
+                          disabled={isExporting}
+                          className="w-full flex items-center gap-3 text-xs font-mono px-4 py-2 border border-cyan-500/20 bg-transparent hover:bg-cyan-950/20 hover:border-cyan-500/40 text-cyan-400 transition-all duration-200 group relative overflow-hidden"
+                        >
+                          <span className="text-cyan-500">02</span>
+                          <span className="flex-1 text-left">export_json()</span>
+                          <FaFileExport className="text-cyan-500 group-hover:text-cyan-300 transition-colors" />
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/5 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
+                        </button>
+                      </div>
                     </div>
                     {exportError && (
-                      <div className="mt-2 text-xs text-[var(--highlight)] font-mono">{exportError}</div>
+                      <div className="mt-2 p-2 bg-red-950/20 border border-red-500/30 rounded-none">
+                        <div className="flex items-start gap-2">
+                          <span className="text-red-400 text-xs font-mono">ERROR:</span>
+                          <div className="text-xs text-red-400 font-mono flex-1">{exportError}</div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
 
                 {/* Navigation tree */}
                 <div className="mb-2">
-                  <h4 className="text-xs font-mono font-semibold text-[var(--accent-cyan)] mb-3 flex items-center gap-2">
-                    <span>▸</span> {messages.repoPage?.pages || 'NAVIGATION'}
-                  </h4>
-                  <WikiTreeView wikiStructure={wikiStructure} currentPageId={currentPageId} onPageSelect={handlePageSelect} messages={messages.repoPage} />
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-gray-500 text-xs font-mono">$</span>
+                    <h4 className="text-xs font-mono font-semibold text-cyan-400 flex items-center gap-2">
+                      <span className="animate-pulse">▸</span> navigation_tree.sh
+                    </h4>
+                  </div>
+                  <div className="bg-black/40 border border-cyan-500/20 rounded-none p-2 max-h-96 overflow-y-auto custom-scrollbar">
+                    <WikiTreeView wikiStructure={wikiStructure} currentPageId={currentPageId} onPageSelect={handlePageSelect} messages={messages.repoPage} />
+                  </div>
                 </div>
               </div>
             </aside>

@@ -7,6 +7,7 @@ according to Azure OpenAI requirements.
 
 import os
 import logging
+import time
 from typing import Optional, Callable, Any, Dict, TypeVar, Generator, Union, Sequence, List
 
 import backoff
@@ -170,6 +171,138 @@ class AzureAIClient(OpenAIClient):
             or "reasoning" in model_name
         )
 
+    def _validate_embedding_response(self, response) -> bool:
+        """Validate that the embedding response contains non-empty embeddings.
+
+        Args:
+            response: The embedding response from the API
+
+        Returns:
+            bool: True if the response contains valid embeddings, False otherwise
+        """
+        try:
+            if not response or not hasattr(response, 'data'):
+                log.warning("Embedding response is missing or has no data attribute")
+                return False
+
+            if not response.data or len(response.data) == 0:
+                log.warning("Embedding response has empty data")
+                return False
+
+            # Check if all embeddings are non-empty
+            for i, item in enumerate(response.data):
+                if not hasattr(item, 'embedding') or not item.embedding:
+                    log.warning(f"Embedding at index {i} is missing or empty")
+                    return False
+
+                if len(item.embedding) == 0:
+                    log.warning(f"Embedding at index {i} has 0 dimensions")
+                    return False
+
+            return True
+        except Exception as e:
+            log.error(f"Error validating embedding response: {e}")
+            return False
+
+    def _call_embeddings_with_retry(self, api_kwargs: Dict, max_retries: int = 3) -> Any:
+        """Call embeddings API with retry logic for empty embeddings.
+
+        Args:
+            api_kwargs: API keyword arguments
+            max_retries: Maximum number of retry attempts (default: 3)
+
+        Returns:
+            The embedding response (even if invalid - pipeline will handle skipping)
+        """
+        last_response = None
+
+        for attempt in range(max_retries):
+            try:
+                response = self.sync_client.embeddings.create(**api_kwargs)
+                last_response = response
+
+                # Validate the response
+                if self._validate_embedding_response(response):
+                    if attempt > 0:
+                        log.info(f"Successfully generated embeddings on attempt {attempt + 1}")
+                    return response
+                else:
+                    log.warning(f"Received invalid/empty embeddings on attempt {attempt + 1}/{max_retries}")
+
+                    # Don't sleep on the last attempt
+                    if attempt < max_retries - 1:
+                        sleep_time = 2 ** attempt
+                        log.info(f"Retrying after {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+            except Exception as e:
+                log.error(f"Error generating embeddings on attempt {attempt + 1}/{max_retries}: {e}")
+
+                # Don't sleep on the last attempt
+                if attempt < max_retries - 1:
+                    sleep_time = 2 ** attempt
+                    log.info(f"Retrying after {sleep_time} seconds...")
+                    time.sleep(sleep_time)
+
+        # If we get here, all retries failed - return last response (or raise if never got one)
+        # Pipeline will handle empty embeddings by skipping documents
+        if last_response is not None:
+            log.warning(f"Returning response after {max_retries} attempts - may contain empty embeddings")
+            return last_response
+        else:
+            # Only raise if we never got a response at all
+            log.error(f"Failed to get any response after {max_retries} attempts")
+            raise Exception(f"Failed to get any response after {max_retries} attempts")
+
+    async def _acall_embeddings_with_retry(self, api_kwargs: Dict, max_retries: int = 3) -> Any:
+        """Async call embeddings API with retry logic for empty embeddings.
+
+        Args:
+            api_kwargs: API keyword arguments
+            max_retries: Maximum number of retry attempts (default: 3)
+
+        Returns:
+            The embedding response (even if invalid - pipeline will handle skipping)
+        """
+        import asyncio
+        last_response = None
+
+        for attempt in range(max_retries):
+            try:
+                response = await self.async_client.embeddings.create(**api_kwargs)
+                last_response = response
+
+                # Validate the response
+                if self._validate_embedding_response(response):
+                    if attempt > 0:
+                        log.info(f"Successfully generated embeddings on attempt {attempt + 1}")
+                    return response
+                else:
+                    log.warning(f"Received invalid/empty embeddings on attempt {attempt + 1}/{max_retries}")
+
+                    # Don't sleep on the last attempt
+                    if attempt < max_retries - 1:
+                        sleep_time = 2 ** attempt
+                        log.info(f"Retrying after {sleep_time} seconds...")
+                        await asyncio.sleep(sleep_time)
+            except Exception as e:
+                log.error(f"Error generating embeddings on attempt {attempt + 1}/{max_retries}: {e}")
+
+                # Don't sleep on the last attempt
+                if attempt < max_retries - 1:
+                    sleep_time = 2 ** attempt
+                    log.info(f"Retrying after {sleep_time} seconds...")
+                    await asyncio.sleep(sleep_time)
+
+        # If we get here, all retries failed - return last response (or raise if never got one)
+        # Pipeline will handle empty embeddings by skipping documents
+        if last_response is not None:
+            log.warning(f"Returning response after {max_retries} attempts - may contain empty embeddings")
+            return last_response
+        else:
+            # Only raise if we never got a response at all
+            log.error(f"Failed to get any response after {max_retries} attempts")
+            raise Exception(f"Failed to get any response after {max_retries} attempts")
+
     @backoff.on_exception(
         # Azure/OpenAI 429 responses commonly return "retry after 60s".
         backoff.expo,
@@ -194,7 +327,7 @@ class AzureAIClient(OpenAIClient):
 
         if model_type == ModelType.EMBEDDER:
             log.debug("AzureOpenAI embeddings call")
-            return self.sync_client.embeddings.create(**api_kwargs)
+            return self._call_embeddings_with_retry(api_kwargs)
         elif model_type == ModelType.LLM:
             model_name = api_kwargs.get('model', 'unknown')
             is_streaming = api_kwargs.get('stream', False)
@@ -240,7 +373,7 @@ class AzureAIClient(OpenAIClient):
 
         if model_type == ModelType.EMBEDDER:
             log.debug("AzureOpenAI async embeddings call")
-            return await self.async_client.embeddings.create(**api_kwargs)
+            return await self._acall_embeddings_with_retry(api_kwargs)
         elif model_type == ModelType.LLM:
             model_name = api_kwargs.get('model', 'unknown')
             is_streaming = api_kwargs.get('stream', False)
