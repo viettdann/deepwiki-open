@@ -437,6 +437,28 @@ IMPORTANT FORMATTING RULES:
                 logger.error(f"Sample embedding sizes: {', '.join(sizes)}")
             raise
 
+    def get_chunking_stats(self) -> dict:
+        """
+        Get token statistics from transformed documents.
+
+        Returns:
+            Dictionary with total_tokens and total_chunks
+        """
+        if not hasattr(self, 'transformed_docs') or not self.transformed_docs:
+            return {"total_tokens": 0, "total_chunks": 0}
+
+        total_tokens = sum(
+            doc.meta_data.get('token_count', 0)
+            for doc in self.transformed_docs
+            if hasattr(doc, 'meta_data')
+        )
+        total_chunks = len(self.transformed_docs)
+
+        return {
+            "total_tokens": total_tokens,
+            "total_chunks": total_chunks
+        }
+
     def call(self, query: str, language: str = "en") -> Tuple[List]:
         """
         Process a query using RAG.

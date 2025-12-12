@@ -80,6 +80,8 @@ class JobResponse(BaseModel):
     completed_at: Optional[datetime]
     updated_at: datetime
 
+    token_summary: Optional['TokenSummary'] = None
+
 
 class JobPageResponse(BaseModel):
     """Response model for job page data."""
@@ -133,3 +135,13 @@ class JobProgressUpdate(BaseModel):
     page_title: Optional[str] = None
     page_status: Optional[PageStatus] = None
     error: Optional[str] = None
+    token_summary: Optional['TokenSummary'] = None
+
+
+class TokenSummary(BaseModel):
+    """Token usage summary."""
+    chunking_total_tokens: int = 0
+    chunking_total_chunks: int = 0
+    provider_prompt_tokens: int = 0
+    provider_completion_tokens: int = 0
+    provider_total_tokens: int = 0

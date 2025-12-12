@@ -93,6 +93,27 @@ CREATE TABLE IF NOT EXISTS job_pages (
     FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
 );
 
+-- Job token statistics - Token usage tracking
+CREATE TABLE IF NOT EXISTS job_token_stats (
+    job_id TEXT PRIMARY KEY,
+
+    -- Chunking/embedding tokens (same estimate)
+    chunking_total_tokens INTEGER DEFAULT 0,
+    chunking_total_chunks INTEGER DEFAULT 0,
+
+    -- Provider LLM tokens
+    provider_prompt_tokens INTEGER DEFAULT 0,
+    provider_completion_tokens INTEGER DEFAULT 0,
+    provider_total_tokens INTEGER DEFAULT 0,
+
+    -- Timestamps
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+
+    -- Foreign key constraint
+    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+);
+
 -- Create indexes for efficient querying
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_owner_repo ON jobs(owner, repo);
@@ -100,3 +121,4 @@ CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_job_pages_job_id ON job_pages(job_id);
 CREATE INDEX IF NOT EXISTS idx_job_pages_status ON job_pages(status);
 CREATE INDEX IF NOT EXISTS idx_job_pages_job_status ON job_pages(job_id, status);
+CREATE INDEX IF NOT EXISTS idx_job_tokens_updated ON job_token_stats(updated_at DESC);
