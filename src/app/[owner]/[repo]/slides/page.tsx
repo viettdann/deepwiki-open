@@ -1131,17 +1131,17 @@ Please return ONLY the HTML with no markdown formatting or code blocks. Just the
             <p className="text-[var(--foreground)]">{loadingMessage}</p>
           </div>
         ) : error ? (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
-            <h3 className="text-red-800 dark:text-red-400 font-medium mb-2">{messages.common?.error || 'Error'}</h3>
-            <p className="text-red-700 dark:text-red-300">{error}</p>
+          <div className="bg-[var(--accent-danger)]/10 border border-[var(--accent-danger)]/30 rounded-md p-4 mb-6">
+            <h3 className="text-[var(--accent-danger)] font-medium mb-2">{messages.common?.error || 'Error'}</h3>
+            <p className="text-[var(--accent-danger)]/80">{error}</p>
           </div>
         ) : slides.length > 0 ? (
           <div className="flex flex-col flex-grow">
             {/* Slide content */}
             <div className={`flex-grow flex flex-col items-center justify-center ${isFullscreen ? 'p-0 bg-[#0d1117]' : 'bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-sm p-6 mb-4'}`}>
               {exportError && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3 mb-4 w-full">
-                  <p className="text-red-700 dark:text-red-300 text-sm">{exportError}</p>
+                <div className="bg-[var(--accent-danger)]/10 border border-[var(--accent-danger)]/30 rounded-md p-3 mb-4 w-full">
+                  <p className="text-[var(--accent-danger)]/80 text-sm">{exportError}</p>
                 </div>
               )}
 

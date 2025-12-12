@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import ThemeToggle from './ThemeToggle';
 
 interface HeaderProps {
   currentPage?: 'home' | 'jobs' | 'projects' | 'wiki';
@@ -52,40 +53,45 @@ export default function Header({
     }
   };
   return (
-    <header className="sticky top-0 z-50 bg-[var(--surface)]/95 backdrop-blur-xl border-b-2 border-[var(--accent-primary)]/30 shadow-lg">
+    <header className="sticky top-0 z-50 bg-[#13132b]/95 backdrop-blur-xl border-b-2 border-[#8b5cf6]/30 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Terminal status bar */}
-        <div className="h-7 flex items-center justify-between border-b border-[var(--accent-primary)]/10 text-xs font-mono">
-          <div className="flex items-center gap-4 text-[var(--foreground-muted)]">
+        <div className="h-10 flex items-center justify-between border-b border-[#8b5cf6]/10 text-xs font-mono">
+          <div className="flex items-center gap-4 text-[#94a3b8]">
             <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-emerald)] animate-pulse"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>
               {statusLabel || 'SYSTEM.READY'}
             </span>
             {statusValue !== undefined && (
               <>
                 <span className="hidden sm:block">|</span>
-                <span className="hidden sm:block text-[var(--accent-cyan)]">{statusValue}</span>
+                <span className="hidden sm:block text-[#06b6d4]">{statusValue}</span>
               </>
             )}
           </div>
 
-          {/* Authentication Status Display */}
+          {/* Theme Toggle & Authentication Status Display */}
           <div className="flex items-center gap-3">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+            <span className="text-[#94a3b8]">|</span>
+
+            {/* Authentication */}
             {isLoading ? (
-              <span className="text-[var(--foreground-muted)]">AUTH.CHECKING...</span>
+              <span className="text-[#94a3b8]">AUTH.CHECKING...</span>
             ) : loginRequired && isAuthenticated && user ? (
               <>
-                <span className="hidden sm:block text-[var(--accent-emerald)]">
+                <span className="hidden sm:block text-[#10b981]">
                   user:{user.username}[{user.role.toUpperCase()}]
                 </span>
-                <span className="sm:hidden text-[var(--accent-emerald)]">
+                <span className="sm:hidden text-[#10b981]">
                   {user.role === 'admin' ? 'ADM' : 'RD'}
                 </span>
-                <span className="text-[var(--foreground-muted)]">|</span>
+                <span className="text-[#94a3b8]">|</span>
                 <button
                   onClick={handleLogout}
                   disabled={isLoggingOut}
-                  className="text-[var(--foreground-muted)] hover:text-[var(--accent-danger)] transition-colors disabled:opacity-50 font-mono"
+                  className="text-[#94a3b8] hover:text-[#ef4444] transition-colors disabled:opacity-50 font-mono"
                   title={isLoggingOut ? 'Logging out...' : 'Logout'}
                 >
                   {isLoggingOut ? 'LOGGING.OUT' : 'LOGOUT'}
@@ -94,13 +100,13 @@ export default function Header({
             ) : loginRequired ? (
               <button
                 onClick={() => window.location.href = '/login'}
-                className="text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors font-mono"
+                className="text-[#94a3b8] hover:text-[#06b6d4] transition-colors font-mono"
                 title="Login"
               >
                 LOGIN
               </button>
             ) : (
-              <span className="text-[var(--accent-emerald)]">OPEN.ACCESS</span>
+              <span className="text-[#10b981]">OPEN.ACCESS</span>
             )}
           </div>
         </div>
@@ -109,53 +115,53 @@ export default function Header({
         <div className="flex items-center justify-between h-14">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] rounded blur-sm opacity-40 group-hover:opacity-60 transition-opacity"></div>
-              <div className="relative bg-[var(--accent-primary)] p-2 rounded border border-[var(--accent-primary)]/50">
+              <div className="absolute -inset-1 bg-gradient-to-r from-[#8b5cf6] to-[#06b6d4] rounded blur-sm opacity-40 group-hover:opacity-60 transition-opacity"></div>
+              <div className="relative bg-[#8b5cf6] p-2 rounded border border-[#8b5cf6]/50">
                 <WikiIcon />
               </div>
             </div>
             <div className="leading-tight">
-              <p className="text-base font-bold font-mono tracking-tight text-[var(--foreground)]">
-                <span className="text-[var(--accent-cyan)]">$</span> {title || 'DeepWiki'}
+              <p className="text-base font-bold font-mono tracking-tight text-[#f8fafc]">
+                <span className="text-[#06b6d4]">$</span> {title || 'DeepWiki'}
               </p>
-              <p className="text-[10px] font-mono text-[var(--foreground-muted)] tracking-wider">
+              <p className="text-[10px] font-mono text-[#94a3b8] tracking-wider">
                 &#47;&#47; {subtitle || 'AI-powered documentation'}
               </p>
             </div>
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-6 text-xs font-mono font-medium">
+          <nav className="hidden md:flex items-center gap-6 text-sm font-mono font-medium">
             <Link
               href="/"
               className={`transition-colors flex items-center gap-1 ${
                 currentPage === 'home'
-                  ? 'text-[var(--accent-cyan)]'
-                  : 'text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)]'
+                  ? 'text-[#06b6d4]'
+                  : 'text-[#94a3b8] hover:text-[#06b6d4]'
               }`}
             >
-              <span className="text-[var(--accent-primary)]">01</span> Home
+              <span className="text-[#8b5cf6]">01</span> Home
             </Link>
             <Link
               href="/wiki/projects"
               className={`transition-colors flex items-center gap-1 ${
                 currentPage === 'projects'
-                  ? 'text-[var(--accent-cyan)]'
-                  : 'text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)]'
+                  ? 'text-[#06b6d4]'
+                  : 'text-[#94a3b8] hover:text-[#06b6d4]'
               }`}
             >
-              <span className="text-[var(--accent-primary)]">02</span> Wiki Index
+              <span className="text-[#8b5cf6]">02</span> Wiki Index
             </Link>
             <Link
               href="/jobs"
               className={`transition-colors flex items-center gap-2 ${
                 currentPage === 'jobs'
-                  ? 'text-[var(--accent-cyan)]'
-                  : 'text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)]'
+                  ? 'text-[#06b6d4]'
+                  : 'text-[#94a3b8] hover:text-[#06b6d4]'
               }`}
             >
-              <span className="text-[var(--accent-primary)]">03</span> Jobs
-              <span className="w-1.5 h-1.5 bg-[var(--accent-emerald)] rounded-full pulse-glow"></span>
+              <span className="text-[#8b5cf6]">03</span> Jobs
+              <span className="w-1.5 h-1.5 bg-[#10b981] rounded-full pulse-glow"></span>
             </Link>
           </nav>
 
@@ -164,7 +170,7 @@ export default function Header({
             {showRefresh && onRefreshClick && (
               <button
                 onClick={onRefreshClick}
-                className="p-2 text-[var(--foreground-muted)] hover:text-[var(--accent-cyan)] transition-colors rounded border border-transparent hover:border-[var(--accent-primary)]/30"
+                className="p-2 text-[#94a3b8] hover:text-[#06b6d4] transition-colors rounded border border-transparent hover:border-[#8b5cf6]/30"
                 title="Refresh"
               >
                 <svg
@@ -186,7 +192,7 @@ export default function Header({
             {onActionClick && (
               <button
                 onClick={onActionClick}
-                className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 rounded border border-[var(--accent-primary)]/50 bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] text-xs font-mono font-medium transition-all hover:border-[var(--accent-primary)] terminal-btn"
+                className="hidden md:inline-flex items-center gap-2 px-4 py-1.5 rounded border border-[#8b5cf6]/50 bg-[#8b5cf6]/10 hover:bg-[#8b5cf6]/20 text-[#8b5cf6] text-xs font-mono font-medium transition-all hover:border-[#8b5cf6] terminal-btn"
               >
                 {actionIcon}
                 {actionLabel}

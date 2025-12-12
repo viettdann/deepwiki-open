@@ -19,7 +19,7 @@ const Markdown: React.FC<MarkdownProps> = ({ content }) => {
     h1({ children, ...props }: { children?: React.ReactNode }) {
       return (
         <h1
-          className="text-4xl font-bold font-mono mt-0 mb-6 tracking-tight text-[var(--foreground)] bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] bg-clip-text text-transparent leading-tight"
+          className="text-4xl font-bold font-mono mt-0 mb-6 tracking-tight text-[var(--foreground)] bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] bg-clip-text text-transparent leading-tight font-mono"
           style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
           {...props}
         >

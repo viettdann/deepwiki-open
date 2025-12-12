@@ -574,7 +574,7 @@ const Ask: React.FC<AskProps> = ({
               className={`absolute right-3 top-1/2 transform -translate-y-1/2 px-4 py-2 rounded-md font-medium text-sm ${
                 isLoading || !question.trim()
                   ? 'bg-[var(--button-disabled-bg)] text-[var(--button-disabled-text)] cursor-not-allowed'
-                  : 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90 shadow-sm'
+                  : 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90 shadow-[0_0_0_1px_var(--border-color)]'
               } transition-all duration-200 flex items-center gap-1.5`}
             >
               {isLoading ? (
@@ -594,7 +594,7 @@ const Ask: React.FC<AskProps> = ({
           <div className="flex items-center mt-2 justify-between">
             <div className="group relative">
               <label className="flex items-center cursor-pointer">
-                <span className="text-xs text-gray-600 dark:text-gray-400 mr-2">Deep Research</span>
+                <span className="text-xs text-[var(--foreground-muted)] mr-2">Deep Research</span>
                 <div className="relative">
                   <input
                     type="checkbox"
@@ -602,7 +602,7 @@ const Ask: React.FC<AskProps> = ({
                     onChange={() => setDeepResearch(!deepResearch)}
                     className="sr-only"
                   />
-                  <div className={`w-10 h-5 rounded-full transition-colors ${deepResearch ? 'bg-purple-600' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                  <div className={`w-10 h-5 rounded-full transition-colors ${deepResearch ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-subtle)]'}`}></div>
                   <div className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform transform ${deepResearch ? 'translate-x-5' : ''}`}></div>
                 </div>
               </label>
@@ -622,7 +622,7 @@ const Ask: React.FC<AskProps> = ({
               </div>
             </div>
             {deepResearch && (
-              <div className="text-xs text-purple-600 dark:text-purple-400">
+              <div className="text-xs text-[var(--accent-primary)]">
                 Multi-turn research process enabled
                 {researchIteration > 0 && !researchComplete && ` (iteration ${researchIteration})`}
                 {researchComplete && ` (complete)`}
@@ -633,7 +633,7 @@ const Ask: React.FC<AskProps> = ({
 
         {/* Response area */}
         {response && (
-          <div className="border-t border-gray-200 dark:border-gray-700 mt-4">
+          <div className="border-t border-[var(--border-subtle)] mt-4">
             <div
               ref={responseRef}
               className="p-4 max-h-[500px] overflow-y-auto"
@@ -642,33 +642,33 @@ const Ask: React.FC<AskProps> = ({
             </div>
 
             {/* Research navigation and clear button */}
-            <div className="p-2 flex justify-between items-center border-t border-gray-200 dark:border-gray-700">
+            <div className="p-2 flex justify-between items-center border-t border-[var(--border-subtle)]">
               {/* Research navigation */}
               {deepResearch && researchStages.length > 1 && (
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => navigateToPreviousStage()}
                     disabled={currentStageIndex === 0}
-                    className={`p-1 rounded-md ${currentStageIndex === 0 ? 'text-gray-400 dark:text-gray-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                    className={`p-1 rounded-md ${currentStageIndex === 0 ? 'text-[var(--muted)] opacity-50' : 'text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)]'}`}
                     aria-label="Previous stage"
                   >
                     <FaChevronLeft size={12} />
                   </button>
 
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                  <div className="text-xs text-[var(--foreground-muted)]">
                     {currentStageIndex + 1} / {researchStages.length}
                   </div>
 
                   <button
                     onClick={() => navigateToNextStage()}
                     disabled={currentStageIndex === researchStages.length - 1}
-                    className={`p-1 rounded-md ${currentStageIndex === researchStages.length - 1 ? 'text-gray-400 dark:text-gray-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                    className={`p-1 rounded-md ${currentStageIndex === researchStages.length - 1 ? 'text-[var(--muted)] opacity-50' : 'text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)]'}`}
                     aria-label="Next stage"
                   >
                     <FaChevronRight size={12} />
                   </button>
 
-                  <div className="text-xs text-gray-600 dark:text-gray-400 ml-2">
+                  <div className="text-xs text-[var(--foreground-muted)] ml-2">
                     {researchStages[currentStageIndex]?.title || `Stage ${currentStageIndex + 1}`}
                   </div>
                 </div>
@@ -678,7 +678,7 @@ const Ask: React.FC<AskProps> = ({
               {/* Download button */}
               <button
                 onClick={downloadresponse}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 px-2 py-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-1"
+                className="text-xs text-[var(--foreground-muted)] hover:text-[var(--accent-emerald)] px-2 py-1 rounded-md hover:bg-[var(--surface-hover)] flex items-center gap-1"
                 title="Download response as markdown file"
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -691,7 +691,7 @@ const Ask: React.FC<AskProps> = ({
               <button
                 id="ask-clear-conversation"
                 onClick={clearConversation}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 px-2 py-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
+                className="text-xs text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] px-2 py-1 rounded-md hover:bg-[var(--surface-hover)]"
               >
                 Clear conversation
               </button>
@@ -702,14 +702,14 @@ const Ask: React.FC<AskProps> = ({
 
         {/* Loading indicator */}
         {isLoading && !response && (
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-t border-[var(--border-subtle)]">
             <div className="flex items-center space-x-2">
               <div className="animate-pulse flex space-x-1">
-                <div className="h-2 w-2 bg-purple-600 rounded-full"></div>
-                <div className="h-2 w-2 bg-purple-600 rounded-full"></div>
-                <div className="h-2 w-2 bg-purple-600 rounded-full"></div>
+                <div className="h-2 w-2 bg-[var(--accent-primary)] rounded-full"></div>
+                <div className="h-2 w-2 bg-[var(--accent-primary)] rounded-full"></div>
+                <div className="h-2 w-2 bg-[var(--accent-primary)] rounded-full"></div>
               </div>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
+              <span className="text-xs text-[var(--foreground-muted)]">
                 {deepResearch
                   ? (researchIteration === 0
                     ? "Planning research approach..."
@@ -718,7 +718,7 @@ const Ask: React.FC<AskProps> = ({
               </span>
             </div>
             {deepResearch && (
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 pl-5">
+              <div className="mt-2 text-xs text-[var(--foreground-muted)] pl-5">
                 <div className="flex flex-col space-y-1">
                   {researchIteration === 0 && (
                     <>

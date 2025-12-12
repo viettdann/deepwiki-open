@@ -263,15 +263,15 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        return 'bg-[var(--accent-emerald)]/10 text-[var(--accent-emerald)] border border-[var(--accent-emerald)]/20';
       case 'failed':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        return 'bg-[var(--accent-danger)]/10 text-[var(--accent-danger)] border border-[var(--accent-danger)]/20';
       case 'cancelled':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+        return 'bg-[var(--muted)]/10 text-[var(--muted)] border border-[var(--muted)]/20';
       case 'paused':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+        return 'bg-[var(--accent-warning)]/10 text-[var(--accent-warning)] border border-[var(--accent-warning)]/20';
       default:
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+        return 'bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] border border-[var(--accent-cyan)]/20';
     }
   };
 
@@ -344,7 +344,7 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
               {['pending', 'preparing_embeddings', 'generating_structure', 'generating_pages'].includes(job.status) && (
                 <div className="mt-3">
                   <div className="flex justify-between text-xs text-[var(--muted-foreground)] mb-1"><span>Phase {job.current_phase + 1}/3</span><span>{Math.round(job.progress_percent)}%</span></div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${job.progress_percent}%` }} /></div>
+                  <div className="w-full bg-[var(--border-subtle)] rounded-full h-2"><div className="bg-[var(--accent-cyan)] h-2 rounded-full transition-all" style={{ width: `${job.progress_percent}%` }} /></div>
                   {job.total_pages > 0 && (<p className="text-xs text-[var(--muted-foreground)] mt-1">{job.completed_pages}/{job.total_pages} pages{job.failed_pages > 0 && ` (${job.failed_pages} failed)`}</p>)}
                 </div>
               )}
@@ -356,7 +356,7 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
                     <RoleBasedButton
                       onAdminClick={(e) => { e.stopPropagation(); handlePause(job.id); }}
                       actionDescription={`pause job "${job.repo}"`}
-                      className="p-1.5 text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded"
+                      className="p-1.5 text-[var(--accent-warning)] hover:bg-[var(--accent-warning)]/10 rounded"
                       title="Pause"
                     >
                       <FaPause className="text-sm" />
@@ -366,7 +366,7 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
                     <RoleBasedButton
                       onAdminClick={(e) => { e.stopPropagation(); handleResume(job.id); }}
                       actionDescription={`resume job "${job.repo}"`}
-                      className="p-1.5 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/30 rounded"
+                      className="p-1.5 text-[var(--accent-emerald)] hover:bg-[var(--accent-emerald)]/10 rounded"
                       title="Resume"
                     >
                       <FaPlay className="text-sm" />
@@ -376,14 +376,14 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
                     <RoleBasedButton
                       onAdminClick={(e) => { e.stopPropagation(); handleCancel(job.id); }}
                       actionDescription={`cancel job "${job.repo}"`}
-                      className="p-1.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                      className="p-1.5 text-[var(--accent-danger)] hover:bg-[var(--accent-danger)]/10 rounded"
                       title="Cancel"
                     >
                       <FaTimes className="text-sm" />
                     </RoleBasedButton>
                   )}
                   {job.status === 'completed' && (
-                    <Link href={`/${job.owner}/${job.repo}?type=${job.repo_type}`} onClick={(e) => e.stopPropagation()} className="p-1.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded" title="View Wiki"><FaEye className="text-sm" /></Link>
+                    <Link href={`/${job.owner}/${job.repo}?type=${job.repo_type}`} onClick={(e) => e.stopPropagation()} className="p-1.5 text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)]/10 rounded" title="View Wiki"><FaEye className="text-sm" /></Link>
                   )}
                 </div>
               </div>
@@ -468,7 +468,7 @@ export default function JobsClient({ initialJobs, initialTotal, authRequiredInit
           </div>
 
           {error && (
-            <div className="mb-6 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">{error}</div>
+            <div className="mb-6 p-4 rounded-lg bg-[var(--accent-danger)]/10 border border-[var(--accent-danger)]/30 text-[var(--accent-danger)]">{error}</div>
           )}
 
           {renderJobsContent()}

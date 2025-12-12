@@ -52,36 +52,31 @@ const WikiChatModal: React.FC<WikiChatModalProps> = ({
 
   return (
     <>
-      {/* Floating Chat Button */}
+      {/* Floating Chat Button - Dark Mode, No Glow */}
       <button
         onClick={() => {}} // Button handled by parent
         className="fixed bottom-8 right-8 group z-50"
         aria-label={messages.ask?.title || 'Ask about this repository'}
         style={{ display: isOpen ? 'none' : 'block' }}
       >
-        {/* Glow effect */}
-        <div className="absolute -inset-2 bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-cyan)] rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity animate-pulse"></div>
-
-        {/* Button container */}
-        <div className="relative flex items-center gap-3 px-5 py-3 bg-[var(--surface)]/95 backdrop-blur-md rounded-xl border-2 border-[var(--accent-primary)]/50 group-hover:border-[var(--accent-cyan)] transition-all shadow-2xl overflow-hidden">
+        {/* Button container - always dark mode styling */}
+        <div className="relative flex items-center gap-3 px-5 py-3 bg-[#13132b]/98 backdrop-blur-md rounded-xl border-2 border-[#8b5cf6]/50 group-hover:border-[#06b6d4] transition-all shadow-xl overflow-hidden">
           {/* Scan line effect */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--accent-cyan)]/10 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#06b6d4]/10 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000"></div>
 
           {/* Terminal prompt */}
           <div className="relative flex items-center gap-2">
-            <span className="font-mono text-[var(--accent-primary)] text-sm font-bold">$</span>
-            <FaComments className="text-xl text-[var(--accent-cyan)] group-hover:scale-110 transition-transform" />
+            <span className="font-mono text-[#8b5cf6] text-sm font-bold">$</span>
+            <FaComments className="text-xl text-[#06b6d4] group-hover:scale-110 transition-transform" />
           </div>
 
           {/* Label */}
-          <span className="relative font-mono text-sm font-semibold text-[var(--foreground)] whitespace-nowrap">
+          <span className="relative font-mono text-sm font-semibold text-[#f8fafc] whitespace-nowrap">
             ASK AI
           </span>
 
-          {/* Pulsing indicator */}
-          <span className="relative w-2 h-2 bg-[var(--accent-emerald)] rounded-full">
-            <span className="absolute inset-0 bg-[var(--accent-emerald)] rounded-full animate-ping"></span>
-          </span>
+          {/* Status indicator - static, no glow */}
+          <span className="relative w-2 h-2 bg-[#10b981] rounded-full"></span>
         </div>
       </button>
 

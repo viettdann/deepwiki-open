@@ -4,7 +4,7 @@ import mermaid from 'mermaid';
 
 mermaid.initialize({
   startOnLoad: true,
-  theme: 'dark',
+  theme: 'base',
   securityLevel: 'loose',
   suppressErrorRendering: true,
   logLevel: 'error',
@@ -18,81 +18,81 @@ mermaid.initialize({
     padding: 20,
   },
   themeCSS: `
-    /* Enhanced dark mode styles */
+    /* Theme-aware Mermaid styling using CSS variables */
     .node rect, .node circle, .node ellipse, .node polygon, .node path {
-      fill: #374151;
-      stroke: #60a5fa;
+      fill: var(--surface);
+      stroke: var(--accent-cyan);
       stroke-width: 2px;
     }
     .edgePath .path {
-      stroke: #60a5fa;
+      stroke: var(--accent-cyan);
       stroke-width: 2px;
     }
     .edgeLabel {
-      background-color: #1f2937;
-      color: #f3f4f6;
+      background-color: var(--surface);
+      color: var(--foreground);
       padding: 4px 8px;
       border-radius: 4px;
-      border: 1px solid #374151;
+      border: 1px solid var(--border-color);
       p {
         background-color: transparent !important;
         margin: 0 !important;
       }
     }
     .label {
-      color: #f3f4f6;
+      color: var(--foreground);
       font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
       font-weight: 500;
     }
     .cluster rect {
-      fill: #1f2937;
-      stroke: #4b5563;
+      fill: var(--surface-hover);
+      stroke: var(--border-subtle);
       stroke-width: 2px;
     }
     .flowchart-link {
-      stroke: #60a5fa;
+      stroke: var(--accent-cyan);
       stroke-width: 2px;
     }
 
     /* Sequence diagram styles */
     .actor {
-      fill: #374151;
-      stroke: #60a5fa;
+      fill: var(--surface);
+      stroke: var(--accent-primary);
       stroke-width: 2px;
     }
     text.actor {
-      fill: #f3f4f6;
+      fill: var(--foreground);
       stroke: none;
     }
     .messageText {
-      fill: #f3f4f6;
+      fill: var(--foreground);
       stroke: none;
       font-weight: 500;
       font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
     }
     .messageLine0, .messageLine1 {
-      stroke: #60a5fa;
+      stroke: var(--accent-primary);
       stroke-width: 2px;
     }
     .noteText {
-      fill: #f3f4f6;
+      fill: var(--foreground);
       font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
     }
     #sequenceNumber {
-      fill: #f3f4f6;
+      fill: var(--foreground);
     }
     text.sequenceText {
-      fill: #f3f4f6;
+      fill: var(--foreground);
       font-weight: 500;
       font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
     }
     text.loopText, text.loopText tspan {
-      fill: #f3f4f6;
+      fill: var(--foreground);
     }
     /* Add a subtle background to message text for better readability */
     .messageText, text.sequenceText {
       paint-order: stroke;
-      stroke: #1f2937;
+      stroke: var(--surface);
       stroke-width: 3px;
       stroke-linecap: round;
       stroke-linejoin: round;
@@ -105,58 +105,58 @@ mermaid.initialize({
     .edgeLabel,
     .label,
     text {
-      fill: #f3f4f6 !important;
+      fill: var(--foreground) !important;
       font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
     }
 
     /* Gantt chart styles */
     .taskText {
-      fill: #f3f4f6 !important;
+      fill: var(--foreground) !important;
     }
     .grid .tick line {
-      stroke: #4b5563;
+      stroke: var(--border-subtle);
     }
     .grid path {
       stroke-width: 0;
     }
     .today {
-      fill: #ef4444;
+      fill: var(--accent-danger);
       fill-opacity: 0.2;
     }
 
     /* Class diagram styles */
     .classBox rect {
-      fill: #374151;
-      stroke: #60a5fa;
+      fill: var(--surface);
+      stroke: var(--accent-cyan);
       stroke-width: 2px;
     }
     .classLabel .label {
-      fill: #f3f4f6;
+      fill: var(--foreground);
     }
     .title {
-      fill: #60a5fa;
+      fill: var(--accent-cyan);
     }
 
     /* State diagram styles */
     .node rect.state-group {
-      fill: #1f2937;
-      stroke: #4b5563;
+      fill: var(--surface-hover);
+      stroke: var(--border-subtle);
       stroke-width: 2px;
     }
 
     /* ER diagram styles */
     .entityBox {
-      fill: #374151;
-      stroke: #60a5fa;
+      fill: var(--surface);
+      stroke: var(--accent-primary);
       stroke-width: 2px;
     }
     .relationshipLabelBox {
-      fill: #1f2937;
+      fill: var(--surface-hover);
       opacity: 0.9;
-      border: 1px solid #374151;
+      border: 1px solid var(--border-subtle);
     }
     .relationshipLine {
-      stroke: #60a5fa;
+      stroke: var(--accent-primary);
       stroke-width: 2px;
     }
 
@@ -169,7 +169,7 @@ mermaid.initialize({
       cursor: pointer;
     }
     .clickable:hover > * {
-      filter: brightness(1.2);
+      filter: brightness(1.05);
     }
   `,
   fontFamily: 'var(--font-syne), var(--font-dm-sans), sans-serif',
@@ -388,8 +388,8 @@ const Mermaid: React.FC<MermaidProps> = ({ chart, className = '', zoomingEnabled
 
           if (mermaidRef.current) {
             mermaidRef.current.innerHTML = `
-              <div class="text-red-500 dark:text-red-400 text-xs mb-1">Syntax error in diagram</div>
-              <pre class="text-xs overflow-auto p-2 bg-gray-100 dark:bg-gray-800 rounded">${chart}</pre>
+              <div class="text-[var(--accent-danger)] text-xs mb-1">Syntax error in diagram</div>
+              <pre class="text-xs overflow-auto p-2 bg-[var(--surface)] border border-[var(--border-color)] rounded">${chart}</pre>
             `;
           }
         }
@@ -458,7 +458,7 @@ const Mermaid: React.FC<MermaidProps> = ({ chart, className = '', zoomingEnabled
           />
 
           {!zoomingEnabled && (
-            <div className="absolute top-2 right-2 bg-gray-700/70 dark:bg-gray-900/70 text-white p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 text-xs shadow-md pointer-events-none">
+            <div className="absolute top-2 right-2 bg-[var(--surface)]/90 border border-[var(--border-color)] text-[var(--foreground)] p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 text-xs shadow-md pointer-events-none">
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
