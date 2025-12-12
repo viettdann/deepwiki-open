@@ -325,7 +325,7 @@ DEFAULT_EXCLUDED_FILES: List[str] = [
     ".gitattributes", ".gitmodules", ".github", ".gitlab-ci.yml",
     ".prettierrc", ".eslintrc", ".eslintignore", ".stylelintrc",
     ".editorconfig", ".jshintrc", ".pylintrc", ".flake8", "mypy.ini",
-    "pyproject.toml", "tsconfig.json", "webpack.config.js", "babel.config.js",
+    "tsconfig.json", "webpack.config.js", "babel.config.js",
     "rollup.config.js", "jest.config.js", "karma.conf.js", "vite.config.js",
     "next.config.js", "*.min.js", "*.min.css", "*.bundle.js", "*.bundle.css",
     "*.map", "*.gz", "*.zip", "*.tar", "*.tgz", "*.rar", "*.7z", "*.iso",
@@ -336,19 +336,7 @@ DEFAULT_EXCLUDED_FILES: List[str] = [
     "*.egg", "*.egg-info", "*.dist-info", "*.eggs", "node_modules",
     "bower_components", "jspm_packages", "lib-cov", "coverage", "htmlcov",
     ".nyc_output", ".tox", "dist", "build", "bld", "out", "bin", "target",
-    "packages/*/dist", "packages/*/build", ".output",
-    # Documentation files that are often outdated or unmaintained
-    "README.md", "readme.md", "README", "readme", "README.txt", "readme.txt",
-    "README.rst", "readme.rst", "CHANGELOG.md", "CHANGELOG.txt", "CHANGELOG",
-    "CHANGELOG.md", "CHANGELOG.txt", "CONTRIBUTING.md", "CONTRIBUTING.txt",
-    "CONTRIBUTING", "CONTRIBUTING", "CONTRIBUTORS.md", "CONTRIBUTORS.txt",
-    "CONTRIBUTORS", "HISTORY.md", "HISTORY.txt", "HISTORY", "LICENSE.md",
-    "LICENSE.txt", "LICENSE", "COPYING.md", "COPYING.txt", "COPYING",
-    "INSTALL.md", "INSTALL.txt", "INSTALL", "NEWS.md", "NEWS.txt", "NEWS",
-    "RELEASES.md", "RELEASES.txt", "RELEASES", "TODO.md", "TODO.txt", "TODO",
-    "TROUBLESHOOTING.md", "TROUBLESHOOTING.txt", "TROUBLESHOOTING",
-    "UPGRADE.md", "UPGRADE.txt", "UPGRADE", "USAGE.md", "USAGE.txt", "USAGE",
-    "*.rst", "*.1", "*.2", "*.3", "*.4", "*.5", "*.6", "*.7", "*.8", "*.9"
+    "packages/*/dist", "packages/*/build", ".output"
 ]
 
 # Initialize empty configuration

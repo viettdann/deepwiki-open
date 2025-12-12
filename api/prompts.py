@@ -39,6 +39,7 @@ IMPORTANT RULES:
 2. Start directly with the content.
 3. Base every claim on repository artifacts; if something isn't present, state the gap.
 4. Be precise and technical; avoid filler or generic statements.
+5. The README file of the project is for reference only; doubt its accuracy and maintenance, so do not use it as the primary source
 
 Think step by step and structure the answer for quick comprehension by engineers.
 """
