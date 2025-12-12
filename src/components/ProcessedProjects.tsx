@@ -36,6 +36,7 @@ export default function ProcessedProjects({
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [authRequired, setAuthRequired] = useState(false);
 
   // Default messages fallback
   const defaultMessages = {
@@ -86,6 +87,21 @@ export default function ProcessedProjects({
     fetchProjects();
   }, [initialProjects]);
 
+  useEffect(() => {
+    const checkAuthRequired = async () => {
+      try {
+        const response = await fetch('/api/auth/status');
+        if (response.ok) {
+          const data = await response.json();
+          setAuthRequired(data.auth_required || false);
+        }
+      } catch (e) {
+        console.error('Failed to check auth status:', e);
+      }
+    };
+    checkAuthRequired();
+  }, []);
+
   // Filter projects based on search query
   const filteredProjects = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -111,10 +127,29 @@ export default function ProcessedProjects({
     if (!confirm(`Are you sure you want to delete all data for ${project.name}?\n\nThis will permanently remove:\n- The cloned repository\n- All embeddings and database files\n- All wiki cache files for all languages`)) {
       return;
     }
+
+    let authCode = '';
+    if (authRequired) {
+      authCode = prompt('Enter authorization code:') || '';
+      if (!authCode) {
+        alert('Authorization code is required');
+        return;
+      }
+    }
+
     try {
       // First delete all repository data from filesystem
+      const params = new URLSearchParams({
+        owner: project.owner,
+        repo: project.repo,
+        repo_type: project.repo_type,
+      });
+      if (authCode) {
+        params.append('authorization_code', authCode);
+      }
+
       const repoDeleteResponse = await fetch(
-        `/api/wiki_repository?owner=${encodeURIComponent(project.owner)}&repo=${encodeURIComponent(project.repo)}&repo_type=${encodeURIComponent(project.repo_type)}`,
+        `/api/wiki_repository?${params.toString()}`,
         {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
