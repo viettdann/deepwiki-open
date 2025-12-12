@@ -1,0 +1,25 @@
+{
+  "endpoints": [
+    {
+      "name": "primary",
+      "endpoint": "https://primary-resource.openai.azure.com/",
+      "api_key": "your-primary-api-key-here",
+      "api_version": "2025-04-01-preview",
+      "use_v1": false
+    },
+    {
+      "name": "secondary",
+      "endpoint": "https://secondary-resource.openai.azure.com/",
+      "api_key": "your-secondary-api-key-here",
+      "api_version": "2025-04-01-preview",
+      "use_v1": false
+    },
+    {
+      "name": "tertiary",
+      "endpoint": "https://tertiary-resource.openai.azure.com/",
+      "api_key": "your-tertiary-api-key-here",
+      "api_version": "2025-04-01-preview",
+      "use_v1": true
+    }
+  ]
+}

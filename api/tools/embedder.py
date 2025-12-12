@@ -24,6 +24,8 @@ def get_embedder(is_local_ollama: bool = False, use_google_embedder: bool = Fals
             embedder_config = configs["embedder_openrouter"]
         elif embedder_type == 'azure':
             embedder_config = configs.get("embedder_azure", configs["embedder"])
+        elif embedder_type == 'azure_ha':
+            embedder_config = configs.get("embedder_azure_ha", configs["embedder_azure"])
         else:  # default to openai
             embedder_config = configs["embedder"]
     elif is_local_ollama:
@@ -41,6 +43,8 @@ def get_embedder(is_local_ollama: bool = False, use_google_embedder: bool = Fals
             embedder_config = configs["embedder_openrouter"]
         elif current_type == 'azure':
             embedder_config = configs.get("embedder_azure", configs["embedder"])
+        elif current_type == 'azure_ha':
+            embedder_config = configs.get("embedder_azure_ha", configs["embedder_azure"])
         else:
             embedder_config = configs["embedder"]
 
