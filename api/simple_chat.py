@@ -17,6 +17,7 @@ from api.openai_client import OpenAIClient
 from api.openrouter_client import OpenRouterClient
 from api.deepseek_client import DeepSeekClient
 from api.azureai_client import AzureAIClient
+from api.azure_anthropic_client import AzureAnthropicClient
 from api.rag import RAG
 from api.prompts import (
     DEEP_RESEARCH_FIRST_ITERATION_PROMPT,
@@ -438,6 +439,25 @@ async def chat_completions_stream(request: ChatCompletionRequest):
                 model_kwargs=model_kwargs,
                 model_type=ModelType.LLM
             )
+        elif request.provider == "azure_anthropic":
+            logger.info(f"Using Azure Anthropic with model: {request.model}")
+
+            model = AzureAnthropicClient()
+            model_kwargs = {
+                "model": request.model,
+                "stream": True,
+                "max_tokens": model_config.get("max_tokens", 4096),
+            }
+            if "temperature" in model_config:
+                model_kwargs["temperature"] = model_config["temperature"]
+            if "top_p" in model_config:
+                model_kwargs["top_p"] = model_config["top_p"]
+
+            api_kwargs = model.convert_inputs_to_api_kwargs(
+                input=prompt,
+                model_kwargs=model_kwargs,
+                model_type=ModelType.LLM
+            )
         else:
             # Initialize Google Generative AI model
             model = genai.GenerativeModel(
@@ -551,6 +571,22 @@ async def chat_completions_stream(request: ChatCompletionRequest):
                     except Exception as e_deepseek:
                         logger.error(f"Error with DeepSeek API: {str(e_deepseek)}")
                         yield f"\nError with DeepSeek API: {str(e_deepseek)}\n\nPlease check that you have set the DEEPSEEK_API_KEY environment variable with a valid API key."
+                elif request.provider == "azure_anthropic":
+                    try:
+                        logger.info(f"Making Azure Anthropic API call with model: {request.model}")
+                        logger.debug(f"Azure Anthropic API kwargs: {api_kwargs}")
+                        # Anthropic streaming uses async context manager with text_stream
+                        async with await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM) as stream:
+                            chunk_count = 0
+                            async for text in stream.text_stream:
+                                chunk_count += 1
+                                logger.debug(f"Azure Anthropic chunk #{chunk_count}: {text}")
+                                if text:
+                                    yield text
+                            logger.info(f"Azure Anthropic streaming completed with {chunk_count} chunks")
+                    except Exception as e_azure_anthropic:
+                        logger.error(f"Error with Azure Anthropic API: {str(e_azure_anthropic)}")
+                        yield f"\nError with Azure Anthropic API: {str(e_azure_anthropic)}\n\nPlease check AZURE_ANTHROPIC_API_KEY and AZURE_ANTHROPIC_ENDPOINT."
                 else:
                     # Generate streaming response (Google)
                     logger.info(f"Making Google API call with model: {model_config.get('model')}")
@@ -721,6 +757,28 @@ async def chat_completions_stream(request: ChatCompletionRequest):
                             except Exception as e_fallback:
                                 logger.error(f"Error with DeepSeek API fallback: {str(e_fallback)}")
                                 yield f"\nError with DeepSeek API fallback: {str(e_fallback)}\n\nPlease check that you have set the DEEPSEEK_API_KEY environment variable with a valid API key."
+                        elif request.provider == "azure_anthropic":
+                            try:
+                                # Create new api_kwargs with the simplified prompt
+                                fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
+                                    input=simplified_prompt,
+                                    model_kwargs=model_kwargs,
+                                    model_type=ModelType.LLM
+                                )
+
+                                logger.info(f"Making fallback Azure Anthropic API call with model: {request.model}")
+                                logger.debug(f"Azure Anthropic fallback API kwargs: {fallback_api_kwargs}")
+                                # Anthropic streaming uses async context manager
+                                async with await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM) as stream:
+                                    chunk_count = 0
+                                    async for text in stream.text_stream:
+                                        chunk_count += 1
+                                        if text:
+                                            yield text
+                                    logger.info(f"Azure Anthropic fallback streaming completed with {chunk_count} chunks")
+                            except Exception as e_fallback:
+                                logger.error(f"Error with Azure Anthropic API fallback: {str(e_fallback)}")
+                                yield f"\nError with Azure Anthropic API fallback: {str(e_fallback)}"
                         else:
                             # Initialize Google Generative AI model
                             model_config = get_model_config(request.provider, request.model)

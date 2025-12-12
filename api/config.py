@@ -12,6 +12,7 @@ from api.openrouter_client import OpenRouterClient
 from api.google_embedder_client import GoogleEmbedderClient
 from api.deepseek_client import DeepSeekClient
 from api.azureai_client import AzureAIClient
+from api.azure_anthropic_client import AzureAnthropicClient
 from adalflow import GoogleGenAIClient, OllamaClient
 
 # Get API keys from environment variables
@@ -71,7 +72,8 @@ CLIENT_CLASSES = {
     "OpenRouterClient": OpenRouterClient,
     "OllamaClient": OllamaClient,
     "DeepSeekClient": DeepSeekClient,
-    "AzureAIClient": AzureAIClient
+    "AzureAIClient": AzureAIClient,
+    "AzureAnthropicClient": AzureAnthropicClient,
 }
 
 def replace_env_placeholders(config: Union[Dict[str, Any], List[Any], str, Any]) -> Union[Dict[str, Any], List[Any], str, Any]:
@@ -142,7 +144,7 @@ def load_generator_config():
             if provider_config.get("client_class") in CLIENT_CLASSES:
                 provider_config["model_client"] = CLIENT_CLASSES[provider_config["client_class"]]
             # Fall back to default mapping based on provider_id
-            elif provider_id in ["google", "openai", "openrouter", "ollama", "deepseek", "azure"]:
+            elif provider_id in ["google", "openai", "openrouter", "ollama", "deepseek", "azure", "azure_anthropic"]:
                 default_map = {
                     "google": GoogleGenAIClient,
                     "openai": OpenAIClient,
@@ -150,6 +152,7 @@ def load_generator_config():
                     "ollama": OllamaClient,
                     "deepseek": DeepSeekClient,
                     "azure": AzureAIClient,
+                    "azure_anthropic": AzureAnthropicClient,
                 }
                 provider_config["model_client"] = default_map[provider_id]
             else:
@@ -325,7 +328,7 @@ DEFAULT_EXCLUDED_FILES: List[str] = [
     ".gitattributes", ".gitmodules", ".github", ".gitlab-ci.yml",
     ".prettierrc", ".eslintrc", ".eslintignore", ".stylelintrc",
     ".editorconfig", ".jshintrc", ".pylintrc", ".flake8", "mypy.ini",
-    "pyproject.toml", "tsconfig.json", "webpack.config.js", "babel.config.js",
+    "tsconfig.json", "webpack.config.js", "babel.config.js",
     "rollup.config.js", "jest.config.js", "karma.conf.js", "vite.config.js",
     "next.config.js", "*.min.js", "*.min.css", "*.bundle.js", "*.bundle.css",
     "*.map", "*.gz", "*.zip", "*.tar", "*.tgz", "*.rar", "*.7z", "*.iso",
@@ -336,19 +339,7 @@ DEFAULT_EXCLUDED_FILES: List[str] = [
     "*.egg", "*.egg-info", "*.dist-info", "*.eggs", "node_modules",
     "bower_components", "jspm_packages", "lib-cov", "coverage", "htmlcov",
     ".nyc_output", ".tox", "dist", "build", "bld", "out", "bin", "target",
-    "packages/*/dist", "packages/*/build", ".output",
-    # Documentation files that are often outdated or unmaintained
-    "README.md", "readme.md", "README", "readme", "README.txt", "readme.txt",
-    "README.rst", "readme.rst", "CHANGELOG.md", "CHANGELOG.txt", "CHANGELOG",
-    "CHANGELOG.md", "CHANGELOG.txt", "CONTRIBUTING.md", "CONTRIBUTING.txt",
-    "CONTRIBUTING", "CONTRIBUTING", "CONTRIBUTORS.md", "CONTRIBUTORS.txt",
-    "CONTRIBUTORS", "HISTORY.md", "HISTORY.txt", "HISTORY", "LICENSE.md",
-    "LICENSE.txt", "LICENSE", "COPYING.md", "COPYING.txt", "COPYING",
-    "INSTALL.md", "INSTALL.txt", "INSTALL", "NEWS.md", "NEWS.txt", "NEWS",
-    "RELEASES.md", "RELEASES.txt", "RELEASES", "TODO.md", "TODO.txt", "TODO",
-    "TROUBLESHOOTING.md", "TROUBLESHOOTING.txt", "TROUBLESHOOTING",
-    "UPGRADE.md", "UPGRADE.txt", "UPGRADE", "USAGE.md", "USAGE.txt", "USAGE",
-    "*.rst", "*.1", "*.2", "*.3", "*.4", "*.5", "*.6", "*.7", "*.8", "*.9"
+    "packages/*/dist", "packages/*/build", ".output"
 ]
 
 # Initialize empty configuration

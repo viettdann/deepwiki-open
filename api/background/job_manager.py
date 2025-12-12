@@ -521,7 +521,49 @@ class JobManager:
     @staticmethod
     async def delete_job(job_id: str) -> bool:
         """Delete a job and its pages."""
+        import os
+        import shutil
+        from api.api import get_adalflow_default_root_path
+
         db = await get_db()
+
+        # Get job info before deleting to clean up filesystem
+        job = await JobManager.get_job(job_id)
+        if job:
+            # Clean up repository clone and database files
+            root_path = get_adalflow_default_root_path()
+
+            # Remove cloned repository directory
+            repo_dir = os.path.join(root_path, "repos", f"{job.owner}_{job.repo}")
+            if os.path.exists(repo_dir):
+                try:
+                    shutil.rmtree(repo_dir)
+                    logger.info(f"Deleted repository directory: {repo_dir}")
+                except Exception as e:
+                    logger.error(f"Failed to delete repository directory {repo_dir}: {e}")
+
+            # Remove database file
+            db_file = os.path.join(root_path, "databases", f"{job.owner}_{job.repo}.pkl")
+            if os.path.exists(db_file):
+                try:
+                    os.remove(db_file)
+                    logger.info(f"Deleted database file: {db_file}")
+                except Exception as e:
+                    logger.error(f"Failed to delete database file {db_file}: {e}")
+
+            # Remove wiki cache files for all supported languages
+            from api.api import configs
+            cache_dir = os.path.join(root_path, "wikicache")
+            if os.path.exists(cache_dir):
+                try:
+                    for language in configs["lang_config"]["supported_languages"]:
+                        cache_file = f"deepwiki_cache_{job.repo_type}_{job.owner}_{job.repo}_{language}.json"
+                        cache_path = os.path.join(cache_dir, cache_file)
+                        if os.path.exists(cache_path):
+                            os.remove(cache_path)
+                            logger.info(f"Deleted wiki cache file: {cache_path}")
+                except Exception as e:
+                    logger.error(f"Failed to delete wiki cache files: {e}")
 
         result = await db.execute(
             "DELETE FROM jobs WHERE id = ?",
