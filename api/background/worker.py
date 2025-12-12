@@ -23,6 +23,7 @@ import aiohttp
 from api.config import get_model_config, configs, OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY, PAGE_CONCURRENCY
 from api.openai_client import OpenAIClient
 from api.azureai_client import AzureAIClient
+from api.azure_anthropic_client import AzureAnthropicClient
 from api.openrouter_client import OpenRouterClient
 from api.deepseek_client import DeepSeekClient
 from api.rag import RAG
@@ -906,7 +907,7 @@ Return your analysis in the following XML format:
 {file_tree}
 </file_tree>
 
-2. The README file of the project:
+2. The README file of the project (Note: This README is for reference only; doubt its accuracy and maintenance, so do not use it as the primary source):
 <readme>
 {readme}
 </readme>
@@ -1217,6 +1218,33 @@ IMPORTANT: Generate the content in {language_name}."""
                             text = getattr(delta, "content", None)
                             if text is not None:
                                 content += text
+
+            elif provider == "azure_anthropic":
+                if not os.getenv("AZURE_ANTHROPIC_API_KEY"):
+                    raise ValueError("AZURE_ANTHROPIC_API_KEY not configured")
+
+                client = AzureAnthropicClient()
+                model_kwargs = {
+                    "model": model,
+                    "stream": True,
+                    "max_tokens": model_config.get("max_tokens", 4096),
+                }
+                if "temperature" in model_config:
+                    model_kwargs["temperature"] = model_config["temperature"]
+                if "top_p" in model_config:
+                    model_kwargs["top_p"] = model_config["top_p"]
+
+                api_kwargs = client.convert_inputs_to_api_kwargs(
+                    input=prompt,
+                    model_kwargs=model_kwargs,
+                    model_type=ModelType.LLM
+                )
+
+                # Anthropic streaming uses async context manager
+                async with await client.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM) as stream:
+                    async for text in stream.text_stream:
+                        if text:
+                            content += text
 
             elif provider == "openai":
                 if not OPENAI_API_KEY:

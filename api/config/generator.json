@@ -162,13 +162,11 @@
         },
         "anthropic/claude-haiku-4.5": {
           "temperature": 0.2,
-          "top_p": 0.8,
           "top_k": 40,
           "max_tokens": 16384
         },
         "anthropic/claude-sonnet-4.5": {
           "temperature": 0.2,
-          "top_p": 0.8,
           "top_k": 40,
           "max_tokens": 32768
         }
@@ -177,7 +175,7 @@
     "azure": {
       "client_class": "AzureAIClient",
       "default_model": "gpt-4o-mini",
-      "supportsCustomModel": true,
+      "supportsCustomModel": false,
       "models": {
         "gpt-4o-mini": {
           "temperature": 1,
@@ -198,6 +196,19 @@
           "temperature": 1,
           "top_p": 1,
           "deployment": "gpt-5.1-codex-mini"
+        }
+      }
+    },
+    "azure_anthropic": {
+      "client_class": "AzureAnthropicClient",
+      "default_model": "claude-haiku-4-5",
+      "supportsCustomModel": false,
+      "models": {
+        "claude-sonnet-4-5": {
+          "temperature": 0.2
+        },
+        "claude-haiku-4-5": {
+          "temperature": 0.2
         }
       }
     },

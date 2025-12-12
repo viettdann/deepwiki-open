@@ -44,6 +44,8 @@
     "providerGoogle": "Google",
     "providerOpenAI": "OpenAI",
     "providerOpenRouter": "OpenRouter",
+    "providerAzure": "Azure",
+    "providerAzureAnthropic": "Azure Anthropic",
     "providerOllama": "Ollama (Local)",
     "localOllama": "Local Ollama Model",
     "experimental": "Experimental",

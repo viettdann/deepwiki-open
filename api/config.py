@@ -12,6 +12,7 @@ from api.openrouter_client import OpenRouterClient
 from api.google_embedder_client import GoogleEmbedderClient
 from api.deepseek_client import DeepSeekClient
 from api.azureai_client import AzureAIClient
+from api.azure_anthropic_client import AzureAnthropicClient
 from adalflow import GoogleGenAIClient, OllamaClient
 
 # Get API keys from environment variables
@@ -71,7 +72,8 @@ CLIENT_CLASSES = {
     "OpenRouterClient": OpenRouterClient,
     "OllamaClient": OllamaClient,
     "DeepSeekClient": DeepSeekClient,
-    "AzureAIClient": AzureAIClient
+    "AzureAIClient": AzureAIClient,
+    "AzureAnthropicClient": AzureAnthropicClient,
 }
 
 def replace_env_placeholders(config: Union[Dict[str, Any], List[Any], str, Any]) -> Union[Dict[str, Any], List[Any], str, Any]:
@@ -142,7 +144,7 @@ def load_generator_config():
             if provider_config.get("client_class") in CLIENT_CLASSES:
                 provider_config["model_client"] = CLIENT_CLASSES[provider_config["client_class"]]
             # Fall back to default mapping based on provider_id
-            elif provider_id in ["google", "openai", "openrouter", "ollama", "deepseek", "azure"]:
+            elif provider_id in ["google", "openai", "openrouter", "ollama", "deepseek", "azure", "azure_anthropic"]:
                 default_map = {
                     "google": GoogleGenAIClient,
                     "openai": OpenAIClient,
@@ -150,6 +152,7 @@ def load_generator_config():
                     "ollama": OllamaClient,
                     "deepseek": DeepSeekClient,
                     "azure": AzureAIClient,
+                    "azure_anthropic": AzureAnthropicClient,
                 }
                 provider_config["model_client"] = default_map[provider_id]
             else:
