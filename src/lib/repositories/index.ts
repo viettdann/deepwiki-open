@@ -1,4 +1,4 @@
-// Export all repository functions
+// Repository API functions - barrel export for cleaner imports
 export * from './github';
 export * from './gitlab';
 export * from './bitbucket';

@@ -63,6 +63,10 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { findActiveJob, startBackgroundWikiGeneration } from '@/utils/backgroundJobClient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FaBitbucket, FaBookOpen, FaChevronDown, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes, FaTrash } from 'react-icons/fa';
+// Import extracted components for future migration
+import WikiSidebar from '@/components/wiki/WikiSidebar';
+import WikiContent from '@/components/wiki/WikiContent';
+import WikiChatModal from '@/components/wiki/WikiChatModal';
 
 const wikiStyles = `
   /* Terminal Codex Wiki Styles */
