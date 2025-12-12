@@ -605,6 +605,177 @@ The API uses API key authentication that can be provided in two ways:
    - Per-page retry limits
    - Timeout handling
 
+## Next.js API Route Authentication Pattern
+
+### Overview
+
+DeepWiki uses a two-tier architecture:
+- **Frontend**: Next.js API routes (`src/app/api/*/route.ts`)
+- **Backend**: Python FastAPI (`api/api.py`)
+
+The Python backend uses JWT-based authentication via the `require_admin` dependency, which expects JWT tokens from either:
+- **Cookie**: `dw_token`
+- **Authorization header**: `Bearer <token>`
+
+**CRITICAL**: Next.js API routes MUST forward JWT authentication to the Python backend for protected endpoints.
+
+### Pattern 1: Using `proxyToBackend` Helper (Recommended)
+
+The `proxyToBackend` helper automatically handles JWT token forwarding from cookies and Authorization headers.
+
+**File**: `src/lib/api-proxy.ts`
+
+**Example Usage**:
+```typescript
+import { proxyToBackend } from '@/lib/api-proxy';
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const params = request.nextUrl.searchParams;
+
+    // proxyToBackend automatically forwards JWT from cookie/header
+    const response = await proxyToBackend(
+      `/api/wiki_cache?${params.toString()}`,
+      { method: 'DELETE' }
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      return NextResponse.json(
+        { error: errorBody },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(await response.json());
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+**What `proxyToBackend` does**:
+1. Extracts JWT from `dw_token` cookie
+2. Formats it as `Authorization: Bearer <token>` header
+3. Adds `X-API-Key` header from environment
+4. Forwards request to Python backend
+
+### Pattern 2: Manual Token Forwarding
+
+When you cannot use `proxyToBackend` (e.g., need custom request handling), manually forward JWT tokens.
+
+**Example** (`src/app/api/wiki_repository/route.ts`):
+```typescript
+export async function DELETE(request: NextRequest) {
+  try {
+    // 1. Extract JWT token from cookie OR Authorization header
+    const token = request.cookies.get('dw_token')?.value ||
+                  request.headers.get('authorization');
+
+    // 2. Get API key
+    const apiKey = process.env.DEEPWIKI_FRONTEND_API_KEY;
+
+    // 3. Build headers
+    const headers: HeadersInit = {
+      'X-API-Key': apiKey,
+      'Content-Type': 'application/json',
+    };
+
+    // 4. Forward JWT authentication to backend
+    if (token) {
+      // If token is from Authorization header, use it as-is
+      // If from cookie, format as Bearer token
+      if (token.startsWith('Bearer ')) {
+        headers['Authorization'] = token;
+      } else {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
+    // 5. Make request to Python backend
+    const response = await fetch(apiUrl.toString(), {
+      method: 'DELETE',
+      headers,
+    });
+
+    return NextResponse.json(await response.json());
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Common Mistakes to Avoid
+
+❌ **DON'T**: Forget to forward JWT token
+```typescript
+// This will cause 401 Unauthorized on protected endpoints!
+const response = await fetch(apiUrl, {
+  method: 'DELETE',
+  headers: {
+    'X-API-Key': apiKey,  // Only API key, no JWT!
+  },
+});
+```
+
+❌ **DON'T**: Only check Authorization header
+```typescript
+// This misses JWT from cookies (browser auth)
+const token = request.headers.get('authorization');
+```
+
+✅ **DO**: Check both cookie AND Authorization header
+```typescript
+// Supports both browser (cookie) and CLI/API (header) auth
+const token = request.cookies.get('dw_token')?.value ||
+              request.headers.get('authorization');
+```
+
+✅ **DO**: Use `proxyToBackend` when possible
+```typescript
+// Handles all authentication automatically
+const response = await proxyToBackend('/api/endpoint', { method: 'GET' });
+```
+
+### When to Use Each Pattern
+
+| Pattern | Use When |
+|---------|----------|
+| `proxyToBackend` | Standard pass-through to backend, no custom logic needed |
+| Manual forwarding | Custom parameter handling, URL manipulation, or special headers required |
+
+### Python Backend Protected Endpoints
+
+These Python endpoints require JWT authentication (via `require_admin` or `require_auth`):
+
+- `POST /api/wiki_cache` - Requires admin
+- `DELETE /api/wiki_cache` - Requires admin
+- `DELETE /api/wiki_repository` - Requires admin
+- `POST /api/wiki/jobs` - Requires admin
+- `DELETE /api/wiki/jobs/{job_id}` - Requires admin
+- `POST /api/wiki/jobs/{job_id}/*` - Requires admin (pause/resume/retry/delete)
+
+**Remember**: If the Python endpoint uses `Depends(require_admin)` or `Depends(require_auth)`, the Next.js route MUST forward JWT tokens!
+
+### Testing Authentication
+
+To verify JWT forwarding works:
+
+1. **Check browser DevTools**: Look for `dw_token` cookie
+2. **Check backend logs**: Should see "User authenticated" messages
+3. **Check for 401 errors**: Indicates missing/invalid JWT
+4. **Test with curl**: Include Authorization header
+   ```bash
+   curl -X DELETE "http://localhost:3000/api/wiki_repository?owner=x&repo=y&repo_type=github" \
+     -H "Authorization: Bearer <jwt-token>"
+   ```
+
 ## Monitoring & Logging
 
 ### Logging Configuration
