@@ -4,6 +4,8 @@ import os
 from typing import Dict, Sequence, Optional, Any, List
 import logging
 import json
+import time
+import asyncio
 import aiohttp
 import requests
 from requests.exceptions import RequestException, Timeout
@@ -94,6 +96,199 @@ class OpenRouterClient(ModelClient):
             "api_key": api_key,
             "base_url": base_url
         }
+
+    def _validate_embedding_response(self, response) -> bool:
+        """Validate that the embedding response contains non-empty embeddings.
+
+        Args:
+            response: The embedding response from the API (dict format)
+
+        Returns:
+            bool: True if the response contains valid embeddings, False otherwise
+        """
+        try:
+            if not response or not isinstance(response, dict):
+                log.warning("Embedding response is missing or not a dict")
+                return False
+
+            if 'data' not in response or not response['data']:
+                log.warning("Embedding response has no data key or empty data")
+                return False
+
+            # Check if all embeddings are non-empty
+            for i, item in enumerate(response['data']):
+                if 'embedding' not in item or not item['embedding']:
+                    log.warning(f"Embedding at index {i} is missing or empty")
+                    return False
+
+                if len(item['embedding']) == 0:
+                    log.warning(f"Embedding at index {i} has 0 dimensions")
+                    return False
+
+            return True
+        except Exception as e:
+            log.error(f"Error validating embedding response: {e}")
+            return False
+
+    def _call_embeddings_with_retry(self, api_kwargs: Dict, max_retries: int = 3) -> Dict:
+        """Call embeddings API with retry logic for empty embeddings.
+
+        Args:
+            api_kwargs: API keyword arguments
+            max_retries: Maximum number of retry attempts (default: 3)
+
+        Returns:
+            The embedding response dict (even if invalid - pipeline will handle skipping)
+        """
+        headers = {
+            "Authorization": f"Bearer {self.sync_client['api_key']}",
+            "Content-Type": "application/json"
+        }
+
+        last_response = None
+        model_name = api_kwargs.get('model', 'unknown')
+
+        for attempt in range(max_retries):
+            try:
+                log.info(f"OpenRouter embeddings sync call - model: {model_name} (attempt {attempt + 1}/{max_retries})")
+                log.info(f"Making sync OpenRouter embeddings API call to {self.sync_client['base_url']}/embeddings")
+                log.debug(f"Request body: {api_kwargs}")
+
+                response = requests.post(
+                    f"{self.sync_client['base_url']}/embeddings",
+                    headers=headers,
+                    json=api_kwargs,
+                    timeout=600
+                )
+
+                if response.status_code != 200:
+                    error_text = response.text
+                    log.error(f"OpenRouter embeddings API error ({response.status_code}): {error_text}")
+
+                    # Don't sleep on the last attempt
+                    if attempt < max_retries - 1:
+                        sleep_time = 2 ** attempt
+                        log.info(f"Retrying after {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+                    continue
+
+                data = response.json()
+                last_response = data
+                log.info(f"Received embeddings response from OpenRouter")
+                log.debug(f"Response: {data}")
+
+                # Validate the response
+                if self._validate_embedding_response(data):
+                    if attempt > 0:
+                        log.info(f"Successfully generated embeddings on attempt {attempt + 1}")
+                    return data
+                else:
+                    log.warning(f"Received invalid/empty embeddings on attempt {attempt + 1}/{max_retries}")
+
+                    # Don't sleep on the last attempt
+                    if attempt < max_retries - 1:
+                        sleep_time = 2 ** attempt
+                        log.info(f"Retrying after {sleep_time} seconds...")
+                        time.sleep(sleep_time)
+
+            except Exception as e:
+                log.error(f"Error calling OpenRouter embeddings API on attempt {attempt + 1}/{max_retries}: {str(e)}")
+
+                # Don't sleep on the last attempt
+                if attempt < max_retries - 1:
+                    sleep_time = 2 ** attempt
+                    log.info(f"Retrying after {sleep_time} seconds...")
+                    time.sleep(sleep_time)
+
+        # If we get here, all retries failed - return last response (or raise if never got one)
+        # Pipeline will handle empty embeddings by skipping documents
+        if last_response is not None:
+            log.warning(f"Returning response after {max_retries} attempts - may contain empty embeddings")
+            return last_response
+        else:
+            # Only raise if we never got a response at all
+            log.error(f"Failed to get any response after {max_retries} attempts")
+            raise Exception(f"Failed to get any response after {max_retries} attempts")
+
+    async def _acall_embeddings_with_retry(self, api_kwargs: Dict, max_retries: int = 3) -> Dict:
+        """Async call embeddings API with retry logic for empty embeddings.
+
+        Args:
+            api_kwargs: API keyword arguments
+            max_retries: Maximum number of retry attempts (default: 3)
+
+        Returns:
+            The embedding response dict (even if invalid - pipeline will handle skipping)
+        """
+        headers = {
+            "Authorization": f"Bearer {self.async_client['api_key']}",
+            "Content-Type": "application/json"
+        }
+
+        last_response = None
+        model_name = api_kwargs.get('model', 'unknown')
+
+        for attempt in range(max_retries):
+            try:
+                log.info(f"OpenRouter embeddings async call - model: {model_name} (attempt {attempt + 1}/{max_retries})")
+                log.info(f"Making async OpenRouter embeddings API call to {self.async_client['base_url']}/embeddings")
+                log.debug(f"Request body: {api_kwargs}")
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"{self.async_client['base_url']}/embeddings",
+                        headers=headers,
+                        json=api_kwargs,
+                        timeout=60
+                    ) as response:
+                        if response.status != 200:
+                            error_text = await response.text()
+                            log.error(f"OpenRouter embeddings API error ({response.status}): {error_text}")
+
+                            # Don't sleep on the last attempt
+                            if attempt < max_retries - 1:
+                                sleep_time = 2 ** attempt
+                                log.info(f"Retrying after {sleep_time} seconds...")
+                                await asyncio.sleep(sleep_time)
+                            continue
+
+                        data = await response.json()
+                        last_response = data
+                        log.info(f"Received embeddings response from OpenRouter")
+                        log.debug(f"Response: {data}")
+
+                        # Validate the response
+                        if self._validate_embedding_response(data):
+                            if attempt > 0:
+                                log.info(f"Successfully generated embeddings on attempt {attempt + 1}")
+                            return data
+                        else:
+                            log.warning(f"Received invalid/empty embeddings on attempt {attempt + 1}/{max_retries}")
+
+                            # Don't sleep on the last attempt
+                            if attempt < max_retries - 1:
+                                sleep_time = 2 ** attempt
+                                log.info(f"Retrying after {sleep_time} seconds...")
+                                await asyncio.sleep(sleep_time)
+
+            except Exception as e:
+                log.error(f"Error calling OpenRouter embeddings API on attempt {attempt + 1}/{max_retries}: {str(e)}")
+
+                # Don't sleep on the last attempt
+                if attempt < max_retries - 1:
+                    sleep_time = 2 ** attempt
+                    log.info(f"Retrying after {sleep_time} seconds...")
+                    await asyncio.sleep(sleep_time)
+
+        # If we get here, all retries failed - return last response (or raise if never got one)
+        # Pipeline will handle empty embeddings by skipping documents
+        if last_response is not None:
+            log.warning(f"Returning response after {max_retries} attempts - may contain empty embeddings")
+            return last_response
+        else:
+            # Only raise if we never got a response at all
+            log.error(f"Failed to get any response after {max_retries} attempts")
+            raise Exception(f"Failed to get any response after {max_retries} attempts")
 
     def convert_inputs_to_api_kwargs(
         self, input: Any, model_kwargs: Dict = None, model_type: ModelType = None
@@ -373,38 +568,8 @@ class OpenRouterClient(ModelClient):
                 raise
 
         elif model_type == ModelType.EMBEDDER:
-            # Handle embeddings
-            headers = {
-                "Authorization": f"Bearer {self.async_client['api_key']}",
-                "Content-Type": "application/json"
-            }
-
-            try:
-                model_name = api_kwargs.get('model', 'unknown')
-                log.info(f"OpenRouter embeddings call - model: {model_name}")
-                log.info(f"Making async OpenRouter embeddings API call to {self.async_client['base_url']}/embeddings")
-                log.debug(f"Request body: {api_kwargs}")
-
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(
-                        f"{self.async_client['base_url']}/embeddings",
-                        headers=headers,
-                        json=api_kwargs,
-                        timeout=60
-                    ) as response:
-                        if response.status != 200:
-                            error_text = await response.text()
-                            log.error(f"OpenRouter embeddings API error ({response.status}): {error_text}")
-                            raise Exception(f"OpenRouter embeddings API error ({response.status}): {error_text}")
-
-                        data = await response.json()
-                        log.info(f"Received embeddings response from OpenRouter")
-                        log.debug(f"Response: {data}")
-                        return data
-
-            except Exception as e:
-                log.error(f"Error calling OpenRouter embeddings API: {str(e)}")
-                raise
+            # Handle embeddings with retry logic
+            return await self._acall_embeddings_with_retry(api_kwargs)
 
         else:
             error_msg = f"Unsupported model type: {model_type}"
@@ -430,39 +595,8 @@ class OpenRouterClient(ModelClient):
         api_kwargs = api_kwargs or {}
 
         if model_type == ModelType.EMBEDDER:
-            # Handle embeddings
-            headers = {
-                "Authorization": f"Bearer {self.sync_client['api_key']}",
-                "Content-Type": "application/json"
-            }
-
-            try:
-                model_name = api_kwargs.get('model', 'unknown')
-                log.info(f"OpenRouter embeddings sync call - model: {model_name}")
-                log.info(f"Making sync OpenRouter embeddings API call to {self.sync_client['base_url']}/embeddings")
-                log.debug(f"Request body: {api_kwargs}")
-
-                response = requests.post(
-                    f"{self.sync_client['base_url']}/embeddings",
-                    headers=headers,
-                    json=api_kwargs,
-                    # Increase timeout to 10 minutes (600 seconds)
-                    timeout=600
-                )
-
-                if response.status_code != 200:
-                    error_text = response.text
-                    log.error(f"OpenRouter embeddings API error ({response.status_code}): {error_text}")
-                    raise Exception(f"OpenRouter embeddings API error ({response.status_code}): {error_text}")
-
-                data = response.json()
-                log.info(f"Received embeddings response from OpenRouter")
-                log.debug(f"Response: {data}")
-                return data
-
-            except Exception as e:
-                log.error(f"Error calling OpenRouter embeddings API: {str(e)}")
-                raise
+            # Handle embeddings with retry logic
+            return self._call_embeddings_with_retry(api_kwargs)
 
         elif model_type == ModelType.LLM:
             raise NotImplementedError("Sync LLM calls not implemented for OpenRouter. Use acall() instead.")
