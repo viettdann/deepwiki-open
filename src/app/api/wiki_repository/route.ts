@@ -39,12 +39,29 @@ export async function DELETE(request: NextRequest) {
       apiUrl.searchParams.append('authorization_code', authorizationCode);
     }
 
+    // Extract JWT token from cookie or Authorization header
+    const token = request.cookies.get('dw_token')?.value ||
+                  request.headers.get('authorization');
+
+    const headers: HeadersInit = {
+      'X-API-Key': apiKey,
+      'Content-Type': 'application/json',
+    };
+
+    // Forward JWT authentication to backend
+    if (token) {
+      // If token is from Authorization header, use it as-is
+      // If from cookie, format as Bearer token
+      if (token.startsWith('Bearer ')) {
+        headers['Authorization'] = token;
+      } else {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
     const response = await fetch(apiUrl.toString(), {
       method: 'DELETE',
-      headers: {
-        'X-API-Key': apiKey,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     const data = await response.json();
