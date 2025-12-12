@@ -63,10 +63,9 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { findActiveJob, startBackgroundWikiGeneration } from '@/utils/backgroundJobClient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FaBitbucket, FaBookOpen, FaChevronDown, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes, FaTrash } from 'react-icons/fa';
-// Import extracted components for future migration
-import WikiSidebar from '@/components/wiki/WikiSidebar';
-import WikiContent from '@/components/wiki/WikiContent';
-import WikiChatModal from '@/components/wiki/WikiChatModal';
+// Import extracted components and hooks for integration
+import { WikiSidebar, WikiContent, WikiChatModal, ExportButton } from '@/components/wiki';
+import { useWikiState, useModelConfig } from '@/hooks';
 
 const wikiStyles = `
   /* Terminal Codex Wiki Styles */
@@ -386,24 +385,51 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
     branch: branchParam || null
   }), [owner, repo, repoType, localPath, repoUrl, token, branchParam]);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadingMessage, setLoadingMessage] = useState<string | undefined>(
-    messages.loading?.initializing || 'Initializing wiki generation...'
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [wikiStructure, setWikiStructure] = useState<WikiStructure | undefined>();
-  const [currentPageId, setCurrentPageId] = useState<string | undefined>();
-  const [generatedPages, setGeneratedPages] = useState<Record<string, WikiPage>>({});
-  const [pagesInProgress, setPagesInProgress] = useState(new Set<string>());
+  // Use custom hook for wiki-related state
+  const wikiState = useWikiState(token, repoInfo);
+  const {
+    isLoading,
+    loadingMessage,
+    error,
+    wikiStructure,
+    currentPageId,
+    generatedPages,
+    pagesInProgress,
+    requestInProgress,
+    currentToken,
+    effectiveRepoInfo,
+    embeddingError,
+    defaultBranch,
+    structureRequestInProgress,
+    setLoading,
+    setError,
+    setWikiStructure,
+    setCurrentPage,
+    setGeneratedPages,
+    updatePage,
+    setPagesInProgress,
+    addPageInProgress,
+    removePageInProgress,
+    setRequestInProgress,
+    setCurrentToken,
+    setEffectiveRepoInfo,
+    setEmbeddingError,
+    setDefaultBranch,
+    setStructureRequestInProgress,
+    resetWikiState
+  } = wikiState;
+
+  // States that are not part of wikiState hook
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [originalMarkdown] = useState<Record<string, string>>({});
-  const [requestInProgress, setRequestInProgress] = useState(false);
-  const [currentToken, setCurrentToken] = useState(token);
-  const [effectiveRepoInfo, setEffectiveRepoInfo] = useState(repoInfo);
-  const [embeddingError, setEmbeddingError] = useState(false);
   const [showRegenerateMenu, setShowRegenerateMenu] = useState(false);
   const [cleanRegenerateMode, setCleanRegenerateMode] = useState(false);
+
+  // Initialize loading message
+  useEffect(() => {
+    setLoading(true, messages.loading?.initializing || 'Initializing wiki generation...');
+  }, [messages.loading, setLoading]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -420,24 +446,56 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showRegenerateMenu]);
 
-  const [selectedProviderState, setSelectedProviderState] = useState(providerParam);
-  const [selectedModelState, setSelectedModelState] = useState(modelParam);
-  const [isCustomSelectedModelState, setIsCustomSelectedModelState] = useState(isCustomModelParam);
-  const [customSelectedModelState, setCustomSelectedModelState] = useState(customModelParam);
-  const [showModelOptions] = useState(false);
+  // Use custom hook for model configuration state
   const excludedDirs = searchParams?.get('excluded_dirs') || '';
   const excludedFiles = searchParams?.get('excluded_files') || '';
-  const [modelExcludedDirs, setModelExcludedDirs] = useState(excludedDirs);
-  const [modelExcludedFiles, setModelExcludedFiles] = useState(excludedFiles);
   const includedDirs = searchParams?.get('included_dirs') || '';
   const includedFiles = searchParams?.get('included_files') || '';
-  const [modelIncludedDirs, setModelIncludedDirs] = useState(includedDirs);
-  const [modelIncludedFiles, setModelIncludedFiles] = useState(includedFiles);
+
+  const modelConfigState = useModelConfig(
+    providerParam,
+    modelParam,
+    isCustomModelParam,
+    customModelParam,
+    excludedDirs,
+    excludedFiles,
+    includedDirs,
+    includedFiles
+  );
+
+  const {
+    selectedProvider: selectedProviderState,
+    selectedModel: selectedModelState,
+    isCustomModel: isCustomSelectedModelState,
+    customModel: customSelectedModelState,
+    excludedDirs: modelExcludedDirs,
+    excludedFiles: modelExcludedFiles,
+    includedDirs: modelIncludedDirs,
+    includedFiles: modelIncludedFiles,
+    showModelOptions,
+    isModelDropdownOpen,
+    modelConfig,
+    expandedProviders,
+    customModelInput,
+    setSelectedProvider: setSelectedProviderState,
+    setSelectedModel: setSelectedModelState,
+    setIsCustomModel: setIsCustomSelectedModelState,
+    setCustomModel: setCustomSelectedModelState,
+    setExcludedDirs: setModelExcludedDirs,
+    setExcludedFiles: setModelExcludedFiles,
+    setIncludedDirs: setModelIncludedDirs,
+    setIncludedFiles: setModelIncludedFiles,
+    setShowModelOptions,
+    setModelDropdownOpen: setIsModelDropdownOpen,
+    setModelConfig,
+    toggleProviderExpanded: toggleProvider,
+    setCustomModelInput,
+  } = modelConfigState;
 
   const isComprehensiveParam = searchParams?.get('comprehensive') !== 'false';
   const [isComprehensiveView, setIsComprehensiveView] = useState(isComprehensiveParam);
   const activeContentRequests = useRef(new Map<string, boolean>()).current;
-  const [structureRequestInProgress, setStructureRequestInProgress] = useState(false);
+  // structureRequestInProgress is now handled by useWikiState hook
   const cacheLoadedSuccessfully = useRef(false);
   const effectRan = React.useRef(false);
   const [isAskModalOpen, setIsAskModalOpen] = useState(false);
@@ -447,28 +505,16 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   const [authCode, setAuthCode] = useState<string>('');
   const [isAuthLoading] = useState<boolean>(false);
 
-  const [defaultBranch, setDefaultBranch] = useState<string>(branchParam);
+  // Initialize default branch from hook
+  useEffect(() => {
+    if (branchParam) {
+      setDefaultBranch(branchParam);
+    }
+  }, [branchParam, setDefaultBranch]);
 
-  // Model selector dropdown state
-  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
-  const [modelConfig, setModelConfig] = useState<{providers: Array<{id: string; name: string; models: Array<{id: string; name: string}>; supportsCustomModel?: boolean}>} | null>(null);
-  const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
-  const [customModelInput, setCustomModelInput] = useState<{providerId: string; value: string} | null>(null);
+  // Model selector refs (state is now handled by useModelConfig hook)
   const modelDropdownRef = useRef<HTMLDivElement>(null);
   const modelButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Toggle provider expansion
-  const toggleProvider = (providerId: string) => {
-    setExpandedProviders(prev => {
-      const next = new Set(prev);
-      if (next.has(providerId)) {
-        next.delete(providerId);
-      } else {
-        next.add(providerId);
-      }
-      return next;
-    });
-  };
 
   // Handle custom model submission
   const submitCustomModel = (providerId: string) => {
@@ -555,9 +601,9 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   // Auto-expand current provider when dropdown opens
   useEffect(() => {
     if (isModelDropdownOpen && selectedProviderState && !expandedProviders.has(selectedProviderState)) {
-      setExpandedProviders(new Set([selectedProviderState]));
+      toggleProvider(selectedProviderState);
     }
-  }, [isModelDropdownOpen, selectedProviderState, expandedProviders]);
+  }, [isModelDropdownOpen, selectedProviderState, expandedProviders, toggleProvider]);
 
   // Handle click outside dropdown
   useEffect(() => {
@@ -596,15 +642,12 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
         if (!ownerLocal || !repoLocal) {
           throw new Error('Invalid repository information. Owner and repo name are required.');
         }
-        setPagesInProgress(prev => new Set(prev).add(page.id));
+        addPageInProgress(page.id);
         const filePaths = page.filePaths;
-        setGeneratedPages(prev => ({
-          ...prev,
-          [page.id]: { ...page, content: 'Loading...' }
-        }));
+        updatePage(page.id, { ...page, content: 'Loading...' });
         const repoUrlResolved = getRepoUrl(effectiveRepoInfo);
         const promptContent =
-`You are a senior software architect (10+ years experience) and technical writer.
+          `You are a senior software architect (10+ years experience) and technical writer.
 Your task is to generate a clear, comprehensive, and actionable technical wiki page in Markdown about a specific feature, system, or module in this project.
 
 You will be given:
@@ -730,24 +773,17 @@ IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Vi
         }
         content = content.replace(/^```markdown\s*/i, '').replace(/```\s*$/i, '');
         const updatedPage = { ...page, content };
-        setGeneratedPages(prev => ({ ...prev, [page.id]: updatedPage }));
+        updatePage(page.id, updatedPage);
         resolve();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        setGeneratedPages(prev => ({
-          ...prev,
-          [page.id]: { ...page, content: `Error generating content: ${errorMessage}` }
-        }));
+        updatePage(page.id, { ...page, content: `Error generating content: ${errorMessage}` });
         setError(`Failed to generate content for ${page.title}.`);
         resolve();
       } finally {
         activeContentRequests.delete(page.id);
-        setPagesInProgress(prev => {
-          const next = new Set(prev);
-          next.delete(page.id);
-          return next;
-        });
-        setLoadingMessage(undefined);
+        removePageInProgress(page.id);
+        setLoading(false, undefined);
       }
     });
   }, [generatedPages, currentToken, effectiveRepoInfo, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, language, activeContentRequests, generateFileUrl]);
@@ -755,7 +791,7 @@ IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Vi
   const determineWikiStructure = useCallback(async (fileTree: string, readme: string, ownerLocal: string, repoLocal: string) => {
     if (!ownerLocal || !repoLocal) {
       setError('Invalid repository information. Owner and repo name are required.');
-      setIsLoading(false);
+      setLoading(false);
       setEmbeddingError(false);
       return;
     }
@@ -764,7 +800,7 @@ IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Vi
     }
     try {
       setStructureRequestInProgress(true);
-      setLoadingMessage(messages.loading?.determiningStructure || 'Determining wiki structure...');
+      setLoading(true, messages.loading?.determiningStructure || 'Determining wiki structure...');
       const repoUrlResolved = getRepoUrl(effectiveRepoInfo);
       const requestBody: RequestBody = {
         repo_url: repoUrlResolved,
@@ -812,11 +848,11 @@ Return your analysis in the specified XML format.`
         if (done) break;
         responseText += decoder.decode(value, { stream: true });
       }
-      if(responseText.includes('Error preparing retriever: Environment variable OPENAI_API_KEY must be set')) {
+      if (responseText.includes('Error preparing retriever: Environment variable OPENAI_API_KEY must be set')) {
         setEmbeddingError(true);
         throw new Error('OPENAI_API_KEY environment variable is not set. Please configure your OpenAI API key.');
       }
-      if(responseText.includes('Ollama model') && responseText.includes('not found')) {
+      if (responseText.includes('Ollama model') && responseText.includes('not found')) {
         setEmbeddingError(true);
         throw new Error('The specified Ollama embedding model was not found.');
       }
@@ -847,7 +883,7 @@ Return your analysis in the specified XML format.`
         filePathEls.forEach(el => { if (el.textContent) filePaths.push(el.textContent); });
         const relatedPages: string[] = [];
         relatedEls.forEach(el => { if (el.textContent) relatedPages.push(el.textContent); });
-        pagesLocal.push({ id, title: titleVal, content: '', filePaths, importance: importanceVal as 'high'|'medium'|'low', relatedPages });
+        pagesLocal.push({ id, title: titleVal, content: '', filePaths, importance: importanceVal as 'high' | 'medium' | 'low', relatedPages });
       });
       const sectionsLocal: WikiSection[] = [];
       const rootSectionsLocal: string[] = [];
@@ -883,7 +919,7 @@ Return your analysis in the specified XML format.`
         rootSections: rootSectionsLocal
       };
       setWikiStructure(wikiStructureLocal);
-      setCurrentPageId(pagesLocal.length > 0 ? pagesLocal[0].id : undefined);
+      setCurrentPage(pagesLocal.length > 0 ? pagesLocal[0].id : undefined);
       if (pagesLocal.length > 0) {
         const initialInProgress = new Set(pagesLocal.map(p => p.id));
         setPagesInProgress(initialInProgress);
@@ -899,8 +935,8 @@ Return your analysis in the specified XML format.`
                 .finally(() => {
                   activeRequests--;
                   if (queue.length === 0 && activeRequests === 0) {
-                    setIsLoading(false);
-                    setLoadingMessage(undefined);
+                    setLoading(false);
+                    setLoading(false, undefined);
                   } else {
                     if (queue.length > 0 && activeRequests < MAX_CONCURRENT) {
                       processQueue();
@@ -910,22 +946,22 @@ Return your analysis in the specified XML format.`
             }
           }
           if (queue.length === 0 && activeRequests === 0 && pagesLocal.length > 0 && pagesInProgress.size === 0) {
-            setIsLoading(false);
-            setLoadingMessage(undefined);
+            setLoading(false);
+            setLoading(false, undefined);
           } else if (pagesLocal.length === 0) {
-            setIsLoading(false);
-            setLoadingMessage(undefined);
+            setLoading(false);
+            setLoading(false, undefined);
           }
         };
         processQueue();
       } else {
-        setIsLoading(false);
-        setLoadingMessage(undefined);
+        setLoading(false);
+        setLoading(false, undefined);
       }
     } catch (error) {
-      setIsLoading(false);
+      setLoading(false);
       setError(error instanceof Error ? error.message : 'An unknown error occurred');
-      setLoadingMessage(undefined);
+      setLoading(false, undefined);
     } finally {
       setStructureRequestInProgress(false);
     }
@@ -935,16 +971,13 @@ Return your analysis in the specified XML format.`
     if (requestInProgress) {
       return;
     }
-    setWikiStructure(undefined);
-    setCurrentPageId(undefined);
-    setGeneratedPages({});
-    setPagesInProgress(new Set());
+    resetWikiState();
     setError(null);
     setEmbeddingError(false);
     try {
       setRequestInProgress(true);
-      setIsLoading(true);
-      setLoadingMessage(messages.loading?.fetchingStructure || 'Fetching repository structure...');
+      setLoading(true);
+      setLoading(true, messages.loading?.fetchingStructure || 'Fetching repository structure...');
       let fileTreeData = '';
       let readmeContent = '';
       if (effectiveRepoInfo.type === 'local' && effectiveRepoInfo.localPath) {
@@ -986,7 +1019,7 @@ Return your analysis in the specified XML format.`
             defaultBranchLocal = repoData.default_branch;
             setDefaultBranch(defaultBranchLocal || 'main');
           }
-        } catch {}
+        } catch { }
         const branchesToTry = defaultBranchLocal ? [defaultBranchLocal, 'main', 'master'].filter((branch, index, arr) => arr.indexOf(branch) === index) : ['main', 'master'];
         for (const branch of branchesToTry) {
           const apiUrl = `${githubApiBaseUrl}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
@@ -1000,7 +1033,7 @@ Return your analysis in the specified XML format.`
               const errorData = await response.text();
               apiErrorDetails = `Status: ${response.status}, Response: ${errorData}`;
             }
-          } catch {}
+          } catch { }
         }
         if (!treeData || !treeData.tree) {
           if (apiErrorDetails) {
@@ -1020,7 +1053,7 @@ Return your analysis in the specified XML format.`
             const readmeData = await readmeResponse.json();
             readmeContent = atob(readmeData.content);
           }
-        } catch {}
+        } catch { }
       } else if (effectiveRepoInfo.type === 'gitlab') {
         const projectPath = extractUrlPath(effectiveRepoInfo.repoUrl ?? '')?.replace(/\.git$/, '') || `${owner}/${repo}`;
         const projectDomain = extractUrlDomain(effectiveRepoInfo.repoUrl ?? 'https://gitlab.com');
@@ -1036,7 +1069,7 @@ Return your analysis in the specified XML format.`
           } catch (err) {
             throw new Error(`Invalid project domain URL: ${projectDomain}`);
           }
-        const projectInfoRes = await fetch(projectInfoUrl, { headers });
+          const projectInfoRes = await fetch(projectInfoUrl, { headers });
           if (!projectInfoRes.ok) {
             const errorData = await projectInfoRes.text();
             throw new Error(`GitLab project info error: Status ${projectInfoRes.status}, Response: ${errorData}`);
@@ -1048,7 +1081,7 @@ Return your analysis in the specified XML format.`
           let morePages = true;
           while (morePages) {
             const apiUrl = `${projectInfoUrl}/repository/tree?recursive=true&per_page=100&page=${page}`;
-          const response = await fetch(apiUrl, { headers });
+            const response = await fetch(apiUrl, { headers });
             if (!response.ok) {
               const errorData = await response.text();
               throw new Error(`Error fetching GitLab repository structure (page ${page}): ${errorData}`);
@@ -1072,7 +1105,7 @@ Return your analysis in the specified XML format.`
             if (readmeResponse.ok) {
               readmeContent = await readmeResponse.text();
             }
-          } catch {}
+          } catch { }
         } catch (err) {
           throw err;
         }
@@ -1101,12 +1134,12 @@ Return your analysis in the specified XML format.`
                 const errorData = structureResponseText;
                 apiErrorDetails = `Status: ${response.status}, Response: ${errorData}`;
               }
-            } catch {}
+            } catch { }
           } else {
             const errorData = responseText;
             apiErrorDetails = `Status: ${response.status}, Response: ${errorData}`;
           }
-        } catch {}
+        } catch { }
         if (!filesData || !Array.isArray(filesData.values) || filesData.values.length === 0) {
           if (apiErrorDetails) {
             throw new Error(`Could not fetch repository structure. Bitbucket API Error: ${apiErrorDetails}`);
@@ -1124,7 +1157,7 @@ Return your analysis in the specified XML format.`
           if (readmeResponse.ok) {
             readmeContent = await readmeResponse.text();
           }
-        } catch {}
+        } catch { }
       } else if (effectiveRepoInfo.type === 'azure') {
         const azureInfo = parseAzureRepoUrl(effectiveRepoInfo.repoUrl);
         if (!azureInfo) {
@@ -1170,13 +1203,13 @@ Return your analysis in the specified XML format.`
             const readmeData = JSON.parse(readmeText);
             readmeContent = readmeData.content || '';
           }
-        } catch {}
+        } catch { }
       }
       await determineWikiStructure(fileTreeData, readmeContent, owner, repo);
     } catch (error) {
-      setIsLoading(false);
+      setLoading(false);
       setError(error instanceof Error ? error.message : 'An unknown error occurred');
-      setLoadingMessage(undefined);
+      setLoading(false, undefined);
     } finally {
       setRequestInProgress(false);
     }
@@ -1190,7 +1223,7 @@ Return your analysis in the specified XML format.`
     try {
       setIsExporting(true);
       setExportError(null);
-      setLoadingMessage(`${language === 'vi' ? 'Xuất wiki dưới dạng' : 'Exporting wiki as'} ${format}...`);
+      setLoading(true, `${language === 'vi' ? 'Xuất wiki dưới dạng' : 'Exporting wiki as'} ${format}...`);
       const pagesToExport = wikiStructure.pages.map(page => {
         const content = generatedPages[page.id]?.content || 'Content not generated';
         return { ...page, content };
@@ -1232,16 +1265,16 @@ Return your analysis in the specified XML format.`
       setExportError(errorMessage);
     } finally {
       setIsExporting(false);
-      setLoadingMessage(undefined);
+      setLoading(false, undefined);
     }
   }, [wikiStructure, generatedPages, effectiveRepoInfo, language]);
 
-  const confirmRefresh = useCallback(async (newToken?: string, config?: {provider: string, model: string, isCustomModel: boolean, customModel: string, isComprehensiveView: boolean}) => {
-    setLoadingMessage(cleanRegenerateMode ?
+  const confirmRefresh = useCallback(async (newToken?: string, config?: { provider: string, model: string, isCustomModel: boolean, customModel: string, isComprehensiveView: boolean }) => {
+    setLoading(true, cleanRegenerateMode ?
       (messages.loading?.clearingAllData || 'Removing all cached data and repository...') :
       (messages.loading?.clearingCache || 'Clearing server cache...')
     );
-    setIsLoading(true);
+    setLoading(true);
 
     // Use config values if provided, otherwise fall back to state
     const provider = config?.provider ?? selectedProviderState;
@@ -1261,17 +1294,17 @@ Return your analysis in the specified XML format.`
       if (authCode) {
         params.append('authorization_code', authCode);
       }
-      if(authRequired && !authCode) {
-        setIsLoading(false);
+      if (authRequired && !authCode) {
+        setLoading(false);
         setError('Authorization code is required');
         return;
       }
       const response = await fetch(`${endpoint}?${params.toString()}`, { method: 'DELETE', headers: { 'Accept': 'application/json' } });
       if (!response.ok) {
         const errorText = await response.text();
-        if(response.status == 401) {
-          setIsLoading(false);
-          setLoadingMessage(undefined);
+        if (response.status == 401) {
+          setLoading(false);
+          setLoading(false, undefined);
           setError('Failed to validate the authorization code');
           return;
         }
@@ -1279,7 +1312,7 @@ Return your analysis in the specified XML format.`
         console.warn(`Warning: ${endpoint} returned ${response.status}: ${errorText}`);
       }
     } catch (err) {
-      setIsLoading(false);
+      setLoading(false);
       setEmbeddingError(false);
       throw err;
     }
@@ -1293,14 +1326,11 @@ Return your analysis in the specified XML format.`
     localStorage.removeItem(localStorageCacheKey);
     cacheLoadedSuccessfully.current = false;
     effectRan.current = false;
-    setWikiStructure(undefined);
-    setCurrentPageId(undefined);
-    setGeneratedPages({});
-    setPagesInProgress(new Set());
+    resetWikiState();
     setError(null);
     setEmbeddingError(false);
-    setIsLoading(true);
-    setLoadingMessage(messages.loading?.initializing || 'Initializing wiki generation...');
+    setLoading(true);
+    setLoading(true, messages.loading?.initializing || 'Initializing wiki generation...');
     activeContentRequests.clear();
     setStructureRequestInProgress(false);
     setRequestInProgress(false);
@@ -1325,8 +1355,8 @@ Return your analysis in the specified XML format.`
       router.push(jobRedirectUrl);
     } catch (jobError) {
       setError(jobError instanceof Error ? jobError.message : 'Failed to start wiki regeneration');
-      setIsLoading(false);
-      setLoadingMessage(undefined);
+      setLoading(false);
+      setLoading(false, undefined);
     }
   }, [effectiveRepoInfo, language, messages.loading?.initializing, messages.loading?.clearingCache, messages.loading?.clearingAllData, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, isComprehensiveView, authCode, authRequired, currentToken, router, defaultBranch, cleanRegenerateMode]);
 
@@ -1334,7 +1364,7 @@ Return your analysis in the specified XML format.`
     if (effectRan.current === false) {
       effectRan.current = true;
       const loadData = async () => {
-        setLoadingMessage(messages.loading?.fetchingCache || 'Checking for cached wiki...');
+        setLoading(true, messages.loading?.fetchingCache || 'Checking for cached wiki...');
         try {
           const params = new URLSearchParams({
             owner: effectiveRepoInfo.owner,
@@ -1347,16 +1377,16 @@ Return your analysis in the specified XML format.`
           if (response.ok) {
             const cachedData = await response.json();
             if (cachedData && cachedData.wiki_structure && cachedData.generated_pages && Object.keys(cachedData.generated_pages).length > 0) {
-              if(cachedData.model) {
+              if (cachedData.model) {
                 setSelectedModelState(cachedData.model);
               }
-              if(cachedData.provider) {
+              if (cachedData.provider) {
                 setSelectedProviderState(cachedData.provider);
               }
               if (typeof cachedData.comprehensive === 'boolean') {
                 setIsComprehensiveView(cachedData.comprehensive);
               }
-              if(cachedData.repo) {
+              if (cachedData.repo) {
                 setEffectiveRepoInfo(cachedData.repo);
               } else if (cachedData.repo_url && !effectiveRepoInfo.repoUrl) {
                 const updatedRepoInfo = { ...effectiveRepoInfo, repoUrl: cachedData.repo_url };
@@ -1430,23 +1460,23 @@ Return your analysis in the specified XML format.`
               }
               setWikiStructure(cachedStructure);
               setGeneratedPages(cachedData.generated_pages);
-              setCurrentPageId(cachedStructure.pages.length > 0 ? cachedStructure.pages[0].id : undefined);
-              setIsLoading(false);
+              setCurrentPage(cachedStructure.pages.length > 0 ? cachedStructure.pages[0].id : undefined);
+              setLoading(false);
               setEmbeddingError(false);
-              setLoadingMessage(undefined);
+              setLoading(false, undefined);
               cacheLoadedSuccessfully.current = true;
               return;
             }
           }
-        } catch {}
-        setLoadingMessage(messages.loading?.checkingJobs || 'Checking for active generation jobs...');
+        } catch { }
+        setLoading(true, messages.loading?.checkingJobs || 'Checking for active generation jobs...');
         try {
           const activeJob = await findActiveJob(effectiveRepoInfo.owner, effectiveRepoInfo.repo);
           if (activeJob) {
             router.push(`/wiki/job/${activeJob.id}`);
             return;
           }
-          setLoadingMessage(messages.loading?.creatingJob || 'Starting wiki generation...');
+          setLoading(true, messages.loading?.creatingJob || 'Starting wiki generation...');
           const repoUrlResolved = getRepoUrl(effectiveRepoInfo);
           const jobRedirectUrl = await startBackgroundWikiGeneration(
             repoUrlResolved,
@@ -1467,8 +1497,8 @@ Return your analysis in the specified XML format.`
           router.push(jobRedirectUrl);
         } catch (jobError) {
           setError(jobError instanceof Error ? jobError.message : 'Failed to start wiki generation');
-          setIsLoading(false);
-          setLoadingMessage(undefined);
+          setLoading(false);
+          setLoading(false, undefined);
         }
       };
       loadData();
@@ -1495,7 +1525,7 @@ Return your analysis in the specified XML format.`
             if (!response.ok) {
               console.error('Error saving wiki data to server cache:', response.status, await response.text());
             }
-          } catch {}
+          } catch { }
         }
       }
     };
@@ -1504,7 +1534,7 @@ Return your analysis in the specified XML format.`
 
   const handlePageSelect = (pageId: string) => {
     if (currentPageId != pageId) {
-      setCurrentPageId(pageId);
+      setCurrentPage(pageId);
     }
   };
 
@@ -1512,668 +1542,439 @@ Return your analysis in the specified XML format.`
 
   return (
     <div className="relative">
-    <div className="min-h-screen flex flex-col bg-[var(--background)] relative">
-      <style>{wikiStyles}</style>
+      <div className="min-h-screen flex flex-col bg-[var(--background)] relative">
+        <style>{wikiStyles}</style>
 
-      {/* Terminal-style grid background */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.015]" style={{
-        backgroundImage: 'linear-gradient(var(--accent-primary) 1px, transparent 1px), linear-gradient(90deg, var(--accent-primary) 1px, transparent 1px)',
-        backgroundSize: '20px 20px'
-      }}></div>
+        {/* Terminal-style grid background */}
+        <div className="fixed inset-0 pointer-events-none opacity-[0.015]" style={{
+          backgroundImage: 'linear-gradient(var(--accent-primary) 1px, transparent 1px), linear-gradient(90deg, var(--accent-primary) 1px, transparent 1px)',
+          backgroundSize: '20px 20px'
+        }}></div>
 
-      <Header
-        currentPage="wiki"
-        statusLabel="SYSTEM.READY"
-        statusValue="WIKI.ACTIVE"
-      />
-      <main className="flex-1 w-full">
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-10 flex flex-col gap-6 h-full">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center p-8 bg-[var(--background)]/70 rounded-2xl shadow-sm border border-[var(--glass-border)]">
-            <div className="relative mb-6">
-              <div className="absolute -inset-4 bg-[var(--accent-primary)]/10 rounded-full blur-md animate-pulse"></div>
-              <div className="relative flex items-center justify-center">
-                <div className="w-3 h-3 bg-[var(--accent-primary)]/70 rounded-full animate-pulse"></div>
-                <div className="w-3 h-3 bg-[var(--accent-primary)]/70 rounded-full animate-pulse delay-75 mx-2"></div>
-                <div className="w-3 h-3 bg-[var(--accent-primary)]/70 rounded-full animate-pulse delay-150"></div>
-              </div>
-            </div>
-            <p className="text-[var(--foreground)] text-center mb-3 font-serif">
-              {loadingMessage || messages.common?.loading || 'Loading...'}
-            </p>
-            {wikiStructure && (
-              <div className="w-full max-w-md mt-3">
-                <div className="bg-[var(--background)]/50 rounded-full h-2 mb-3 overflow-hidden border border-[var(--border-color)]">
-                  <div className="bg-[var(--accent-primary)] h-2 rounded-full transition-all duration-300 ease-in-out" style={{ width: `${Math.max(5, 100 * (wikiStructure.pages.length - pagesInProgress.size) / wikiStructure.pages.length)}%` }} />
+        <Header
+          currentPage="wiki"
+          statusLabel="SYSTEM.READY"
+          statusValue="WIKI.ACTIVE"
+        />
+        <main className="flex-1 w-full">
+          <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-10 flex flex-col gap-6 h-full">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center p-8 bg-[var(--background)]/70 rounded-2xl shadow-sm border border-[var(--glass-border)]">
+                <div className="relative mb-6">
+                  <div className="absolute -inset-4 bg-[var(--accent-primary)]/10 rounded-full blur-md animate-pulse"></div>
+                  <div className="relative flex items-center justify-center">
+                    <div className="w-3 h-3 bg-[var(--accent-primary)]/70 rounded-full animate-pulse"></div>
+                    <div className="w-3 h-3 bg-[var(--accent-primary)]/70 rounded-full animate-pulse delay-75 mx-2"></div>
+                    <div className="w-3 h-3 bg-[var(--accent-primary)]/70 rounded-full animate-pulse delay-150"></div>
+                  </div>
                 </div>
-                <p className="text-xs text-[var(--muted)] text-center">
-                  {messages.repoPage?.pagesCompleted ? messages.repoPage.pagesCompleted.replace('{completed}', (wikiStructure.pages.length - pagesInProgress.size).toString()).replace('{total}', wikiStructure.pages.length.toString()) : `${wikiStructure.pages.length - pagesInProgress.size} of ${wikiStructure.pages.length} pages completed`}
+                <p className="text-[var(--foreground)] text-center mb-3 font-serif">
+                  {loadingMessage || messages.common?.loading || 'Loading...'}
                 </p>
-                {pagesInProgress.size > 0 && (
-                  <div className="mt-4 text-xs">
-                    <p className="text-[var(--muted)] mb-2">{messages.repoPage?.currentlyProcessing || 'Currently processing:'}</p>
-                    <ul className="text-[var(--foreground)] space-y-1">
-                      {Array.from(pagesInProgress).slice(0, 3).map(pageId => {
-                        const page = wikiStructure.pages.find(p => p.id === pageId);
-                        return page ? <li key={pageId} className="truncate border-l-2 border-[var(--accent-primary)]/30 pl-2">{page.title}</li> : null;
-                      })}
-                      {pagesInProgress.size > 3 && (
-                        <li className="text-[var(--muted)]">
-                          {messages.repoPage?.andMorePages ? messages.repoPage.andMorePages.replace('{count}', (pagesInProgress.size - 3).toString()) : `...and ${pagesInProgress.size - 3} more`}
-                        </li>
-                      )}
-                    </ul>
+                {wikiStructure && (
+                  <div className="w-full max-w-md mt-3">
+                    <div className="bg-[var(--background)]/50 rounded-full h-2 mb-3 overflow-hidden border border-[var(--border-color)]">
+                      <div className="bg-[var(--accent-primary)] h-2 rounded-full transition-all duration-300 ease-in-out" style={{ width: `${Math.max(5, 100 * (wikiStructure.pages.length - pagesInProgress.size) / wikiStructure.pages.length)}%` }} />
+                    </div>
+                    <p className="text-xs text-[var(--muted)] text-center">
+                      {messages.repoPage?.pagesCompleted ? messages.repoPage.pagesCompleted.replace('{completed}', (wikiStructure.pages.length - pagesInProgress.size).toString()).replace('{total}', wikiStructure.pages.length.toString()) : `${wikiStructure.pages.length - pagesInProgress.size} of ${wikiStructure.pages.length} pages completed`}
+                    </p>
+                    {pagesInProgress.size > 0 && (
+                      <div className="mt-4 text-xs">
+                        <p className="text-[var(--muted)] mb-2">{messages.repoPage?.currentlyProcessing || 'Currently processing:'}</p>
+                        <ul className="text-[var(--foreground)] space-y-1">
+                          {Array.from(pagesInProgress).slice(0, 3).map(pageId => {
+                            const page = wikiStructure.pages.find(p => p.id === pageId);
+                            return page ? <li key={pageId} className="truncate border-l-2 border-[var(--accent-primary)]/30 pl-2">{page.title}</li> : null;
+                          })}
+                          {pagesInProgress.size > 3 && (
+                            <li className="text-[var(--muted)]">
+                              {messages.repoPage?.andMorePages ? messages.repoPage.andMorePages.replace('{count}', (pagesInProgress.size - 3).toString()) : `...and ${pagesInProgress.size - 3} more`}
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        ) : error ? (
-          <div className="bg-[var(--highlight)]/5 border border-[var(--highlight)]/30 rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center text-[var(--highlight)] mb-3">
-              <FaExclamationTriangle className="mr-2" />
-              <span className="font-bold font-serif">{messages.repoPage?.errorTitle || messages.common?.error || 'Error'}</span>
-            </div>
-            <p className="text-[var(--foreground)] text-sm mb-3">{error}</p>
-            <p className="text-[var(--muted)] text-xs">
-              {embeddingError ? (
-                messages.repoPage?.embeddingErrorDefault || 'This error is related to the document embedding system used for analyzing your repository.'
-              ) : (
-                messages.repoPage?.errorMessageDefault || 'Please check that your repository exists and is public.'
-              )}
-            </p>
-            <div className="mt-5">
-              <Link href="/" className="btn-japanese px-5 py-2 inline-flex items-center gap-1.5">
-                <FaHome className="text-sm" />
-                {messages.repoPage?.backToHome || 'Back to Home'}
-              </Link>
-            </div>
-          </div>
-        ) : wikiStructure ? (
-          <div className="flex flex-col lg:flex-row gap-6 w-full h-full max-w-[1600px] mx-auto">
-            {/* Terminal-style sidebar */}
-            <aside className="w-full lg:w-[300px] xl:w-[340px] flex-shrink-0 rounded-lg border-2 border-[var(--accent-primary)]/20 bg-[var(--surface)]/80 backdrop-blur-sm shadow-xl overflow-hidden">
-              {/* Sidebar header */}
-              <div className="bg-[var(--accent-primary)]/5 border-b-2 border-[var(--accent-primary)]/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-2 h-2 rounded-full bg-[var(--accent-emerald)]"></span>
-                  <span className="w-2 h-2 rounded-full bg-[var(--accent-warning)]"></span>
-                  <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)]"></span>
+            ) : error ? (
+              <div className="bg-[var(--highlight)]/5 border border-[var(--highlight)]/30 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center text-[var(--highlight)] mb-3">
+                  <FaExclamationTriangle className="mr-2" />
+                  <span className="font-bold font-serif">{messages.repoPage?.errorTitle || messages.common?.error || 'Error'}</span>
                 </div>
-                <h3 className="text-base font-bold font-mono text-[var(--foreground)] mb-1 tracking-tight">{wikiStructure.title}</h3>
-                <p className="text-[var(--muted)] text-xs leading-relaxed font-mono">{wikiStructure.description}</p>
-              </div>
-
-              <div className="p-4 overflow-y-auto max-h-[calc(100vh-200px)]">
-                {/* Repository info */}
-                <div className="text-xs font-mono mb-4 p-3 rounded border border-[var(--accent-primary)]/10 bg-[var(--background)]/50">
-                  {effectiveRepoInfo.type === 'local' ? (
-                    <div className="flex items-center gap-2">
-                      <FaFolder className="text-[var(--accent-cyan)] flex-shrink-0" />
-                      <span className="break-all text-[var(--foreground-muted)]">{effectiveRepoInfo.localPath}</span>
-                    </div>
+                <p className="text-[var(--foreground)] text-sm mb-3">{error}</p>
+                <p className="text-[var(--muted)] text-xs">
+                  {embeddingError ? (
+                    messages.repoPage?.embeddingErrorDefault || 'This error is related to the document embedding system used for analyzing your repository.'
                   ) : (
-                    <div className="flex items-center gap-2">
-                      {effectiveRepoInfo.type === 'github' ? (
-                        <FaGithub className="text-[var(--accent-cyan)] flex-shrink-0" />
-                      ) : effectiveRepoInfo.type === 'gitlab' ? (
-                        <FaGitlab className="text-[var(--accent-cyan)] flex-shrink-0" />
-                      ) : (
-                        <FaBitbucket className="text-[var(--accent-cyan)] flex-shrink-0" />
-                      )}
-                      <a href={effectiveRepoInfo.repoUrl ?? ''} target="_blank" rel="noopener noreferrer" className="hover:text-[var(--accent-cyan)] transition-colors truncate text-[var(--foreground-muted)]">
-                        {effectiveRepoInfo.owner}/{effectiveRepoInfo.repo}
-                      </a>
-                    </div>
+                    messages.repoPage?.errorMessageDefault || 'Please check that your repository exists and is public.'
                   )}
-                </div>
-
-                {/* Wiki type badge */}
-                <div className="mb-4 flex items-center gap-2 text-xs font-mono">
-                  <span className="text-gray-500">$ mode:</span>
-                  <span className={`px-3 py-1 border font-mono text-xs relative overflow-hidden group ${isComprehensiveView ? 'bg-purple-950/50 text-purple-400 border-purple-500/50' : 'bg-gray-900 text-gray-400 border-gray-700'}`}>
-                    <span className="relative z-10">{isComprehensiveView ? 'FULL' : 'BRIEF'}</span>
-                    {isComprehensiveView && (
-                      <span className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></span>
-                    )}
-                  </span>
-                </div>
-
-                {/* Action buttons */}
-                <div className="mb-5 space-y-2">
-                  <div className="relative regenerate-dropdown">
-                    <div className="flex items-center gap-1 mb-2">
-                      <span className="text-[var(--foreground-muted)] text-xs font-mono">$</span>
-                      <span className="text-[var(--foreground-muted)] text-xs font-mono">command:</span>
-                    </div>
-
-                    <button
-                      onClick={() => setShowRegenerateMenu(!showRegenerateMenu)}
-                      disabled={isLoading}
-                      className="w-full flex items-center justify-center gap-2 text-xs font-mono px-4 py-3 bg-black/50 border border-cyan-500/30 rounded-none font-mono text-cyan-400 hover:bg-cyan-950/30 hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
-                    >
-                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-700"></span>
-                      <FaSync className={`relative z-10 ${isLoading ? 'animate-spin' : ''} text-cyan-400`} />
-                      <span className="relative z-10">REGENERATE_WIKI.EXE</span>
-                      <FaChevronDown className={`ml-auto relative z-10 transition-transform duration-200 ${showRegenerateMenu ? 'rotate-180' : ''} text-cyan-400`} />
-                    </button>
-
-                    {showRegenerateMenu && (
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-black/90 border border-cyan-500/50 rounded-none shadow-[0_0_30px_rgba(6,182,212,0.5)] overflow-hidden z-50">
-                        {/* Terminal header */}
-                        <div className="bg-gradient-to-r from-gray-900 to-black px-3 py-1 border-b border-cyan-500/30 flex items-center gap-2">
-                          <div className="flex gap-1">
-                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                            <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          </div>
-                          <span className="text-xs text-cyan-400 font-mono flex-1 text-center">regenerate_options.sh</span>
-                        </div>
-
-                        {/* Menu options */}
-                        <div className="p-1">
-                          <RoleBasedButton
-                            onAdminClick={() => {
-                              setShowRegenerateMenu(false);
-                              setIsModelSelectionModalOpen(true);
-                              setCleanRegenerateMode(false);
-                            }}
-                            actionDescription={`refresh wiki for "${effectiveRepoInfo.repo}" with existing data`}
-                            disabled={isLoading}
-                            className="w-full flex items-center gap-3 text-xs font-mono px-4 py-3 border-0 bg-transparent hover:bg-purple-950/30 hover:text-purple-400 text-gray-400 transition-all duration-200 text-left group relative overflow-hidden"
-                          >
-                            <span className="text-purple-400">▸</span>
-                            <div className="flex-1">
-                              <div className="text-purple-400 group-hover:text-purple-300">01_REFRESH_CACHE</div>
-                              <div className="text-xs text-gray-500 mt-1 font-mono opacity-70"># Keep existing repo and embeddings</div>
-                            </div>
-                            <FaSync className="text-purple-500 group-hover:text-purple-400" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/5 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
-                          </RoleBasedButton>
-
-                          <div className="border-t border-cyan-500/20 my-1"></div>
-
-                          <RoleBasedButton
-                            onAdminClick={() => {
-                              setShowRegenerateMenu(false);
-                              setIsModelSelectionModalOpen(true);
-                              setCleanRegenerateMode(true);
-                            }}
-                            actionDescription={`clean regenerate wiki for "${effectiveRepoInfo.repo}" with fresh data`}
-                            disabled={isLoading}
-                            className="w-full flex items-center gap-3 text-xs font-mono px-4 py-3 border-0 bg-transparent hover:bg-red-950/30 hover:text-red-400 text-gray-400 transition-all duration-200 text-left group relative overflow-hidden"
-                          >
-                            <span className="text-red-400">▸</span>
-                            <div className="flex-1">
-                              <div className="text-red-400 group-hover:text-red-300">02_CLEAN_GENERATE</div>
-                              <div className="text-xs text-gray-500 mt-1 font-mono opacity-70"># Fresh clone, new embeddings</div>
-                            </div>
-                            <FaTrash className="text-red-500 group-hover:text-red-400" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/5 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
-                          </RoleBasedButton>
-                        </div>
-
-                        {/* Terminal footer */}
-                        <div className="bg-black/50 px-3 py-1 border-t border-cyan-500/30">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-green-400 font-mono">ready</span>
-                            <span className="text-xs text-gray-500 font-mono animate-pulse">_</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Export section */}
-                {Object.keys(generatedPages).length > 0 && (
-                  <div className="mb-5 relative">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-gray-500 text-xs font-mono">$</span>
-                      <h4 className="text-xs font-mono font-semibold text-cyan-400 flex items-center gap-2">
-                        <span className="animate-pulse">▸</span> export_wiki.sh
-                      </h4>
-                    </div>
-                    <div className="bg-black/40 border border-cyan-500/20 rounded-none overflow-hidden">
-                      <div className="p-2 space-y-1">
-                        <button
-                          onClick={() => exportWiki('markdown')}
-                          disabled={isExporting}
-                          className="w-full flex items-center gap-3 text-xs font-mono px-4 py-2 border border-cyan-500/20 bg-transparent hover:bg-cyan-950/20 hover:border-cyan-500/40 text-cyan-400 transition-all duration-200 group relative overflow-hidden"
-                        >
-                          <span className="text-cyan-500">01</span>
-                          <span className="flex-1 text-left">export_markdown()</span>
-                          <FaDownload className="text-cyan-500 group-hover:text-cyan-300 transition-colors" />
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/5 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
-                        </button>
-                        <div className="border-t border-cyan-500/10"></div>
-                        <button
-                          onClick={() => exportWiki('json')}
-                          disabled={isExporting}
-                          className="w-full flex items-center gap-3 text-xs font-mono px-4 py-2 border border-cyan-500/20 bg-transparent hover:bg-cyan-950/20 hover:border-cyan-500/40 text-cyan-400 transition-all duration-200 group relative overflow-hidden"
-                        >
-                          <span className="text-cyan-500">02</span>
-                          <span className="flex-1 text-left">export_json()</span>
-                          <FaFileExport className="text-cyan-500 group-hover:text-cyan-300 transition-colors" />
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/5 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-500"></div>
-                        </button>
-                      </div>
-                    </div>
-                    {exportError && (
-                      <div className="mt-2 p-2 bg-red-950/20 border border-red-500/30 rounded-none">
-                        <div className="flex items-start gap-2">
-                          <span className="text-red-400 text-xs font-mono">ERROR:</span>
-                          <div className="text-xs text-red-400 font-mono flex-1">{exportError}</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Navigation tree */}
-                <div className="mb-2">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-gray-500 text-xs font-mono">$</span>
-                    <h4 className="text-xs font-mono font-semibold text-cyan-400 flex items-center gap-2">
-                      <span className="animate-pulse">▸</span> navigation_tree.sh
-                    </h4>
-                  </div>
-                  <div className="bg-black/40 border border-cyan-500/20 rounded-none p-2 max-h-96 overflow-y-auto custom-scrollbar">
-                    <WikiTreeView wikiStructure={wikiStructure} currentPageId={currentPageId} onPageSelect={handlePageSelect} messages={messages.repoPage} />
-                  </div>
+                </p>
+                <div className="mt-5">
+                  <Link href="/" className="btn-japanese px-5 py-2 inline-flex items-center gap-1.5">
+                    <FaHome className="text-sm" />
+                    {messages.repoPage?.backToHome || 'Back to Home'}
+                  </Link>
                 </div>
               </div>
-            </aside>
-
-            {/* Main content area */}
-            <main id="wiki-content" className="flex-1 overflow-y-auto">
-              {currentPageId && generatedPages[currentPageId] ? (
-                <article className="max-w-4xl mx-auto">
-                  {/* Article metadata header */}
-                  <div className="mb-6 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-mono text-[var(--accent-cyan)]">
-                      <span>&#47;&#47;</span>
-                      <span className="text-[var(--foreground-muted)]">DOCUMENTATION</span>
-                    </div>
-                    {generatedPages[currentPageId].filePaths.length > 0 && (
-                      <div className="flex items-center gap-2 text-xs font-mono text-[var(--muted)]">
-                        <span className="text-[var(--accent-primary)]">◆</span>
-                        <span>{generatedPages[currentPageId].filePaths.length} source {generatedPages[currentPageId].filePaths.length === 1 ? 'file' : 'files'}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Article content */}
-                  <div className="prose prose-sm md:prose-base max-w-none">
-                    <Markdown content={generatedPages[currentPageId].content} />
-                  </div>
-
-                  {/* Related pages */}
-                  {generatedPages[currentPageId].relatedPages.length > 0 && (
-                    <div className="mt-12 pt-6 border-t-2 border-[var(--accent-primary)]/20">
-                      <h4 className="text-sm font-mono font-semibold text-[var(--accent-cyan)] mb-4 flex items-center gap-2">
-                        <span>▸</span> {messages.repoPage?.relatedPages || 'RELATED'}
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {generatedPages[currentPageId].relatedPages.map(relatedId => {
-                          const relatedPage = wikiStructure.pages.find(p => p.id === relatedId);
-                          return relatedPage ? (
-                            <button
-                              key={relatedId}
-                              className="font-mono bg-[var(--accent-primary)]/10 hover:bg-[var(--accent-primary)]/20 text-xs text-[var(--accent-cyan)] px-3 py-2 rounded border border-[var(--accent-primary)]/30 hover:border-[var(--accent-primary)] transition-all truncate max-w-full"
-                              onClick={() => handlePageSelect(relatedId)}
-                            >
-                              → {relatedPage.title}
-                            </button>
-                          ) : null;
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </article>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-12 text-center h-full">
-                  <div className="relative mb-6">
-                    <div className="absolute -inset-3 bg-[var(--accent-primary)]/10 rounded-full blur-xl"></div>
-                    <FaBookOpen className="text-5xl text-[var(--accent-primary)] relative z-10" />
-                  </div>
-                  <p className="font-mono text-sm text-[var(--accent-cyan)] mb-2">NO PAGE SELECTED</p>
-                  <p className="font-mono text-xs text-[var(--muted)] max-w-md">{messages.repoPage?.selectPagePrompt || 'Select a page from the navigation to view its content'}</p>
-                </div>
-              )}
-            </main>
-          </div>
-        ) : null}
-        </div>
-      </main>
-      {/* Terminal-style footer */}
-      <footer className="mt-auto bg-[var(--surface)]/90 border-t-2 border-[var(--accent-primary)]/20 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-center items-center text-center">
-            <p className="font-mono text-xs text-[var(--muted)]">
-              <span className="text-[var(--accent-primary)]">◆</span> {messages.footer?.copyright || 'DeepWiki - AI-powered documentation for your repositories'}
-            </p>
-          </div>
-        </div>
-      </footer>
-
-      {/* Terminal-style Ask button - Enhanced */}
-      {!isLoading && wikiStructure && (
-        <button
-          onClick={() => setIsAskModalOpen(true)}
-          className="fixed bottom-8 right-8 group z-50"
-          aria-label={messages.ask?.title || 'Ask about this repository'}
-        >
-          {/* Glow effect */}
-          <div className="absolute -inset-2 bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-cyan)] rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity animate-pulse"></div>
-
-          {/* Button container */}
-          <div className="relative flex items-center gap-3 px-5 py-3 bg-[var(--surface)]/95 backdrop-blur-md rounded-xl border-2 border-[var(--accent-primary)]/50 group-hover:border-[var(--accent-cyan)] transition-all shadow-2xl overflow-hidden">
-            {/* Scan line effect */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--accent-cyan)]/10 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000"></div>
-
-            {/* Terminal prompt */}
-            <div className="relative flex items-center gap-2">
-              <span className="font-mono text-[var(--accent-primary)] text-sm font-bold">$</span>
-              <FaComments className="text-xl text-[var(--accent-cyan)] group-hover:scale-110 transition-transform" />
-            </div>
-
-            {/* Label */}
-            <span className="relative font-mono text-sm font-semibold text-[var(--foreground)] whitespace-nowrap">
-              ASK AI
-            </span>
-
-            {/* Pulsing indicator */}
-            <span className="relative w-2 h-2 bg-[var(--accent-emerald)] rounded-full">
-              <span className="absolute inset-0 bg-[var(--accent-emerald)] rounded-full animate-ping"></span>
-            </span>
-          </div>
-        </button>
-      )}
-
-      {/* Terminal Chat Modal - Bottom Center */}
-      <div
-        className={`fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4 transition-all duration-500 ease-out ${
-          isAskModalOpen
-            ? 'translate-y-0 opacity-100'
-            : 'translate-y-full opacity-0 pointer-events-none'
-        }`}
-      >
-        {/* Backdrop blur overlay */}
-        <div
-          className={`fixed inset-0 transition-opacity duration-300 ${
-            isAskModalOpen ? 'opacity-100' : 'opacity-0'
-          }`}
-          onClick={() => setIsAskModalOpen(false)}
-        ></div>
-
-        {/* Terminal Window Container */}
-        <div className="relative w-full max-w-6xl">
-          {/* Ambient glow */}
-          <div className="absolute -inset-4 bg-gradient-to-t from-[var(--accent-primary)]/20 via-[var(--accent-cyan)]/10 to-transparent rounded-3xl blur-2xl opacity-80"></div>
-
-          {/* Terminal Window */}
-          <div className="relative bg-[var(--surface)]/98 backdrop-blur-xl rounded-2xl shadow-[0_-10px_50px_rgba(139,92,246,0.3)] border-2 border-[var(--accent-primary)]/40 overflow-hidden max-h-[80vh] flex flex-col">
-            {/* Terminal Header */}
-            <div className="relative bg-gradient-to-r from-[var(--accent-primary)]/10 to-[var(--accent-cyan)]/10 border-b-2 border-[var(--accent-primary)]/30 px-5 py-2">
-              {/* Grid pattern overlay */}
-              <div className="absolute inset-0 opacity-5" style={{
-                backgroundImage: 'linear-gradient(var(--accent-primary) 1px, transparent 1px), linear-gradient(90deg, var(--accent-primary) 1px, transparent 1px)',
-                backgroundSize: '20px 20px'
-              }}></div>
-
-              <div className="relative flex items-center justify-between">
-                {/* Left: Traffic lights + Title */}
-                <div className="flex items-center gap-4">
-                  {/* Traffic light dots */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setIsAskModalOpen(false)}
-                      className="w-3 h-3 rounded-full bg-[var(--accent-danger)] hover:bg-red-400 transition-colors border border-red-900/30"
-                      aria-label="Close"
-                    ></button>
-                    <div className="w-3 h-3 rounded-full bg-[var(--accent-warning)] border border-yellow-900/30"></div>
-                    <div className="w-3 h-3 rounded-full bg-[var(--accent-emerald)] border border-emerald-900/30"></div>
-                  </div>
-
-                  {/* Terminal title */}
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-[var(--accent-primary)] font-bold">◆</span>
-                    <h3 className="font-mono text-sm font-bold text-[var(--foreground)] tracking-tight">
-                      {messages.ask?.title || 'AI CHAT TERMINAL'}
-                    </h3>
-                    <span className="font-mono text-xs text-[var(--muted)]">
-                      / {effectiveRepoInfo.owner}/{effectiveRepoInfo.repo}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Right: Status indicators */}
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-[var(--accent-emerald)]/10 border border-[var(--accent-emerald)]/30">
-                    <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full animate-pulse"></span>
-                    <span className="font-mono text-xs text-[var(--accent-emerald)] font-semibold">ONLINE</span>
-                  </div>
-
-                  <button
-                    onClick={() => setIsAskModalOpen(false)}
-                    className="p-2 hover:bg-[var(--accent-primary)]/10 rounded-lg transition-colors group"
-                    aria-label="Minimize"
-                  >
-                    <svg className="w-4 h-4 text-[var(--muted)] group-hover:text-[var(--accent-cyan)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {/* Command line indicator */}
-              <div className="mt-3 flex items-center gap-2 font-mono text-xs text-[var(--accent-cyan)]/70">
-                <span>$</span>
-                <span className="text-[var(--muted)]">ai-chat --repo={effectiveRepoInfo.repo} --interactive</span>
-              </div>
-            </div>
-
-            {/* Terminal Content Area */}
-            <div className="relative flex-1 min-h-[200px] min-h-[20vh] overflow-y-auto p-6 bg-[var(--background)]/30">
-              {/* Subtle scan line effect */}
-              <div className="absolute inset-0 pointer-events-none opacity-[0.02]" style={{
-                background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, var(--accent-cyan) 2px, var(--accent-cyan) 4px)'
-              }}></div>
-
-              <div className="relative">
-                <Ask
-                  repoInfo={effectiveRepoInfo}
-                  provider={selectedProviderState}
-                  model={selectedModelState}
-                  isCustomModel={isCustomSelectedModelState}
-                  customModel={customSelectedModelState}
+            ) : wikiStructure ? (
+              <div className="flex flex-col lg:flex-row gap-6 w-full h-full max-w-[1600px] mx-auto">
+                <WikiSidebar
+                  wikiStructure={wikiStructure}
+                  currentPageId={currentPageId}
+                  generatedPages={generatedPages}
+                  effectiveRepoInfo={effectiveRepoInfo}
+                  isComprehensiveView={isComprehensiveView}
+                  isLoading={isLoading}
+                  messages={messages}
                   language={language}
-                  onRef={(ref) => (askComponentRef.current = ref)}
+                  setLoadingMessage={(message) => setLoading(true, message)}
+                  setShowRegenerateMenu={setShowRegenerateMenu}
+                  showRegenerateMenu={showRegenerateMenu}
+                  setIsModelSelectionModalOpen={setIsModelSelectionModalOpen}
+                  setCleanRegenerateMode={setCleanRegenerateMode}
+                  isExporting={isExporting}
+                  setIsExporting={setIsExporting}
+                  exportError={exportError}
+                  setExportError={setExportError}
+                  onPageSelect={handlePageSelect}
+                />
+
+                <WikiContent
+                  currentPageId={currentPageId}
+                  generatedPages={generatedPages}
+                  isLoading={isLoading}
                 />
               </div>
+            ) : null}
+          </div>
+        </main>
+        {/* Terminal-style footer */}
+        <footer className="mt-auto bg-[var(--surface)]/90 border-t-2 border-[var(--accent-primary)]/20 backdrop-blur">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex justify-center items-center text-center">
+              <p className="font-mono text-xs text-[var(--muted)]">
+                <span className="text-[var(--accent-primary)]">◆</span> {messages.footer?.copyright || 'DeepWiki - AI-powered documentation for your repositories'}
+              </p>
             </div>
+          </div>
+        </footer>
 
-            {/* Terminal-style Model Selector Dropdown */}
-            <div
-              ref={modelDropdownRef}
-              className={`relative border-t border-[var(--accent-primary)]/20 transition-all duration-300 ease-out overflow-hidden ${
-                isModelDropdownOpen
-                  ? 'max-h-[250px] opacity-100'
-                  : 'max-h-0 opacity-0'
+        {/* Terminal-style Ask button - Enhanced */}
+        {!isLoading && wikiStructure && (
+          <button
+            onClick={() => setIsAskModalOpen(true)}
+            className="fixed bottom-8 right-8 group z-50"
+            aria-label={messages.ask?.title || 'Ask about this repository'}
+          >
+            {/* Glow effect */}
+            <div className="absolute -inset-2 bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-cyan)] rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity animate-pulse"></div>
+
+            {/* Button container */}
+            <div className="relative flex items-center gap-3 px-5 py-3 bg-[var(--surface)]/95 backdrop-blur-md rounded-xl border-2 border-[var(--accent-primary)]/50 group-hover:border-[var(--accent-cyan)] transition-all shadow-2xl overflow-hidden">
+              {/* Scan line effect */}
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--accent-cyan)]/10 to-transparent translate-y-[-100%] group-hover:translate-y-[100%] transition-transform duration-1000"></div>
+
+              {/* Terminal prompt */}
+              <div className="relative flex items-center gap-2">
+                <span className="font-mono text-[var(--accent-primary)] text-sm font-bold">$</span>
+                <FaComments className="text-xl text-[var(--accent-cyan)] group-hover:scale-110 transition-transform" />
+              </div>
+
+              {/* Label */}
+              <span className="relative font-mono text-sm font-semibold text-[var(--foreground)] whitespace-nowrap">
+                ASK AI
+              </span>
+
+              {/* Pulsing indicator */}
+              <span className="relative w-2 h-2 bg-[var(--accent-emerald)] rounded-full">
+                <span className="absolute inset-0 bg-[var(--accent-emerald)] rounded-full animate-ping"></span>
+              </span>
+            </div>
+          </button>
+        )}
+
+        {/* Terminal Chat Modal - Bottom Center */}
+        <div
+          className={`fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4 transition-all duration-500 ease-out ${isAskModalOpen
+              ? 'translate-y-0 opacity-100'
+              : 'translate-y-full opacity-0 pointer-events-none'
+            }`}
+        >
+          {/* Backdrop blur overlay */}
+          <div
+            className={`fixed inset-0 transition-opacity duration-300 ${isAskModalOpen ? 'opacity-100' : 'opacity-0'
               }`}
-            >
-              <div className="bg-[var(--surface)]/95 backdrop-blur-sm">
-                {/* Dropdown header */}
-                <div className="bg-gradient-to-r from-[var(--accent-primary)]/10 to-[var(--accent-cyan)]/10 border-b border-[var(--accent-primary)]/30 px-4 py-2">
-                  <div className="flex items-center gap-2 font-mono text-xs">
-                    <span className="text-[var(--accent-primary)]">◆</span>
-                    <span className="text-[var(--foreground)] font-bold">SELECT MODEL</span>
-                    <span className="text-[var(--muted)]">/ quick switch</span>
+            onClick={() => setIsAskModalOpen(false)}
+          ></div>
+
+          {/* Terminal Window Container */}
+          <div className="relative w-full max-w-6xl">
+            {/* Ambient glow */}
+            <div className="absolute -inset-4 bg-gradient-to-t from-[var(--accent-primary)]/20 via-[var(--accent-cyan)]/10 to-transparent rounded-3xl blur-2xl opacity-80"></div>
+
+            {/* Terminal Window */}
+            <div className="relative bg-[var(--surface)]/98 backdrop-blur-xl rounded-2xl shadow-[0_-10px_50px_rgba(139,92,246,0.3)] border-2 border-[var(--accent-primary)]/40 overflow-hidden max-h-[80vh] flex flex-col">
+              {/* Terminal Header */}
+              <div className="relative bg-gradient-to-r from-[var(--accent-primary)]/10 to-[var(--accent-cyan)]/10 border-b-2 border-[var(--accent-primary)]/30 px-5 py-2">
+                {/* Grid pattern overlay */}
+                <div className="absolute inset-0 opacity-5" style={{
+                  backgroundImage: 'linear-gradient(var(--accent-primary) 1px, transparent 1px), linear-gradient(90deg, var(--accent-primary) 1px, transparent 1px)',
+                  backgroundSize: '20px 20px'
+                }}></div>
+
+                <div className="relative flex items-center justify-between">
+                  {/* Left: Traffic lights + Title */}
+                  <div className="flex items-center gap-4">
+                    {/* Traffic light dots */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setIsAskModalOpen(false)}
+                        className="w-3 h-3 rounded-full bg-[var(--accent-danger)] hover:bg-red-400 transition-colors border border-red-900/30"
+                        aria-label="Close"
+                      ></button>
+                      <div className="w-3 h-3 rounded-full bg-[var(--accent-warning)] border border-yellow-900/30"></div>
+                      <div className="w-3 h-3 rounded-full bg-[var(--accent-emerald)] border border-emerald-900/30"></div>
+                    </div>
+
+                    {/* Terminal title */}
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-[var(--accent-primary)] font-bold">◆</span>
+                      <h3 className="font-mono text-sm font-bold text-[var(--foreground)] tracking-tight">
+                        {messages.ask?.title || 'AI CHAT TERMINAL'}
+                      </h3>
+                      <span className="font-mono text-xs text-[var(--muted)]">
+                        / {effectiveRepoInfo.owner}/{effectiveRepoInfo.repo}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right: Status indicators */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-[var(--accent-emerald)]/10 border border-[var(--accent-emerald)]/30">
+                      <span className="w-2 h-2 bg-[var(--accent-emerald)] rounded-full animate-pulse"></span>
+                      <span className="font-mono text-xs text-[var(--accent-emerald)] font-semibold">ONLINE</span>
+                    </div>
+
+                    <button
+                      onClick={() => setIsAskModalOpen(false)}
+                      className="p-2 hover:bg-[var(--accent-primary)]/10 rounded-lg transition-colors group"
+                      aria-label="Minimize"
+                    >
+                      <svg className="w-4 h-4 text-[var(--muted)] group-hover:text-[var(--accent-cyan)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
-                {/* Dropdown content */}
-                <div className="max-h-[180px] overflow-y-auto p-3">
-                  {modelConfig ? (
-                    <div className="space-y-2">
-                      {modelConfig.providers.map((provider) => {
-                        const isExpanded = expandedProviders.has(provider.id);
-                        const hasSelectedModel = selectedProviderState === provider.id;
+                {/* Command line indicator */}
+                <div className="mt-3 flex items-center gap-2 font-mono text-xs text-[var(--accent-cyan)]/70">
+                  <span>$</span>
+                  <span className="text-[var(--muted)]">ai-chat --repo={effectiveRepoInfo.repo} --interactive</span>
+                </div>
+              </div>
 
-                        return (
-                          <div key={provider.id} className="space-y-1">
-                            {/* Provider label - Clickable */}
-                            <button
-                              onClick={() => toggleProvider(provider.id)}
-                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-xs text-[var(--accent-cyan)] font-semibold hover:bg-[var(--accent-primary)]/10 transition-colors"
-                            >
-                              <svg
-                                className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
+              {/* Terminal Content Area */}
+              <div className="relative flex-1 min-h-[200px] min-h-[20vh] overflow-y-auto p-6 bg-[var(--background)]/30">
+                {/* Subtle scan line effect */}
+                <div className="absolute inset-0 pointer-events-none opacity-[0.02]" style={{
+                  background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, var(--accent-cyan) 2px, var(--accent-cyan) 4px)'
+                }}></div>
+
+                <div className="relative">
+                  <Ask
+                    repoInfo={effectiveRepoInfo}
+                    provider={selectedProviderState}
+                    model={selectedModelState}
+                    isCustomModel={isCustomSelectedModelState}
+                    customModel={customSelectedModelState}
+                    language={language}
+                    onRef={(ref) => (askComponentRef.current = ref)}
+                  />
+                </div>
+              </div>
+
+              {/* Terminal-style Model Selector Dropdown */}
+              <div
+                ref={modelDropdownRef}
+                className={`relative border-t border-[var(--accent-primary)]/20 transition-all duration-300 ease-out overflow-hidden ${isModelDropdownOpen
+                    ? 'max-h-[250px] opacity-100'
+                    : 'max-h-0 opacity-0'
+                  }`}
+              >
+                <div className="bg-[var(--surface)]/95 backdrop-blur-sm">
+                  {/* Dropdown header */}
+                  <div className="bg-gradient-to-r from-[var(--accent-primary)]/10 to-[var(--accent-cyan)]/10 border-b border-[var(--accent-primary)]/30 px-4 py-2">
+                    <div className="flex items-center gap-2 font-mono text-xs">
+                      <span className="text-[var(--accent-primary)]">◆</span>
+                      <span className="text-[var(--foreground)] font-bold">SELECT MODEL</span>
+                      <span className="text-[var(--muted)]">/ quick switch</span>
+                    </div>
+                  </div>
+
+                  {/* Dropdown content */}
+                  <div className="max-h-[180px] overflow-y-auto p-3">
+                    {modelConfig ? (
+                      <div className="space-y-2">
+                        {modelConfig.providers.map((provider) => {
+                          const isExpanded = expandedProviders.has(provider.id);
+                          const hasSelectedModel = selectedProviderState === provider.id;
+
+                          return (
+                            <div key={provider.id} className="space-y-1">
+                              {/* Provider label - Clickable */}
+                              <button
+                                onClick={() => toggleProvider(provider.id)}
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-xs text-[var(--accent-cyan)] font-semibold hover:bg-[var(--accent-primary)]/10 transition-colors"
                               >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                              <span>{provider.name}</span>
-                              {hasSelectedModel && (
-                                <span className="ml-auto text-[var(--accent-emerald)] text-[10px]">● ACTIVE</span>
-                              )}
-                            </button>
-
-                            {/* Models - Collapsible */}
-                            {isExpanded && (
-                              <div className="space-y-0.5 pl-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                {provider.models.map((mdl) => {
-                                  const isSelected = selectedProviderState === provider.id && selectedModelState === mdl.id && !isCustomSelectedModelState;
-                                  return (
-                                    <button
-                                      key={mdl.id}
-                                      onClick={() => {
-                                        setSelectedProviderState(provider.id);
-                                        setSelectedModelState(mdl.id);
-                                        setIsCustomSelectedModelState(false);
-                                        setIsModelDropdownOpen(false);
-                                      }}
-                                      className={`w-full flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-all ${
-                                        isSelected
-                                          ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-cyan)] border border-[var(--accent-primary)]/50'
-                                          : 'text-[var(--foreground)]/70 hover:bg-[var(--accent-primary)]/10 hover:text-[var(--foreground)] border border-transparent'
-                                      }`}
-                                    >
-                                      <span className={isSelected ? 'text-[var(--accent-emerald)]' : 'text-[var(--muted)]'}>
-                                        {isSelected ? '✓' : '→'}
-                                      </span>
-                                      <span className="flex-1 text-left truncate">{mdl.name}</span>
-                                    </button>
-                                  );
-                                })}
-
-                                {/* Custom model option */}
-                                {provider.supportsCustomModel && (
-                                  <div className="space-y-1">
-                                    {customModelInput?.providerId === provider.id ? (
-                                      // Inline input form
-                                      <div className="p-2 rounded bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/30">
-                                        <div className="flex items-center gap-2">
-                                          <input
-                                            type="text"
-                                            value={customModelInput.value}
-                                            onChange={(e) => setCustomModelInput({ providerId: provider.id, value: e.target.value })}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter') {
-                                                submitCustomModel(provider.id);
-                                              } else if (e.key === 'Escape') {
-                                                setCustomModelInput(null);
-                                              }
-                                            }}
-                                            placeholder="Enter model name..."
-                                            autoFocus
-                                            className="flex-1 px-2 py-1 text-xs font-mono bg-[var(--background)] text-[var(--foreground)] border border-[var(--border-color)] rounded focus:outline-none focus:border-[var(--accent-cyan)] focus:ring-1 focus:ring-[var(--accent-cyan)]"
-                                          />
-                                          <button
-                                            onClick={() => submitCustomModel(provider.id)}
-                                            className="px-2 py-1 text-xs font-mono bg-[var(--accent-emerald)] text-white rounded hover:bg-[var(--accent-emerald)]/80 transition-colors"
-                                          >
-                                            ✓
-                                          </button>
-                                          <button
-                                            onClick={() => setCustomModelInput(null)}
-                                            className="px-2 py-1 text-xs font-mono bg-[var(--surface)] text-[var(--muted)] rounded hover:bg-[var(--accent-danger)]/20 hover:text-[var(--accent-danger)] transition-colors"
-                                          >
-                                            ✕
-                                          </button>
-                                        </div>
-                                        <div className="mt-1 text-[10px] text-[var(--muted)] font-mono">
-                                          Press Enter to submit • ESC to cancel
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      // Button to show input
-                                      <button
-                                        onClick={() => setCustomModelInput({ providerId: provider.id, value: '' })}
-                                        className="w-full flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs text-[var(--accent-warning)]/70 hover:bg-[var(--accent-warning)]/10 hover:text-[var(--accent-warning)] transition-all border border-dashed border-[var(--accent-warning)]/30 hover:border-[var(--accent-warning)]/50"
-                                      >
-                                        <span>+</span>
-                                        <span className="flex-1 text-left">Custom model</span>
-                                      </button>
-                                    )}
-                                  </div>
+                                <svg
+                                  className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                                <span>{provider.name}</span>
+                                {hasSelectedModel && (
+                                  <span className="ml-auto text-[var(--accent-emerald)] text-[10px]">● ACTIVE</span>
                                 )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center py-4 text-[var(--muted)] font-mono text-xs">
-                      Loading models...
-                    </div>
-                  )}
+                              </button>
+
+                              {/* Models - Collapsible */}
+                              {isExpanded && (
+                                <div className="space-y-0.5 pl-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                  {provider.models.map((mdl) => {
+                                    const isSelected = selectedProviderState === provider.id && selectedModelState === mdl.id && !isCustomSelectedModelState;
+                                    return (
+                                      <button
+                                        key={mdl.id}
+                                        onClick={() => {
+                                          setSelectedProviderState(provider.id);
+                                          setSelectedModelState(mdl.id);
+                                          setIsCustomSelectedModelState(false);
+                                          setIsModelDropdownOpen(false);
+                                        }}
+                                        className={`w-full flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs transition-all ${isSelected
+                                            ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-cyan)] border border-[var(--accent-primary)]/50'
+                                            : 'text-[var(--foreground)]/70 hover:bg-[var(--accent-primary)]/10 hover:text-[var(--foreground)] border border-transparent'
+                                          }`}
+                                      >
+                                        <span className={isSelected ? 'text-[var(--accent-emerald)]' : 'text-[var(--muted)]'}>
+                                          {isSelected ? '✓' : '→'}
+                                        </span>
+                                        <span className="flex-1 text-left truncate">{mdl.name}</span>
+                                      </button>
+                                    );
+                                  })}
+
+                                  {/* Custom model option */}
+                                  {provider.supportsCustomModel && (
+                                    <div className="space-y-1">
+                                      {customModelInput?.providerId === provider.id ? (
+                                        // Inline input form
+                                        <div className="p-2 rounded bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/30">
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="text"
+                                              value={customModelInput.value}
+                                              onChange={(e) => setCustomModelInput({ providerId: provider.id, value: e.target.value })}
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                  submitCustomModel(provider.id);
+                                                } else if (e.key === 'Escape') {
+                                                  setCustomModelInput(null);
+                                                }
+                                              }}
+                                              placeholder="Enter model name..."
+                                              autoFocus
+                                              className="flex-1 px-2 py-1 text-xs font-mono bg-[var(--background)] text-[var(--foreground)] border border-[var(--border-color)] rounded focus:outline-none focus:border-[var(--accent-cyan)] focus:ring-1 focus:ring-[var(--accent-cyan)]"
+                                            />
+                                            <button
+                                              onClick={() => submitCustomModel(provider.id)}
+                                              className="px-2 py-1 text-xs font-mono bg-[var(--accent-emerald)] text-white rounded hover:bg-[var(--accent-emerald)]/80 transition-colors"
+                                            >
+                                              ✓
+                                            </button>
+                                            <button
+                                              onClick={() => setCustomModelInput(null)}
+                                              className="px-2 py-1 text-xs font-mono bg-[var(--surface)] text-[var(--muted)] rounded hover:bg-[var(--accent-danger)]/20 hover:text-[var(--accent-danger)] transition-colors"
+                                            >
+                                              ✕
+                                            </button>
+                                          </div>
+                                          <div className="mt-1 text-[10px] text-[var(--muted)] font-mono">
+                                            Press Enter to submit • ESC to cancel
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        // Button to show input
+                                        <button
+                                          onClick={() => setCustomModelInput({ providerId: provider.id, value: '' })}
+                                          className="w-full flex items-center gap-2 px-3 py-1.5 rounded font-mono text-xs text-[var(--accent-warning)]/70 hover:bg-[var(--accent-warning)]/10 hover:text-[var(--accent-warning)] transition-all border border-dashed border-[var(--accent-warning)]/30 hover:border-[var(--accent-warning)]/50"
+                                        >
+                                          <span>+</span>
+                                          <span className="flex-1 text-left">Custom model</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center py-4 text-[var(--muted)] font-mono text-xs">
+                        Loading models...
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Terminal Footer Status Bar */}
-            <div className="relative bg-[var(--accent-primary)]/5 border-t-2 border-[var(--accent-primary)]/20 px-5 py-2">
-              <div className="flex items-center justify-between font-mono text-xs">
-                <div className="flex items-center gap-4">
-                  {/* Clickable model selector */}
-                  <button
-                    ref={modelButtonRef}
-                    onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                    className="flex items-center gap-2 px-2.5 py-1 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 hover:border-[var(--accent-cyan)] transition-all group"
-                  >
-                    <span className="text-[var(--muted)]">MODEL:</span>
-                    <span className="text-[var(--accent-cyan)]">
-                      {selectedProviderState}/{isCustomSelectedModelState ? customSelectedModelState : selectedModelState}
-                    </span>
-                    <svg
-                      className={`w-3 h-3 text-[var(--accent-primary)] transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+              {/* Terminal Footer Status Bar */}
+              <div className="relative bg-[var(--accent-primary)]/5 border-t-2 border-[var(--accent-primary)]/20 px-5 py-2">
+                <div className="flex items-center justify-between font-mono text-xs">
+                  <div className="flex items-center gap-4">
+                    {/* Clickable model selector */}
+                    <button
+                      ref={modelButtonRef}
+                      onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                      className="flex items-center gap-2 px-2.5 py-1 rounded border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 hover:bg-[var(--accent-primary)]/10 hover:border-[var(--accent-cyan)] transition-all group"
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
+                      <span className="text-[var(--muted)]">MODEL:</span>
+                      <span className="text-[var(--accent-cyan)]">
+                        {selectedProviderState}/{isCustomSelectedModelState ? customSelectedModelState : selectedModelState}
+                      </span>
+                      <svg
+                        className={`w-3 h-3 text-[var(--accent-primary)] transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
 
-                  <span className="text-[var(--muted)]">•</span>
+                    <span className="text-[var(--muted)]">•</span>
 
-                  <span className="text-[var(--accent-primary)]">
-                    <span className="text-[var(--muted)]">LANG:</span> {language.toUpperCase()}
-                  </span>
-                </div>
+                    <span className="text-[var(--accent-primary)]">
+                      <span className="text-[var(--muted)]">LANG:</span> {language.toUpperCase()}
+                    </span>
+                  </div>
 
-                <div className="flex items-center gap-2 text-[var(--muted)]">
-                  <kbd className="px-2 py-0.5 bg-[var(--background)]/50 rounded border border-[var(--border-color)] text-[10px]">ESC</kbd>
-                  <span className="text-[10px]">to close</span>
+                  <div className="flex items-center gap-2 text-[var(--muted)]">
+                    <kbd className="px-2 py-0.5 bg-[var(--background)]/50 rounded border border-[var(--border-color)] text-[10px]">ESC</kbd>
+                    <span className="text-[10px]">to close</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           </div>
         </div>
       </div>
