@@ -425,6 +425,10 @@ class JobManager:
         if not job or job['status'] != JobStatus.FAILED.value:
             return False
 
+        # Reset token stats on retry
+        from api.background.token_tracker import TokenTracker
+        await TokenTracker.reset_job_tokens(job_id)
+
         # Determine resume status based on phase
         phase = job['current_phase']
         if phase == 0:

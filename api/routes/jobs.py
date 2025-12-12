@@ -45,6 +45,21 @@ async def get_job(job_id: str):
     job_detail = await JobManager.get_job_detail(job_id)
     if not job_detail:
         raise HTTPException(status_code=404, detail="Job not found")
+
+    # Fetch and attach token summary
+    from api.background.token_tracker import TokenTracker
+    from api.background.models import TokenSummary
+    token_stats = await TokenTracker.get_job_tokens(job_id)
+
+    if token_stats:
+        job_detail.job.token_summary = TokenSummary(
+            chunking_total_tokens=token_stats['chunking_total_tokens'],
+            chunking_total_chunks=token_stats['chunking_total_chunks'],
+            provider_prompt_tokens=token_stats['provider_prompt_tokens'],
+            provider_completion_tokens=token_stats['provider_completion_tokens'],
+            provider_total_tokens=token_stats['provider_total_tokens']
+        )
+
     return job_detail
 
 
@@ -168,6 +183,34 @@ async def retry_page(job_id: str, page_id: str, user = Depends(require_admin)):
     return {"message": "Page queued for retry"}
 
 
+@router.get("/{job_id}/token-summary")
+async def get_token_summary(job_id: str):
+    """
+    Get detailed token usage summary for a job.
+    """
+    from api.background.token_tracker import TokenTracker
+    from api.background.models import TokenSummary
+
+    # Verify job exists
+    job = await JobManager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Fetch token stats
+    token_stats = await TokenTracker.get_job_tokens(job_id)
+
+    if not token_stats:
+        return TokenSummary()
+
+    return TokenSummary(
+        chunking_total_tokens=token_stats['chunking_total_tokens'],
+        chunking_total_chunks=token_stats['chunking_total_chunks'],
+        provider_prompt_tokens=token_stats['provider_prompt_tokens'],
+        provider_completion_tokens=token_stats['provider_completion_tokens'],
+        provider_total_tokens=token_stats['provider_total_tokens']
+    )
+
+
 @router.get("/{job_id}/progress/stream")
 async def job_progress_stream(job_id: str, request: Request):
     """
@@ -221,8 +264,23 @@ async def job_progress_stream(job_id: str, request: Request):
     async def stream_progress():
         """Generator function that streams job progress updates."""
         try:
+            from api.background.token_tracker import TokenTracker
+
             # Send initial status
             initial_message = await get_status_message(job)
+
+            # Fetch token stats
+            token_stats = await TokenTracker.get_job_tokens(job_id)
+            token_summary_dict = None
+            if token_stats:
+                token_summary_dict = {
+                    "chunking_total_tokens": token_stats['chunking_total_tokens'],
+                    "chunking_total_chunks": token_stats['chunking_total_chunks'],
+                    "provider_prompt_tokens": token_stats['provider_prompt_tokens'],
+                    "provider_completion_tokens": token_stats['provider_completion_tokens'],
+                    "provider_total_tokens": token_stats['provider_total_tokens']
+                }
+
             initial_update = {
                 "job_id": job_id,
                 "status": job.status.value,
@@ -231,7 +289,8 @@ async def job_progress_stream(job_id: str, request: Request):
                 "message": initial_message,
                 "total_pages": job.total_pages,
                 "completed_pages": job.completed_pages,
-                "failed_pages": job.failed_pages
+                "failed_pages": job.failed_pages,
+                "token_summary": token_summary_dict
             }
             yield json.dumps(initial_update) + "\n"
 
@@ -246,6 +305,17 @@ async def job_progress_stream(job_id: str, request: Request):
             async def progress_callback(update: JobProgressUpdate):
                 """Callback that receives progress updates and queues them."""
                 try:
+                    # Convert token_summary to dict if present
+                    token_summary_dict = None
+                    if update.token_summary:
+                        token_summary_dict = {
+                            "chunking_total_tokens": update.token_summary.chunking_total_tokens,
+                            "chunking_total_chunks": update.token_summary.chunking_total_chunks,
+                            "provider_prompt_tokens": update.token_summary.provider_prompt_tokens,
+                            "provider_completion_tokens": update.token_summary.provider_completion_tokens,
+                            "provider_total_tokens": update.token_summary.provider_total_tokens
+                        }
+
                     await update_queue.put({
                         "job_id": update.job_id,
                         "status": update.status.value,
@@ -258,7 +328,8 @@ async def job_progress_stream(job_id: str, request: Request):
                         "total_pages": update.total_pages,
                         "completed_pages": update.completed_pages,
                         "failed_pages": update.failed_pages,
-                        "error": update.error
+                        "error": update.error,
+                        "token_summary": token_summary_dict
                     })
                 except Exception as e:
                     logger.error(f"Error in progress callback: {e}")
@@ -285,6 +356,19 @@ async def job_progress_stream(job_id: str, request: Request):
                         if current_job and current_job.status in [JobStatus.COMPLETED, JobStatus.PARTIALLY_COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
                             # Send final status update
                             final_message = await get_status_message(current_job)
+
+                            # Fetch token stats for final update
+                            final_token_stats = await TokenTracker.get_job_tokens(job_id)
+                            final_token_summary_dict = None
+                            if final_token_stats:
+                                final_token_summary_dict = {
+                                    "chunking_total_tokens": final_token_stats['chunking_total_tokens'],
+                                    "chunking_total_chunks": final_token_stats['chunking_total_chunks'],
+                                    "provider_prompt_tokens": final_token_stats['provider_prompt_tokens'],
+                                    "provider_completion_tokens": final_token_stats['provider_completion_tokens'],
+                                    "provider_total_tokens": final_token_stats['provider_total_tokens']
+                                }
+
                             final_update = {
                                 "job_id": job_id,
                                 "status": current_job.status.value,
@@ -293,7 +377,8 @@ async def job_progress_stream(job_id: str, request: Request):
                                 "message": final_message,
                                 "total_pages": current_job.total_pages,
                                 "completed_pages": current_job.completed_pages,
-                                "failed_pages": current_job.failed_pages
+                                "failed_pages": current_job.failed_pages,
+                                "token_summary": final_token_summary_dict
                             }
                             yield json.dumps(final_update) + "\n"
                             break

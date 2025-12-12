@@ -311,6 +311,19 @@ class WikiGenerationWorker:
             )
         )
 
+        # Track chunking/embedding tokens
+        from api.background.token_tracker import TokenTracker
+        await TokenTracker.initialize_job_tokens(job_id)
+
+        # Get chunking stats from RAG
+        stats = rag.get_chunking_stats()
+        await TokenTracker.update_chunking_tokens(
+            job_id,
+            stats['total_tokens'],
+            stats['total_chunks']
+        )
+        logger.info(f"Job {job_id}: {stats['total_chunks']} chunks, {stats['total_tokens']} tokens")
+
         await JobManager.update_job_status(job_id, JobStatus.PREPARING_EMBEDDINGS, phase=0, progress=10.0)
         await self._notify_progress(job_id, JobStatus.PREPARING_EMBEDDINGS, 0, 10.0, "Embeddings ready")
 
@@ -647,14 +660,27 @@ class WikiGenerationWorker:
                 import tiktoken
                 # Use cl100k_base (GPT-4) as default approximation
                 encoding = tiktoken.get_encoding("cl100k_base")
-                tokens = len(encoding.encode(content))
+                completion_tokens = len(encoding.encode(content))
+                prompt_tokens = len(encoding.encode(prompt))
             except ImportError:
                  # Fallback: ~4 chars per token
-                 tokens = len(content) // 4
+                 completion_tokens = len(content) // 4
+                 prompt_tokens = len(prompt) // 4
             except Exception as e:
                  logger.warning(f"Token counting error: {e}")
                  # Fallback: ~4 chars per token
-                 tokens = len(content) // 4
+                 completion_tokens = len(content) // 4
+                 prompt_tokens = len(prompt) // 4
+
+            tokens = completion_tokens  # For backward compatibility
+
+            # Track provider tokens
+            from api.background.token_tracker import TokenTracker
+            await TokenTracker.update_provider_tokens(
+                job_id,
+                prompt_tokens,
+                completion_tokens
+            )
 
             await JobManager.increment_job_page_count(
                 job_id, completed=True, tokens=tokens
