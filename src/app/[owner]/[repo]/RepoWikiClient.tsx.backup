@@ -11,58 +11,39 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { RepoInfo } from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
 import { extractUrlDomain, extractUrlPath } from '@/utils/urlDecoder';
-// Import extracted types and utilities
-import {
-  WikiSection,
-  WikiPage,
-  WikiStructure,
-  AzureRepoInfo,
-  RequestBody,
-  ModelConfig,
-  RepositoryCredentials,
-  GenerationStatus
-} from '@/types/wiki';
-import {
-  getCacheKey,
-  addTokensToRequestBody,
-  generateFileUrl,
-  processWikiContent,
-  extractCategories,
-  filterPagesByImportance
-} from '@/lib/wiki-utils';
-import {
-  createGithubHeaders,
-  getGithubApiUrl,
-  fetchGithubRepoInfo,
-  fetchGithubFileTree,
-  fetchGithubReadme
-} from '@/lib/repositories/github';
-import {
-  createGitlabHeaders,
-  fetchGitlabProjectInfo,
-  fetchGitlabFileTree,
-  fetchGitlabReadme
-} from '@/lib/repositories/gitlab';
-import {
-  createBitbucketHeaders,
-  fetchBitbucketRepoInfo,
-  fetchBitbucketFileTree,
-  fetchBitbucketReadme
-} from '@/lib/repositories/bitbucket';
-import {
-  createAzureHeaders,
-  parseAzureRepoUrl,
-  fetchAzureFileTree,
-  fetchAzureReadme
-} from '@/lib/repositories/azure';
-import {
-  fetchLocalRepoStructure
-} from '@/lib/repositories/local';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { findActiveJob, startBackgroundWikiGeneration } from '@/utils/backgroundJobClient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FaBitbucket, FaBookOpen, FaChevronDown, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes, FaTrash } from 'react-icons/fa';
+
+interface WikiSection {
+  id: string;
+  title: string;
+  pages: string[];
+  subsections?: string[];
+}
+
+interface WikiPage {
+  id: string;
+  title: string;
+  content: string;
+  filePaths: string[];
+  importance: 'high' | 'medium' | 'low';
+  relatedPages: string[];
+  parentId?: string;
+  isSection?: boolean;
+  children?: string[];
+}
+
+interface WikiStructure {
+  id: string;
+  title: string;
+  description: string;
+  pages: WikiPage[];
+  sections: WikiSection[];
+  rootSections: string[];
+}
 
 const wikiStyles = `
   /* Terminal Codex Wiki Styles */
@@ -332,7 +313,141 @@ const wikiStyles = `
   }
 `;
 
+const getCacheKey = (owner: string, repo: string, repoType: string, language: string, isComprehensive: boolean = true): string => {
+  return `deepwiki_cache_${repoType}_${owner}_${repo}_${language}_${isComprehensive ? 'comprehensive' : 'concise'}`;
+};
 
+type RequestBody = {
+  [key: string]: unknown;
+};
+
+const addTokensToRequestBody = (
+  requestBody: RequestBody,
+  token: string,
+  repoType: string,
+  provider: string = '',
+  model: string = '',
+  isCustomModel: boolean = false,
+  customModel: string = '',
+  language: string = 'en',
+  excludedDirs?: string,
+  excludedFiles?: string,
+  includedDirs?: string,
+  includedFiles?: string
+): void => {
+  if (token !== '') {
+    requestBody.token = token;
+  }
+  requestBody.provider = provider;
+  requestBody.model = model;
+  if (isCustomModel && customModel) {
+    requestBody.custom_model = customModel;
+  }
+  requestBody.language = language;
+  if (excludedDirs) {
+    requestBody.excluded_dirs = excludedDirs;
+  }
+  if (excludedFiles) {
+    requestBody.excluded_files = excludedFiles;
+  }
+  if (includedDirs) {
+    requestBody.included_dirs = includedDirs;
+  }
+  if (includedFiles) {
+    requestBody.included_files = includedFiles;
+  }
+};
+
+const createGithubHeaders = (githubToken: string): HeadersInit => {
+  const headers: HeadersInit = {
+    'Accept': 'application/vnd.github.v3+json'
+  };
+  if (githubToken) {
+    headers['Authorization'] = `Bearer ${githubToken}`;
+  }
+  return headers;
+};
+
+const createGitlabHeaders = (gitlabToken: string): HeadersInit => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  if (gitlabToken) {
+    headers['PRIVATE-TOKEN'] = gitlabToken;
+  }
+  return headers;
+};
+
+const createAzureHeaders = (azureToken: string): HeadersInit => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  if (azureToken) {
+    const encoded = btoa(`:${azureToken}`);
+    headers['Authorization'] = `Basic ${encoded}`;
+  }
+  return headers;
+};
+
+interface AzureRepoInfo {
+  organization: string;
+  project: string;
+  repository: string;
+  baseUrl: string;
+}
+
+const parseAzureRepoUrl = (repoUrl: string | null): AzureRepoInfo | null => {
+  if (!repoUrl) return null;
+  try {
+    const url = new URL(repoUrl);
+    const segments = url.pathname.split('/').filter(Boolean);
+    let organization = '';
+    let project = '';
+    let repository = '';
+    if (url.hostname.includes('dev.azure.com')) {
+      organization = segments[0];
+      project = segments[1];
+      const repoIndex = segments.findIndex((seg) => seg.toLowerCase() === '_git');
+      repository = repoIndex >= 0 && segments[repoIndex + 1] ? segments[repoIndex + 1] : segments[3];
+      return organization && project && repository
+        ? {
+            organization,
+            project,
+            repository,
+            baseUrl: `${url.protocol}//${url.hostname}`,
+          }
+        : null;
+    }
+    if (url.hostname.includes('visualstudio.com')) {
+      organization = url.hostname.split('.')[0];
+      project = segments[0];
+      const repoIndex = segments.findIndex((seg) => seg.toLowerCase() === '_git');
+      repository = repoIndex >= 0 && segments[repoIndex + 1] ? segments[repoIndex + 1] : segments[2];
+      return organization && project && repository
+        ? {
+            organization,
+            project,
+            repository,
+            baseUrl: `${url.protocol}//${organization}.visualstudio.com`,
+          }
+        : null;
+    }
+    return null;
+  } catch (err) {
+    console.warn('Failed to parse Azure repo URL', err);
+    return null;
+  }
+};
+
+const createBitbucketHeaders = (bitbucketToken: string): HeadersInit => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  if (bitbucketToken) {
+    headers['Authorization'] = `Bearer ${bitbucketToken}`;
+  }
+  return headers;
+};
 
 export default function RepoWikiClient({ authRequiredInitial }: { authRequiredInitial: boolean }) {
   const params = useParams();
