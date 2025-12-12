@@ -446,7 +446,7 @@ async def chat_completions_stream(request: ChatCompletionRequest):
             model_kwargs = {
                 "model": request.model,
                 "stream": True,
-                "max_tokens": model_config.get("max_tokens", 4096),
+                "max_tokens": model_config.get("max_tokens", 8096),
             }
             if "temperature" in model_config:
                 model_kwargs["temperature"] = model_config["temperature"]

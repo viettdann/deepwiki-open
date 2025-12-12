@@ -205,10 +205,12 @@
       "supportsCustomModel": false,
       "models": {
         "claude-sonnet-4-5": {
-          "temperature": 0.2
+          "temperature": 0.2,
+          "max_tokens": 16384
         },
         "claude-haiku-4-5": {
-          "temperature": 0.2
+          "temperature": 0.2,
+          "max_tokens": 16384
         }
       }
     },
