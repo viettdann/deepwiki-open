@@ -15,6 +15,14 @@ const RocketIcon = () => (
   </svg>
 );
 
+interface TokenSummary {
+  chunking_total_tokens: number;
+  chunking_total_chunks: number;
+  provider_prompt_tokens: number;
+  provider_completion_tokens: number;
+  provider_total_tokens: number;
+}
+
 interface JobProgress {
   job_id: string;
   status: string;
@@ -29,6 +37,7 @@ interface JobProgress {
   error?: string;
   heartbeat?: boolean;
   page_status?: string;
+  token_summary?: TokenSummary;
 }
 
 interface JobPage {
@@ -69,6 +78,7 @@ interface JobDetail {
     created_at: string;
     started_at?: string;
     completed_at?: string;
+    token_summary?: TokenSummary;
   };
   pages: JobPage[];
   wiki_structure?: Record<string, unknown>;
@@ -371,8 +381,35 @@ export default function JobProgressPage() {
 
         {/* Progress Bar */}
         <div className="mb-8 rounded-lg border-2 border-[var(--accent-primary)]/20 bg-[var(--surface)]/80 backdrop-blur-sm p-4">
-          <div className="flex justify-between mb-3">
-            <span className="text-sm font-mono font-medium text-[var(--foreground)]">▸ {currentMessage}</span>
+          <div className="flex justify-between items-start mb-3">
+            <div className="flex-1">
+              <span className="text-sm font-mono font-medium text-[var(--foreground)]">▸ {currentMessage}</span>
+              {/* Token counter for running jobs */}
+              {(isRunning && (progress?.token_summary || jobDetail?.job.token_summary)) && (
+                <div className="flex items-center gap-3 mt-2 text-xs font-mono text-[var(--foreground-muted)]">
+                  {(() => {
+                    const tokenData = progress?.token_summary || jobDetail?.job.token_summary;
+                    if (!tokenData) return null;
+                    const totalTokens = tokenData.chunking_total_tokens + tokenData.provider_total_tokens;
+                    return (
+                      <>
+                        <span className="flex items-center gap-1">
+                          <span className="text-[var(--accent-emerald)]">→</span>
+                          {tokenData.chunking_total_tokens.toLocaleString()} chunk
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-[var(--accent-primary)]">→</span>
+                          {tokenData.provider_total_tokens.toLocaleString()} llm
+                        </span>
+                        <span className="flex items-center gap-1 text-[var(--accent-cyan)]">
+                          [{totalTokens.toLocaleString()} total]
+                        </span>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
             <span className="text-sm font-mono font-bold text-[var(--accent-cyan)]">{Math.round(currentProgress)}%</span>
           </div>
           <div className="w-full bg-[var(--surface)] border-2 border-[var(--accent-primary)]/30 rounded-full h-4 overflow-hidden">
@@ -477,7 +514,7 @@ export default function JobProgressPage() {
               {jobDetail.pages.map((page) => (
                 <div
                   key={page.id}
-                  className={`p-3 rounded-lg border-2 flex items-center justify-between transition-all ${
+                  className={`p-3 rounded-lg border-2 transition-all ${
                     page.status === 'completed'
                       ? 'bg-[var(--accent-success)]/10 border-[var(--accent-success)]/30'
                       : page.status === 'in_progress'
@@ -487,24 +524,42 @@ export default function JobProgressPage() {
                           : 'bg-[var(--surface)]/30 border-[var(--accent-primary)]/20'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(page.status)}
-                    <div>
-                      <span className="text-sm font-mono font-medium text-[var(--foreground)]">{page.title}</span>
-                      {page.last_error && (
-                        <p className="text-xs font-mono text-[var(--accent-danger)] mt-1">› {page.last_error}</p>
-                      )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      {getStatusIcon(page.status)}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-mono font-medium text-[var(--foreground)]">{page.title}</span>
+                          {/* Token badge for completed pages */}
+                          {page.status === 'completed' && page.tokens_used > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono bg-[var(--accent-cyan)]/10 text-[var(--accent-cyan)] border border-[var(--accent-cyan)]/30">
+                              <span className="text-[var(--accent-cyan)]/70">→</span>
+                              {page.tokens_used.toLocaleString()}
+                              <span className="text-[var(--accent-cyan)]/70">tok</span>
+                            </span>
+                          )}
+                          {/* Generation time badge for completed pages */}
+                          {page.status === 'completed' && page.generation_time_ms > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono bg-[var(--foreground-muted)]/10 text-[var(--foreground-muted)] border border-[var(--foreground-muted)]/20">
+                              {Math.round(page.generation_time_ms / 1000)}s
+                            </span>
+                          )}
+                        </div>
+                        {page.last_error && (
+                          <p className="text-xs font-mono text-[var(--accent-danger)] mt-1">› {page.last_error}</p>
+                        )}
+                      </div>
                     </div>
+                    {(page.status === 'failed' || page.status === 'permanent_failed') && (
+                      <RoleBasedButton
+                        onAdminClick={() => handleRetryPage(page.id)}
+                        actionDescription={`retry failed page "${page.title}"`}
+                        className="flex items-center gap-1.5 text-sm font-mono text-[var(--accent-primary)] hover:text-[var(--accent-cyan)] transition-colors ml-3"
+                      >
+                        <FaRedo /> Retry
+                      </RoleBasedButton>
+                    )}
                   </div>
-                  {(page.status === 'failed' || page.status === 'permanent_failed') && (
-                    <RoleBasedButton
-                      onAdminClick={() => handleRetryPage(page.id)}
-                      actionDescription={`retry failed page "${page.title}"`}
-                      className="flex items-center gap-1.5 text-sm font-mono text-[var(--accent-primary)] hover:text-[var(--accent-cyan)] transition-colors"
-                    >
-                      <FaRedo /> Retry
-                    </RoleBasedButton>
-                  )}
                 </div>
               ))}
             </div>
@@ -517,7 +572,7 @@ export default function JobProgressPage() {
             <RoleBasedButton
               onAdminClick={handlePause}
               actionDescription={`pause job "${jobDetail.job.repo}"`}
-              className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-warning)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-warning)] hover:bg-[var(--accent-warning)]/90 transition-all shadow-lg hover:shadow-xl terminal-btn"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-[var(--accent-warning)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-warning)] hover:bg-[var(--accent-warning)]/90 transition-all shadow-lg hover:shadow-xl terminal-btn"
             >
               <FaPause /> Pause
             </RoleBasedButton>
@@ -526,7 +581,7 @@ export default function JobProgressPage() {
             <RoleBasedButton
               onAdminClick={handleResume}
               actionDescription={`resume job "${jobDetail.job.repo}"`}
-              className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-success)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-success)] hover:bg-[var(--accent-success)]/90 transition-all shadow-lg hover:shadow-xl terminal-btn"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-[var(--accent-success)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-success)] hover:bg-[var(--accent-success)]/90 transition-all shadow-lg hover:shadow-xl terminal-btn"
             >
               <FaPlay /> Resume
             </RoleBasedButton>
@@ -535,7 +590,7 @@ export default function JobProgressPage() {
             <RoleBasedButton
               onAdminClick={handleCancel}
               actionDescription={`cancel job "${jobDetail.job.repo}"`}
-              className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-danger)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-danger)] hover:bg-[var(--accent-danger)]/90 transition-all shadow-lg hover:shadow-xl terminal-btn"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-[var(--accent-danger)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-danger)] hover:bg-[var(--accent-danger)]/90 transition-all shadow-lg hover:shadow-xl terminal-btn"
             >
               <FaTimes /> Cancel
             </RoleBasedButton>
@@ -544,7 +599,7 @@ export default function JobProgressPage() {
             <RoleBasedButton
               onAdminClick={handleRetryJob}
               actionDescription={`retry failed job "${jobDetail.job.repo}"`}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-primary)] hover:opacity-90 transition-all shadow-lg hover:shadow-xl terminal-btn"
+              className="flex items-center justify-center gap-2 px-4 py-2 flex-1 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-primary)] hover:opacity-90 transition-all shadow-lg hover:shadow-xl terminal-btn"
             >
               <FaRedo /> Retry Job
             </RoleBasedButton>
@@ -552,7 +607,7 @@ export default function JobProgressPage() {
           {(currentStatus === 'completed' || currentStatus === 'partially_completed') && (
             <Link
               href={`/${jobDetail.job.owner}/${jobDetail.job.repo}?type=${jobDetail.job.repo_type}`}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-primary)] hover:opacity-90 transition-all shadow-lg hover:shadow-xl terminal-btn"
+              className="flex items-center justify-center gap-2 px-4 py-2 flex-1 bg-gradient-to-r from-[var(--gradient-from)] to-[var(--gradient-to)] text-white font-mono font-medium rounded-lg border-2 border-[var(--accent-primary)] hover:opacity-90 transition-all shadow-lg hover:shadow-xl terminal-btn"
             >
               View Wiki {currentStatus === 'partially_completed' && '(Partial)'}
             </Link>
@@ -561,7 +616,7 @@ export default function JobProgressPage() {
             <RoleBasedButton
               onAdminClick={handleDelete}
               actionDescription={`permanently delete job "${jobDetail.job.repo}"`}
-              className="flex items-center gap-2 px-4 py-2 bg-[var(--foreground-muted)] text-white font-mono font-medium rounded-lg border-2 border-[var(--foreground-muted)] hover:bg-[var(--accent-danger)] hover:border-[var(--accent-danger)] transition-all shadow-lg hover:shadow-xl terminal-btn"
+              className="flex items-center justify-center gap-2 px-4 py-2 flex-1 bg-[var(--foreground-muted)] text-white font-mono font-medium rounded-lg border-2 border-[var(--foreground-muted)] hover:bg-[var(--accent-danger)] hover:border-[var(--accent-danger)] transition-all shadow-lg hover:shadow-xl terminal-btn"
               title="Permanently delete this job"
             >
               <FaTrash /> Remove
@@ -603,14 +658,15 @@ export default function JobProgressPage() {
               <span className="text-xs font-mono font-semibold text-[var(--accent-cyan)]">STATISTICS.DATA</span>
             </div>
             <div className="p-5">
-              <div className="grid grid-cols-3 gap-4 text-sm text-[var(--foreground-muted)] font-mono">
+              {/* Main Stats */}
+              <div className="grid grid-cols-3 gap-4 text-sm text-[var(--foreground-muted)] font-mono mb-6">
                 <div className="text-center p-3 rounded-lg bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20">
                   <span className="block text-2xl font-bold text-[var(--accent-cyan)] mb-1">{totalPages}</span>
                   <span className="text-xs uppercase tracking-wider">Total Pages</span>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20">
                   <span className="block text-2xl font-bold text-[var(--accent-cyan)] mb-1">{jobDetail.job.total_tokens_used.toLocaleString()}</span>
-                  <span className="text-xs uppercase tracking-wider">Tokens Used</span>
+                  <span className="text-xs uppercase tracking-wider">Total Tokens</span>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20">
                   <span className="block text-2xl font-bold text-[var(--accent-cyan)] mb-1">
@@ -621,6 +677,37 @@ export default function JobProgressPage() {
                   <span className="text-xs uppercase tracking-wider">Minutes</span>
                 </div>
               </div>
+
+              {/* Token Breakdown */}
+              {jobDetail.job.token_summary && (
+                <div className="border-t-2 border-[var(--accent-primary)]/20 pt-4">
+                  <h3 className="text-xs font-mono font-semibold text-[var(--accent-cyan)] mb-3 uppercase tracking-wider">Token Breakdown</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm text-[var(--foreground-muted)] font-mono">
+                    {/* Chunking Stats */}
+                    <div className="p-3 rounded-lg bg-[var(--accent-emerald)]/5 border border-[var(--accent-emerald)]/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs uppercase tracking-wider text-[var(--accent-emerald)]">Chunking</span>
+                        <span className="text-lg font-bold text-[var(--accent-emerald)]">{jobDetail.job.token_summary.chunking_total_tokens.toLocaleString()}</span>
+                      </div>
+                      <div className="text-xs text-[var(--foreground-muted)]/70">
+                        {jobDetail.job.token_summary.chunking_total_chunks.toLocaleString()} chunks
+                      </div>
+                    </div>
+
+                    {/* Provider Stats */}
+                    <div className="p-3 rounded-lg bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs uppercase tracking-wider text-[var(--accent-primary)]">Provider LLM</span>
+                        <span className="text-lg font-bold text-[var(--accent-primary)]">{jobDetail.job.token_summary.provider_total_tokens.toLocaleString()}</span>
+                      </div>
+                      <div className="text-xs text-[var(--foreground-muted)]/70 flex justify-between">
+                        <span>{jobDetail.job.token_summary.provider_prompt_tokens.toLocaleString()} prompt</span>
+                        <span>{jobDetail.job.token_summary.provider_completion_tokens.toLocaleString()} completion</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
