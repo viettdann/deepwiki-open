@@ -3,10 +3,12 @@
 import React, {useState, useRef, useEffect} from 'react';
 import {FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import Markdown from './Markdown';
+import ErrorResponse from './ErrorResponse';
 import { useLanguage } from '@/contexts/LanguageContext';
 import RepoInfo from '@/types/repoinfo';
 import getRepoUrl from '@/utils/getRepoUrl';
 import { createStreamingRequest, ChatCompletionRequest } from '@/utils/streamingClient';
+import styles from './Ask.module.css';
 
 interface Model {
   id: string;
@@ -146,6 +148,24 @@ const Ask: React.FC<AskProps> = ({
       fetchModel()
     }
   }, [provider, model]);
+
+  // Detect if response is an error (starts with "Error:" or is JSON error)
+  const isErrorResponse = (content: string): boolean => {
+    if (!content) return false;
+    if (content.trim().startsWith('Error:')) return true;
+    // Check if it looks like a JSON error response
+    const jsonMatch = content.match(/^\s*{[\s\S]*"detail"[\s\S]*}\s*$/);
+    return !!jsonMatch;
+  };
+
+  // Extract error content from response
+  const extractErrorContent = (content: string): string => {
+    // If it starts with "Error:", extract the error message
+    if (content.trim().startsWith('Error:')) {
+      return content.trim().substring(6).trim();
+    }
+    return content;
+  };
 
   const clearConversation = () => {
     setQuestion('');
@@ -540,92 +560,98 @@ const Ask: React.FC<AskProps> = ({
     }
   };
 
-  const [buttonWidth, setButtonWidth] = useState(0);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  // Measure button width and update state
-  useEffect(() => {
-    if (buttonRef.current) {
-      const width = buttonRef.current.offsetWidth;
-      setButtonWidth(width);
-    }
-  }, [messages.ask?.askButton, isLoading]);
 
   return (
-    <div>
-      <div className="p-4">
+    <div className={styles.askContainer}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        .${styles.scanlines}::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.02) 0px,
+            rgba(255, 255, 255, 0.02) 1px,
+            transparent 1px,
+            transparent 2px
+          );
+          pointer-events: none;
+          z-index: 1;
+        }
+      `}</style>
+
+      <div className={`${styles.askInnerContainer} p-4`}>
         {/* Question input */}
-        <form onSubmit={handleSubmit}>
-          <div className="relative">
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.inputGroup}>
+            <div className={styles.inputPrefix}>▸</div>
             <input
               ref={inputRef}
               type="text"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder={messages.ask?.placeholder || 'What would you like to know about this codebase?'}
-              className="block w-full rounded-md border border-[var(--border-color)] bg-[var(--input-bg)] text-[var(--foreground)] px-5 py-3.5 text-base shadow-sm focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/30 focus:outline-none transition-all"
-              style={{ paddingRight: `${buttonWidth + 24}px` }}
+              className={styles.input}
               disabled={isLoading}
             />
             <button
-              ref={buttonRef}
               type="submit"
               disabled={isLoading || !question.trim()}
-              className={`absolute right-3 top-1/2 transform -translate-y-1/2 px-4 py-2 rounded-md font-medium text-sm ${
-                isLoading || !question.trim()
-                  ? 'bg-[var(--button-disabled-bg)] text-[var(--button-disabled-text)] cursor-not-allowed'
-                  : 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary)]/90 shadow-[0_0_0_1px_var(--border-color)]'
-              } transition-all duration-200 flex items-center gap-1.5`}
+              className={`${styles.askButton} ${isLoading ? styles.loading : ''} ${!question.trim() ? styles.disabled : ''}`}
+              aria-label="Submit question"
             >
               {isLoading ? (
-                <div className="w-4 h-4 rounded-full border-2 border-t-transparent border-white animate-spin" />
+                <div className={styles.spinnerDot}></div>
               ) : (
                 <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                  </svg>
-                  <span>{messages.ask?.askButton || 'Ask'}</span>
+                  <div className={styles.buttonDot}></div>
+                  <span className={styles.buttonText}>{messages.ask?.askButton || 'Ask'}</span>
                 </>
               )}
             </button>
           </div>
 
           {/* Deep Research toggle */}
-          <div className="flex items-center mt-2 justify-between">
+          <div className={styles.deepResearchSection}>
             <div className="group relative">
-              <label className="flex items-center cursor-pointer">
-                <span className="text-xs text-[var(--foreground-muted)] mr-2">Deep Research</span>
-                <div className="relative">
+              <label className={styles.deepResearchLabel}>
+                <span className={styles.labelText}>› Deep Research</span>
+                <div className={styles.toggleSwitch}>
                   <input
                     type="checkbox"
                     checked={deepResearch}
                     onChange={() => setDeepResearch(!deepResearch)}
-                    className="sr-only"
+                    className={styles.toggleInput}
                   />
-                  <div className={`w-10 h-5 rounded-full transition-colors ${deepResearch ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-subtle)]'}`}></div>
-                  <div className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform transform ${deepResearch ? 'translate-x-5' : ''}`}></div>
+                  <div className={`${styles.toggleTrack} ${deepResearch ? styles.active : ''}`}></div>
+                  <div className={`${styles.toggleThumb} ${deepResearch ? styles.active : ''}`}></div>
                 </div>
               </label>
-              <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded p-2 w-72 z-10">
-                <div className="relative">
-                  <div className="absolute -top-2 left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-800"></div>
-                  <p className="mb-1">Deep Research conducts a multi-turn investigation process:</p>
-                  <ul className="list-disc pl-4 text-xs">
-                    <li><strong>Initial Research:</strong> Creates a research plan and initial findings</li>
-                    <li><strong>Iteration 1:</strong> Explores specific aspects in depth</li>
-                    <li><strong>Iteration 2:</strong> Investigates remaining questions</li>
-                    <li><strong>Iterations 3-4:</strong> Dives deeper into complex areas</li>
-                    <li><strong>Final Conclusion:</strong> Comprehensive answer based on all iterations</li>
-                  </ul>
-                  <p className="mt-1 text-xs italic">The AI automatically continues research until complete (up to 5 iterations)</p>
-                </div>
+              <div className={styles.tooltip}>
+                <div className={styles.tooltipArrow}></div>
+                <p className={styles.tooltipTitle}>Deep Research conducts multi-turn investigation:</p>
+                <ul className={styles.tooltipList}>
+                  <li><strong>Plan:</strong> Creates research strategy</li>
+                  <li><strong>Iteration 1-4:</strong> Progressive exploration</li>
+                  <li><strong>Conclusion:</strong> Comprehensive synthesis</li>
+                </ul>
+                <p className={styles.tooltipNote}>Auto-continues until complete (max 5 iterations)</p>
               </div>
             </div>
             {deepResearch && (
-              <div className="text-xs text-[var(--accent-primary)]">
-                Multi-turn research process enabled
-                {researchIteration > 0 && !researchComplete && ` (iteration ${researchIteration})`}
-                {researchComplete && ` (complete)`}
+              <div className={styles.researchStatus}>
+                {/* Status indicator dot */}
+                <div className={styles.statusDot}></div>
+                <span>
+                  Multi-turn research
+                  {researchIteration > 0 && !researchComplete && ` (iter ${researchIteration})`}
+                  {researchComplete && ` (✓ complete)`}
+                </span>
               </div>
             )}
           </div>
@@ -633,166 +659,162 @@ const Ask: React.FC<AskProps> = ({
 
         {/* Response area */}
         {response && (
-          <div className="border-t border-[var(--border-subtle)] mt-4">
-            <div
-              ref={responseRef}
-              className="p-4 max-h-[500px] overflow-y-auto"
-            >
-              <Markdown content={response} />
-            </div>
-
-            {/* Research navigation and clear button */}
-            <div className="p-2 flex justify-between items-center border-t border-[var(--border-subtle)]">
-              {/* Research navigation */}
+          <div className={styles.responseContainer}>
+            <div className={styles.responseHeader}>
+              <div className={styles.statusIndicator}>
+                {isLoading ? (
+                  <>
+                    <div className={styles.statusPulse}></div>
+                    <span className={styles.statusText}>Streaming response...</span>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.completeDot}></div>
+                    <span className={styles.statusText}>Response complete</span>
+                  </>
+                )}
+              </div>
               {deepResearch && researchStages.length > 1 && (
-                <div className="flex items-center space-x-2">
+                <div className={styles.stageIndicator}>
                   <button
                     onClick={() => navigateToPreviousStage()}
                     disabled={currentStageIndex === 0}
-                    className={`p-1 rounded-md ${currentStageIndex === 0 ? 'text-[var(--muted)] opacity-50' : 'text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)]'}`}
+                    className={styles.stageButton}
                     aria-label="Previous stage"
+                    title="Previous research stage"
                   >
                     <FaChevronLeft size={12} />
                   </button>
-
-                  <div className="text-xs text-[var(--foreground-muted)]">
-                    {currentStageIndex + 1} / {researchStages.length}
+                  <div className={styles.stageBadge}>
+                    <span className={styles.stageNumber}>{currentStageIndex + 1}</span>
+                    <span className={styles.stageSeparator}>/</span>
+                    <span>{researchStages.length}</span>
                   </div>
-
                   <button
                     onClick={() => navigateToNextStage()}
                     disabled={currentStageIndex === researchStages.length - 1}
-                    className={`p-1 rounded-md ${currentStageIndex === researchStages.length - 1 ? 'text-[var(--muted)] opacity-50' : 'text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)]'}`}
+                    className={styles.stageButton}
                     aria-label="Next stage"
+                    title="Next research stage"
                   >
                     <FaChevronRight size={12} />
                   </button>
-
-                  <div className="text-xs text-[var(--foreground-muted)] ml-2">
+                  <div className={styles.stageTitle}>
                     {researchStages[currentStageIndex]?.title || `Stage ${currentStageIndex + 1}`}
                   </div>
                 </div>
               )}
-
-            <div className="flex items-center space-x-2">
-              {/* Download button */}
-              <button
-                onClick={downloadresponse}
-                className="text-xs text-[var(--foreground-muted)] hover:text-[var(--accent-emerald)] px-2 py-1 rounded-md hover:bg-[var(--surface-hover)] flex items-center gap-1"
-                title="Download response as markdown file"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Download
-              </button>
-
-              {/* Clear button */}
-              <button
-                id="ask-clear-conversation"
-                onClick={clearConversation}
-                className="text-xs text-[var(--foreground-muted)] hover:text-[var(--accent-primary)] px-2 py-1 rounded-md hover:bg-[var(--surface-hover)]"
-              >
-                Clear conversation
-              </button>
             </div>
+
+            <div
+              ref={responseRef}
+              className={`${styles.responseContent} ${styles.scanlines}`}
+            >
+              {isErrorResponse(response) ? (
+                <ErrorResponse error={extractErrorContent(response)} />
+              ) : (
+                <Markdown content={response} />
+              )}
+            </div>
+
+            {/* Actions footer */}
+            <div className={styles.responseFooter}>
+              <div className={styles.actionButtons}>
+                <button
+                  onClick={downloadresponse}
+                  className={styles.actionButton}
+                  title="Download response as markdown file"
+                >
+                  <svg className={styles.buttonIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Download</span>
+                </button>
+
+                <button
+                  id="ask-clear-conversation"
+                  onClick={clearConversation}
+                  className={styles.actionButton}
+                  title="Clear conversation and start fresh"
+                >
+                  <svg className={styles.buttonIcon} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span>Clear</span>
+                </button>
               </div>
+            </div>
           </div>
         )}
 
         {/* Loading indicator */}
         {isLoading && !response && (
-          <div className="p-4 border-t border-[var(--border-subtle)]">
-            <div className="flex items-center space-x-2">
-              <div className="animate-pulse flex space-x-1">
-                <div className="h-2 w-2 bg-[var(--accent-primary)] rounded-full"></div>
-                <div className="h-2 w-2 bg-[var(--accent-primary)] rounded-full"></div>
-                <div className="h-2 w-2 bg-[var(--accent-primary)] rounded-full"></div>
+          <div className={styles.loadingContainer}>
+            <div className={styles.loadingHeader}>
+              <div className={styles.loadingDots}>
+                <div className={styles.dot}></div>
+                <div className={styles.dot}></div>
+                <div className={styles.dot}></div>
               </div>
-              <span className="text-xs text-[var(--foreground-muted)]">
+              <span className={styles.loadingText}>
                 {deepResearch
                   ? (researchIteration === 0
                     ? "Planning research approach..."
-                    : `Research iteration ${researchIteration} in progress...`)
-                  : "Thinking..."}
+                    : `Research iteration ${researchIteration}...`)
+                  : "Processing..."}
               </span>
             </div>
+
             {deepResearch && (
-              <div className="mt-2 text-xs text-[var(--foreground-muted)] pl-5">
-                <div className="flex flex-col space-y-1">
-                  {researchIteration === 0 && (
-                    <>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                        <span>Creating research plan...</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                        <span>Identifying key areas to investigate...</span>
-                      </div>
-                    </>
-                  )}
-                  {researchIteration === 1 && (
-                    <>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                        <span>Exploring first research area in depth...</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                        <span>Analyzing code patterns and structures...</span>
-                      </div>
-                    </>
-                  )}
-                  {researchIteration === 2 && (
-                    <>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-amber-500 rounded-full mr-2"></div>
-                        <span>Investigating remaining questions...</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
-                        <span>Connecting findings from previous iterations...</span>
-                      </div>
-                    </>
-                  )}
-                  {researchIteration === 3 && (
-                    <>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></div>
-                        <span>Exploring deeper connections...</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                        <span>Analyzing complex patterns...</span>
-                      </div>
-                    </>
-                  )}
-                  {researchIteration === 4 && (
-                    <>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-teal-500 rounded-full mr-2"></div>
-                        <span>Refining research conclusions...</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-cyan-500 rounded-full mr-2"></div>
-                        <span>Addressing remaining edge cases...</span>
-                      </div>
-                    </>
-                  )}
-                  {researchIteration >= 5 && (
-                    <>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
-                        <span>Finalizing comprehensive answer...</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                        <span>Synthesizing all research findings...</span>
-                      </div>
-                    </>
-                  )}
-                </div>
+              <div className={styles.researchSteps}>
+                {researchIteration === 0 && (
+                  <>
+                    <div className={styles.step}>
+                      <div className={`${styles.stepDot} ${styles.active}`}></div>
+                      <span>Creating research plan</span>
+                    </div>
+                    <div className={styles.step}>
+                      <div className={`${styles.stepDot} ${styles.pending}`}></div>
+                      <span>Identifying key areas</span>
+                    </div>
+                  </>
+                )}
+                {researchIteration === 1 && (
+                  <>
+                    <div className={styles.step}>
+                      <div className={`${styles.stepDot} ${styles.completed}`}></div>
+                      <span>Research plan created</span>
+                    </div>
+                    <div className={styles.step}>
+                      <div className={`${styles.stepDot} ${styles.active}`}></div>
+                      <span>Exploring first area in depth</span>
+                    </div>
+                  </>
+                )}
+                {researchIteration === 2 && (
+                  <>
+                    <div className={styles.step}>
+                      <div className={`${styles.stepDot} ${styles.completed}`}></div>
+                      <span>Initial exploration complete</span>
+                    </div>
+                    <div className={styles.step}>
+                      <div className={`${styles.stepDot} ${styles.active}`}></div>
+                      <span>Investigating remaining questions</span>
+                    </div>
+                  </>
+                )}
+                {researchIteration >= 3 && (
+                  <>
+                    <div className={styles.step}>
+                      <div className={`${styles.stepDot} ${styles.completed}`}></div>
+                      <span>Intermediate research complete</span>
+                    </div>
+                    <div className={styles.step}>
+                      <div className={`${styles.stepDot} ${styles.active}`}></div>
+                      <span>Exploring deeper connections</span>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

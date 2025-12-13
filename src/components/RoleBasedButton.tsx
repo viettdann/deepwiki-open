@@ -55,7 +55,7 @@ export function RoleBasedButton({
 
     // Check if user has permission
     const hasPermission = requireAdmin
-      ? user?.role === 'admin'
+      ? user?.access === 'admin'
       : user !== null; // Any authenticated user
 
     if (hasPermission) {
@@ -116,7 +116,7 @@ export function useRoleBasedAction({
 
     // Check if user has permission
     const hasPermission = requireAdmin
-      ? user?.role === 'admin'
+      ? user?.access === 'admin'
       : user !== null;
 
     if (hasPermission) {
@@ -134,5 +134,5 @@ export function useRoleBasedAction({
     />
   );
 
-  return { handleAction, modal, hasPermission: user?.role === 'admin' };
+  return { handleAction, modal, hasPermission: user?.access === 'admin' };
 }

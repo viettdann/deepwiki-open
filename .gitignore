@@ -78,6 +78,7 @@ next-env.d.ts
 
 # local auth store (json-backed users)
 api/config/users.json
+api/config/roles.json
 
 # logs
 api/logs/

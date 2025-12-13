@@ -7,7 +7,7 @@ Supports both cookie-based auth (browsers) and Authorization header (CLI/debug).
 import os
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from fastapi import Depends, HTTPException, status, Request, Cookie
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
@@ -15,6 +15,10 @@ from jwt.exceptions import InvalidTokenError as JWTError
 from pydantic import BaseModel
 
 from api.auth.user_store import get_user_store, User
+from api.auth.role_store import get_role_store
+from api.auth.model_pricing import get_model_pricing
+from api.services.budget_tracker import BudgetTracker, BudgetCheckResult
+from api.services.rate_limiter import RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +38,8 @@ security = HTTPBearer(auto_error=False)
 class TokenData(BaseModel):
     """JWT token payload data"""
     sub: str  # username
-    role: str
+    role: str  # identity
+    access: str  # permission
     ver: int  # token version
     exp: int
 
@@ -43,7 +48,10 @@ class UserInfo(BaseModel):
     """Public user info (no password hash)"""
     id: str
     username: str
-    role: str
+    role: str  # identity
+    access: str  # permission
+    allowed_models: Optional[List[str]] = None
+    budget_monthly_usd: Optional[float] = None
 
 
 def create_access_token(user: User) -> str:
@@ -60,6 +68,7 @@ def create_access_token(user: User) -> str:
     payload = {
         'sub': user.username,
         'role': user.role,
+        'access': user.access,
         'ver': getattr(user, 'token_version', 1),  # Default to 1 for backward compatibility
         'exp': expire
     }
@@ -84,17 +93,18 @@ def decode_access_token(token: str) -> TokenData:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         username = payload.get('sub')
         role = payload.get('role')
+        access = payload.get('access')
         ver = payload.get('ver', 1)  # Default to 1 for backward compatibility
         exp = payload.get('exp')
 
-        if not username or not role:
+        if not username or not role or not access:
             logger.error("Token missing required fields")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token format"
             )
 
-        token_data = TokenData(sub=username, role=role, ver=ver, exp=exp)
+        token_data = TokenData(sub=username, role=role, access=access, ver=ver, exp=exp)
 
         # Verify token version matches current user version
         user_store = get_user_store()
@@ -128,7 +138,8 @@ def _create_virtual_admin() -> User:
         id='system',
         username='system',
         password_hash='',
-        role='admin',
+        role='devops',
+        access='admin',
         token_version=1,
         created_at=datetime.utcnow().isoformat(),
         updated_at=datetime.utcnow().isoformat(),
@@ -197,18 +208,18 @@ async def get_current_user(
             detail="User account is disabled"
         )
 
-    logger.debug(f"User authenticated: {user.username} (role={user.role})")
+    logger.debug(f"User authenticated: {user.username} (role={user.role}, access={user.access})")
     return user
 
 
 async def require_admin(user: User = Depends(get_current_user)) -> User:
     """
-    FastAPI dependency: Require admin role
-    Returns User if admin
+    FastAPI dependency: Require admin access
+    Returns User if access == 'admin'
     Raises 403 if not admin
     """
-    if user.role != 'admin':
-        logger.warning(f"User {user.username} attempted admin action (role: {user.role})")
+    if user.access != 'admin':
+        logger.warning(f"User {user.username} attempted admin action (access: {user.access})")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -268,3 +279,87 @@ async def optional_auth(
     except HTTPException:
         # Token is malformed or expired - raise to surface the error
         raise
+
+
+# Helper functions for model restrictions and budget checks
+
+def get_user_allowed_models(user: User) -> Optional[List[str]]:
+    """Get allowed models for user.
+
+    Priority:
+    1. User override (if set)
+    2. Role default (from roles.json)
+    3. None (all models allowed)
+    """
+    if user.allowed_models is not None:
+        return user.allowed_models
+
+    role_store = get_role_store()
+    return role_store.get_allowed_models(user.role)
+
+
+def get_user_budget_limit(user: User) -> Optional[float]:
+    """Get monthly budget limit for user with role fallback."""
+    if user.budget_monthly_usd is not None:
+        return user.budget_monthly_usd
+
+    role_store = get_role_store()
+    return role_store.get_budget(user.role)
+
+
+def get_user_requests_per_minute(user: User) -> Optional[int]:
+    """Get per-user RPM limit with role fallback."""
+    if user.requests_per_minute is not None:
+        return user.requests_per_minute
+
+    role_store = get_role_store()
+    return role_store.get_requests_per_minute(user.role)
+
+
+def is_model_allowed(user: User, provider: str, model: str) -> bool:
+    """Check if user is allowed to use this model.
+
+    Supports wildcard matching: google/*, exact match, and '*' for all models.
+    """
+    allowed = get_user_allowed_models(user)
+
+    if allowed is None:
+        return True  # Unlimited if no restrictions
+
+    model_key = f"{provider}/{model}"
+
+    for pattern in allowed:
+        if pattern == "*":
+            # All models allowed
+            return True
+        if pattern == model_key:
+            # Exact match
+            return True
+        if pattern.endswith('/*'):
+            # Wildcard: google/*
+            prefix = pattern[:-2]  # Remove /*
+            if model_key.startswith(prefix + '/'):
+                return True
+
+    return False
+
+
+async def check_user_budget(user: User, estimated_cost: float) -> BudgetCheckResult:
+    """Check if user has budget available for estimated cost."""
+    budget_limit = get_user_budget_limit(user)
+    return await BudgetTracker.check_budget(user.id, estimated_cost, budget_limit)
+
+
+async def log_user_usage(
+    user: User,
+    model: str,
+    provider: str,
+    input_tokens: int,
+    output_tokens: int,
+    cost_usd: float
+) -> None:
+    """Log user's API usage after request."""
+    budget_limit = get_user_budget_limit(user)
+    await BudgetTracker.log_usage(
+        user.id, model, provider, input_tokens, output_tokens, cost_usd, budget_limit
+    )

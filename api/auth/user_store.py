@@ -10,7 +10,7 @@ import json
 import logging
 import hashlib
 import hmac
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel, Field, validator
@@ -23,17 +23,28 @@ class User(BaseModel):
     id: str
     username: str
     password_hash: str
-    role: str  # 'admin' or 'readonly'
+    role: str  # dev, po, pm, devops (SEMANTIC CHANGE - identity)
+    access: str  # admin, readonly (NEW - permission)
     token_version: int = 1  # Version for token invalidation (default 1)
     created_at: str
     updated_at: str
     disabled: bool = False
+    allowed_models: Optional[List[str]] = None  # user override
+    budget_monthly_usd: Optional[float] = None  # user override
+    requests_per_minute: Optional[int] = None  # user override
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     @validator('role')
     def validate_role(cls, v):
+        from api.auth.role_store import get_role_store
+        if not get_role_store().validate_role(v):
+            raise ValueError(f'Invalid role: {v}')
+        return v
+
+    @validator('access')
+    def validate_access(cls, v):
         if v not in ['admin', 'readonly']:
-            raise ValueError('role must be "admin" or "readonly"')
+            raise ValueError('access must be "admin" or "readonly"')
         return v
 
 
@@ -199,7 +210,7 @@ class UserStoreService:
             logger.warning(f"Invalid password for user: {username}")
             return None
 
-        logger.info(f"User authenticated: {username} (role: {user.role})")
+        logger.info(f"User authenticated: {username} (role: {user.role}, access: {user.access})")
         return user
 
 

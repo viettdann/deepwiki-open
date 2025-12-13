@@ -1,0 +1,35 @@
+{
+  "rev": 1,
+  "roles": {
+    "devops": {
+      "display_name": "DevOps Engineer",
+      "allowed_models": ["*"],
+      "budget_monthly_usd": -1,
+      "requests_per_minute": -1
+    },
+    "dev": {
+      "display_name": "Developer",
+      "allowed_models": ["google/*", "openrouter/*"],
+      "budget_monthly_usd": 10.0,
+      "requests_per_minute": 30
+    },
+    "qc": {
+      "display_name": "Quality Control",
+      "allowed_models": ["google/*", "openrouter/*"],
+      "budget_monthly_usd": 10.0,
+      "requests_per_minute": 30
+    },
+    "po": {
+      "display_name": "Product Owner",
+      "allowed_models": ["google/*"],
+      "budget_monthly_usd": 5.0,
+      "requests_per_minute": 20
+    },
+    "pm": {
+      "display_name": "Project Manager",
+      "allowed_models": ["google/*"],
+      "budget_monthly_usd": 5.0,
+      "requests_per_minute": 20
+    }
+  }
+}
