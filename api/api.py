@@ -46,6 +46,10 @@ log_auth_config()
 
 # Helper function to get adalflow root path
 def get_adalflow_default_root_path():
+    # Check for custom adalflow path from environment variable
+    custom_path = os.getenv("ADALFLOW_ROOT_PATH")
+    if custom_path:
+        return os.path.expanduser(custom_path)
     return os.path.expanduser(os.path.join("~", ".adalflow"))
 
 # --- Pydantic Models ---
