@@ -170,7 +170,8 @@ from api.config import configs, WIKI_AUTH_MODE, WIKI_AUTH_CODE
 from api.auth import (
     get_user_store, create_access_token, UserInfo,
     get_current_user, require_auth, require_admin, optional_auth,
-    LOGIN_REQUIRED, JWT_EXPIRES_SECONDS
+    LOGIN_REQUIRED, JWT_EXPIRES_SECONDS, get_user_allowed_models,
+    get_user_budget_limit
 )
 
 @app.get("/lang/config")
@@ -202,7 +203,7 @@ async def login(request: LoginRequest):
         - access_token: JWT token valid for 30 days
         - token_type: Always "bearer"
         - expires_in: Token expiration in seconds (30 days)
-        - user: User info (id, username, role)
+        - user: User info (id, username, role, access, allowed_models, budget)
     """
     user_store = get_user_store()
     user = user_store.authenticate(request.username, request.password)
@@ -224,7 +225,10 @@ async def login(request: LoginRequest):
         user=UserInfo(
             id=user.id,
             username=user.username,
-            role=user.role
+            role=user.role,
+            access=user.access,
+            allowed_models=get_user_allowed_models(user),
+            budget_monthly_usd=get_user_budget_limit(user)
         )
     )
 
@@ -247,7 +251,10 @@ async def get_current_user_info(user = Depends(require_auth)):
     return UserInfo(
         id=user.id,
         username=user.username,
-        role=user.role
+        role=user.role,
+        access=user.access,
+        allowed_models=get_user_allowed_models(user),
+        budget_monthly_usd=get_user_budget_limit(user)
     )
 
 @app.get("/auth/login-required")

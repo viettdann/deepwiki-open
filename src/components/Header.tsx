@@ -82,10 +82,10 @@ export default function Header({
             ) : loginRequired && isAuthenticated && user ? (
               <>
                 <span className="hidden sm:block text-[#10b981]">
-                  user:{user.username}[{user.role.toUpperCase()}]
+                  user:{user.username}[{user.role}:{user.access.toUpperCase()}]
                 </span>
                 <span className="sm:hidden text-[#10b981]">
-                  {user.role === 'admin' ? 'ADM' : 'RD'}
+                  {user.access === 'admin' ? 'ADM' : 'RD'}
                 </span>
                 <span className="text-[#94a3b8]">|</span>
                 <button

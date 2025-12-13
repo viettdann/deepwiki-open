@@ -11,7 +11,10 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 export interface User {
   id: string;
   username: string;
-  role: 'admin' | 'readonly';
+  role: string;                    // dev, po, pm, devops (identity)
+  access: 'admin' | 'readonly';    // permission
+  allowed_models?: string[] | null;
+  budget_monthly_usd?: number | null;
 }
 
 interface AuthContextType {
