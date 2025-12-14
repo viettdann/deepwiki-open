@@ -1,0 +1,89 @@
+.tableLoading,
+.tableError,
+.tableEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tableError {
+  color: #ff5f56;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.pageBtn {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.pageBtn:hover:not(:disabled) {
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+  box-shadow: 0 0 8px rgba(0, 168, 204, 0.3);
+}
+
+.pageBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pageInfo {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.terminalTooltip {
+  background: rgba(10, 10, 15, 0.95);
+  border: 1px solid var(--color-cyan);
+  border-radius: 2px;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--color-text);
+  box-shadow: 0 0 16px rgba(0, 168, 204, 0.3);
+}
+
+.tooltipLabel {
+  color: var(--color-cyan);
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tooltipItem {
+  color: var(--color-text-muted);
+  margin: 2px 0;
+}
+
+.tooltipItemCyan {
+  color: var(--color-cyan);
+}
+
+.tooltipItemPurple {
+  color: var(--color-purple);
+}

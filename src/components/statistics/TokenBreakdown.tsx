@@ -1,6 +1,8 @@
 'use client';
 
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
+import common from './StatisticsCommon.module.css';
+import styles from './StatisticsWidgets.module.css';
 
 interface TokenBreakdownProps {
   embeddingChunks: number;
@@ -20,25 +22,26 @@ export default function TokenBreakdown({
   completionTokens,
 }: TokenBreakdownProps) {
   const data = [
-    { name: 'Embedding Tokens', value: embeddingTokens, percentage: 0 },
     { name: 'Prompt Tokens', value: promptTokens, percentage: 0 },
     { name: 'Completion Tokens', value: completionTokens, percentage: 0 },
   ];
 
-  const total = embeddingTokens + promptTokens + completionTokens;
-  data.forEach((item) => {
-    item.percentage = Math.round((item.value / total) * 100);
-  });
+  const total = promptTokens + completionTokens;
+  if (total > 0) {
+    data.forEach((item) => {
+      item.percentage = Math.round((item.value / total) * 100);
+    });
+  }
 
-  const COLORS = ['#22d3ee', '#a855f7', '#ec4899'];
+  const COLORS = ['#a855f7', '#ec4899'];
 
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { percentage: number } }> }) => {
     if (active && payload && payload.length) {
       const data = payload[0];
       return (
-        <div className="terminal-tooltip">
-          <p className="tooltip-label">{data.name}</p>
-          <p className="tooltip-value">
+        <div className={common.terminalTooltip}>
+          <p className={common.tooltipLabel}>{data.name}</p>
+          <p className={common.tooltipItem}>
             {data.value.toLocaleString()} ({data.payload.percentage}%)
           </p>
         </div>
@@ -48,7 +51,7 @@ export default function TokenBreakdown({
   };
 
   return (
-    <div className="token-breakdown">
+    <div className={styles.tokenBreakdown}>
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
@@ -68,7 +71,7 @@ export default function TokenBreakdown({
           <Tooltip content={<CustomTooltip />} />
           <Legend
             wrapperStyle={{
-              color: '#22d3ee',
+              color: '#00a8cc',
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '12px',
             }}
@@ -76,25 +79,30 @@ export default function TokenBreakdown({
         </PieChart>
       </ResponsiveContainer>
 
-      <div className="breakdown-legend">
+      <div className={styles.breakdownLegend}>
         <div className="legend-item">
-          <span className="legend-icon embedding"></span>
-          <span className="legend-text">Embedding: {embeddingTokens.toLocaleString()}</span>
+          <span className={`${styles.legendIcon} ${styles.legendIconPrompt}`}></span>
+          <span className={styles.legendText}>Prompt: {promptTokens.toLocaleString()}</span>
         </div>
         <div className="legend-item">
-          <span className="legend-icon prompt"></span>
-          <span className="legend-text">Prompt: {promptTokens.toLocaleString()}</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-icon completion"></span>
-          <span className="legend-text">Completion: {completionTokens.toLocaleString()}</span>
+          <span className={`${styles.legendIcon} ${styles.legendIconCompletion}`}></span>
+          <span className={styles.legendText}>Completion: {completionTokens.toLocaleString()}</span>
         </div>
       </div>
 
-      {embeddingChunks > 0 && (
-        <div className="chunk-info">
-          <span className="chunk-label">Chunks Generated:</span>
-          <span className="chunk-value">{embeddingChunks.toLocaleString()}</span>
+      {(embeddingTokens > 0 || embeddingChunks > 0) && (
+        <div className={styles.chunkInfo}>
+          <div className={styles.chunkItem}>
+            <span className={styles.chunkLabel}>Embedding Tokens</span>
+            <span className={styles.chunkValue}>{embeddingTokens.toLocaleString()}</span>
+          </div>
+
+          {embeddingChunks > 0 && (
+            <div className={styles.chunkItem}>
+              <span className={styles.chunkLabel}>Chunks Generated</span>
+              <span className={styles.chunkValue}>{embeddingChunks.toLocaleString()}</span>
+            </div>
+          )}
         </div>
       )}
     </div>

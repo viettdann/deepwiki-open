@@ -11,6 +11,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import common from './StatisticsCommon.module.css';
+import styles from './StatisticsWidgets.module.css';
 
 interface TrendData {
   date: string;
@@ -56,13 +58,13 @@ export default function UsageTrend({ period }: UsageTrendProps) {
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ value: number; payload: TrendData }> }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="terminal-tooltip">
-          <p className="tooltip-label">{payload[0].payload.date}</p>
-          <p className="tooltip-item cyan">
+        <div className={common.terminalTooltip}>
+          <p className={common.tooltipLabel}>{payload[0].payload.date}</p>
+          <p className={common.tooltipItemCyan}>
             Tokens: {payload[0].value.toLocaleString()}
           </p>
           {payload[1] && (
-            <p className="tooltip-item purple">
+            <p className={common.tooltipItemPurple}>
               Cost: ${payload[1].value.toFixed(2)}
             </p>
           )}
@@ -74,7 +76,7 @@ export default function UsageTrend({ period }: UsageTrendProps) {
 
   if (loading) {
     return (
-      <div className="trend-loading">
+      <div className={styles.trendLoading}>
         <span>FETCHING TRENDS...</span>
       </div>
     );
@@ -82,20 +84,20 @@ export default function UsageTrend({ period }: UsageTrendProps) {
 
   if (data.length === 0) {
     return (
-      <div className="trend-empty">
+      <div className={styles.trendEmpty}>
         <span>NO DATA AVAILABLE</span>
       </div>
     );
   }
 
   return (
-    <div className="usage-trend">
+    <div className={styles.usageTrend}>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
           <defs>
             <linearGradient id="colorTokens" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.8} />
-              <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+              <stop offset="5%" stopColor="#00a8cc" stopOpacity={0.8} />
+              <stop offset="95%" stopColor="#00a8cc" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#a855f7" stopOpacity={0.8} />
@@ -105,7 +107,7 @@ export default function UsageTrend({ period }: UsageTrendProps) {
           <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.5} />
           <XAxis
             dataKey="date"
-            stroke="#22d3ee"
+            stroke="#00a8cc"
             style={{ fontSize: '12px', fontFamily: "'JetBrains Mono', monospace" }}
           />
           <YAxis
@@ -115,7 +117,7 @@ export default function UsageTrend({ period }: UsageTrendProps) {
           <Tooltip content={<CustomTooltip />} />
           <Legend
             wrapperStyle={{
-              color: '#22d3ee',
+              color: '#00a8cc',
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '12px',
             }}
@@ -123,7 +125,7 @@ export default function UsageTrend({ period }: UsageTrendProps) {
           <Line
             type="monotone"
             dataKey="tokens"
-            stroke="#22d3ee"
+            stroke="#00a8cc"
             strokeWidth={2}
             dot={false}
             fillOpacity={1}

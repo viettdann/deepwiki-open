@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import common from './StatisticsCommon.module.css';
+import styles from './StatisticsWidgets.module.css';
 
 interface RoleData {
   role: string;
@@ -38,22 +40,22 @@ export default function RoleTable() {
   }, []);
 
   if (loading) {
-    return <div className="table-loading">LOADING ROLE DATA...</div>;
+    return <div className={common.tableLoading}>LOADING ROLE DATA...</div>;
   }
 
   if (error) {
-    return <div className="table-error">ERROR: {error}</div>;
+    return <div className={common.tableError}>ERROR: {error}</div>;
   }
 
   if (roles.length === 0) {
-    return <div className="table-empty">NO ROLE DATA AVAILABLE</div>;
+    return <div className={common.tableEmpty}>NO ROLE DATA AVAILABLE</div>;
   }
 
   const maxCost = Math.max(...roles.map((r) => r.total_cost));
 
   return (
-    <div className="role-table-container">
-      <table className="terminal-table role-table">
+    <div className={styles.roleTableContainer}>
+      <table className={`terminal-table ${styles.roleTable}`}>
         <thead>
           <tr>
             <th>Role</th>
@@ -66,23 +68,23 @@ export default function RoleTable() {
         </thead>
         <tbody>
           {roles.map((role) => (
-            <tr key={role.role} className="role-row">
+            <tr key={role.role} className={styles.roleRow}>
               <td className="role-name">
-                <span className="role-badge">{role.display_name}</span>
+                <span className={styles.roleBadge}>{role.display_name}</span>
               </td>
               <td className="role-users">{role.user_count}</td>
               <td className="role-tokens">{role.total_tokens.toLocaleString()}</td>
               <td className="role-cost">
-                <div className="cost-cell">
-                  <div className="cost-bar">
+                <div className={styles.costCell}>
+                  <div className={styles.costBar}>
                     <div
-                      className="cost-fill"
+                      className={styles.costFill}
                       style={{
-                        width: `${(role.total_cost / maxCost) * 100}%`,
+                        width: `${Math.min((role.total_cost / maxCost) * 100, 100)}%`,
                       }}
                     ></div>
                   </div>
-                  <span className="cost-value">${role.total_cost.toFixed(2)}</span>
+                  <span className={styles.costValue}>${role.total_cost.toFixed(2)}</span>
                 </div>
               </td>
               <td className="role-avg">${role.avg_cost_per_user.toFixed(2)}</td>

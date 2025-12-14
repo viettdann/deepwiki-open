@@ -1,5 +1,7 @@
 'use client';
 
+import styles from './StatsHeader.module.css';
+
 interface StatsHeaderProps {
   onRefresh: () => void;
   period: 'all' | 'day' | 'week' | 'month';
@@ -21,29 +23,29 @@ export default function StatsHeader({
   ];
 
   return (
-    <header className="stats-header">
-      <div className="header-chrome">
-        <div className="traffic-lights">
-          <div className="traffic-light-dot red"></div>
-          <div className="traffic-light-dot yellow"></div>
-          <div className="traffic-light-dot green"></div>
+    <header className={styles.statsHeader}>
+      <div className={styles.headerChrome}>
+        <div className={styles.trafficLights}>
+          <div className="traffic-light-dot red" />
+          <div className="traffic-light-dot yellow" />
+          <div className="traffic-light-dot green" />
         </div>
-        <div className="window-title">SYSTEM STATISTICS</div>
-        <div className="header-controls">
-          <span className={`live-indicator ${isLoading ? '' : 'online'}`}>
+        <div className={styles.windowTitle}>SYSTEM STATISTICS</div>
+        <div className={styles.headerControls}>
+          <span className={`${styles.liveIndicator} ${isLoading ? '' : styles.online}`}>
             {isLoading ? 'LOADING' : 'LIVE'}
           </span>
         </div>
       </div>
 
-      <div className="header-content">
-        <div className="period-selector">
-          <span className="selector-label">▸ PERIOD:</span>
-          <div className="button-group">
+      <div className={styles.headerContent}>
+        <div className={styles.periodSelector}>
+          <span className={styles.selectorLabel}>▸ PERIOD:</span>
+          <div className={styles.buttonGroup}>
             {periods.map((p) => (
               <button
                 key={p.value}
-                className={`period-btn ${period === p.value ? 'active' : ''}`}
+                className={`${styles.periodBtn} ${period === p.value ? styles.active : ''}`}
                 onClick={() => onPeriodChange(p.value)}
               >
                 {p.label}
@@ -53,30 +55,30 @@ export default function StatsHeader({
         </div>
 
         <button
-          className={`refresh-btn ${isLoading ? 'loading' : ''}`}
+          className={`${styles.refreshBtn} ${isLoading ? styles.loading : ''}`}
           onClick={onRefresh}
           disabled={isLoading}
           title="Refresh data"
         >
-          <span className="refresh-icon">↻</span>
+          <span className={styles.refreshIcon}>↻</span>
           <span className="refresh-text">REFRESH</span>
         </button>
       </div>
 
-      <div className="status-bar">
-        <div className="status-item">
-          <span className="status-label">MODE</span>
-          <span className="status-value">ADMIN</span>
+      <div className={styles.statusBar}>
+        <div className={styles.statusItem}>
+          <span className={styles.statusLabel}>MODE</span>
+          <span className={styles.statusValue}>ADMIN</span>
         </div>
-        <div className="status-item">
-          <span className="status-label">TIME</span>
-          <span className="status-value" id="current-time">
+        <div className={styles.statusItem}>
+          <span className={styles.statusLabel}>TIME</span>
+          <span className={styles.statusValue} id="current-time">
             {new Date().toLocaleTimeString()}
           </span>
         </div>
-        <div className="status-item">
-          <span className="status-label">STATUS</span>
-          <span className="status-value">ONLINE</span>
+        <div className={styles.statusItem}>
+          <span className={styles.statusLabel}>STATUS</span>
+          <span className={styles.statusValue}>ONLINE</span>
         </div>
       </div>
     </header>
