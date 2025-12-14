@@ -86,7 +86,7 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
         <p className="text-[var(--muted)] text-xs leading-relaxed font-mono">{wikiStructure.description}</p>
       </div>
 
-      <div className="p-4 overflow-y-auto max-h-[calc(100vh-200px)]">
+      <div className="p-4 overflow-y-auto">
         {/* Repository info */}
         <div className="text-xs font-mono mb-4 p-3 rounded border border-[var(--accent-primary)]/10 bg-[var(--background)]/50">
           {effectiveRepoInfo.type === 'local' ? (
@@ -239,7 +239,7 @@ const WikiSidebar: React.FC<WikiSidebarProps> = ({
               <span className="animate-pulse">▸</span> navigation_tree.sh
             </h4>
           </div>
-          <div className="bg-[var(--surface)]/80 border border-[var(--border-color)]/60 rounded-none p-2 max-h-96 overflow-y-auto custom-scrollbar">
+          <div className="bg-[var(--surface)]/80 border border-[var(--border-color)]/60 rounded-none p-2 overflow-y-auto custom-scrollbar">
             <WikiTreeView
               wikiStructure={wikiStructure}
               currentPageId={currentPageId}
