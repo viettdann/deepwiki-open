@@ -619,6 +619,13 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
     }
   }, [isModelDropdownOpen, selectedProviderState, expandedProviders, toggleProvider]);
 
+  // Keep the model dropdown visible even when conversation history is long
+  useEffect(() => {
+    if (isModelDropdownOpen && modelDropdownRef.current) {
+      modelDropdownRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [isModelDropdownOpen]);
+
   // Handle click outside dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1811,9 +1818,9 @@ Return your analysis in the specified XML format.`
               {/* Terminal-style Model Selector Dropdown */}
               <div
                 ref={modelDropdownRef}
-                className={`relative border-t border-[var(--accent-primary)]/20 transition-all duration-300 ease-out overflow-hidden ${isModelDropdownOpen
-                    ? 'max-h-[250px] opacity-100'
-                    : 'max-h-0 opacity-0'
+                className={`relative border-t border-[var(--accent-primary)]/20 transition-all duration-300 ease-out ${isModelDropdownOpen
+                    ? 'max-h-[250px] opacity-100 overflow-visible z-20'
+                    : 'max-h-0 opacity-0 overflow-hidden'
                   }`}
               >
                 <div className="bg-[var(--surface)]/95 backdrop-blur-sm">

@@ -44,7 +44,12 @@ Returns API status and dynamically lists all available endpoints.
 GET /models/config
 ```
 
-**Response:**
+**Behavior:**
+- Defaults are driven by `DEEPWIKI_CHAT_PROVIDER` / `DEEPWIKI_CHAT_MODEL`; falls back to `generator.json` if unset.
+- Results are filtered by user/role allowlist: only permitted providers/models are returned.
+- Custom models are offered only when the allowlist contains `*` or `<provider>/*`.
+
+**Response (example):**
 ```json
 {
   "providers": [

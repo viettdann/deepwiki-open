@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 
-// The target backend server base URL, derived from environment variable or defaulted.
 const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
 const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
 
@@ -8,7 +7,6 @@ export async function GET() {
   try {
     const targetUrl = `${TARGET_SERVER_BASE_URL}/models/config`;
 
-    // Make the actual request to the backend service
     const backendResponse = await fetch(targetUrl, {
       method: 'GET',
       headers: {
@@ -17,7 +15,6 @@ export async function GET() {
       }
     });
 
-    // If the backend service responds with an error
     if (!backendResponse.ok) {
       return NextResponse.json(
         { error: `Backend service responded with status: ${backendResponse.status}` },
@@ -25,15 +22,14 @@ export async function GET() {
       );
     }
 
-    // Forward the response from the backend
     const modelConfig = await backendResponse.json();
     return NextResponse.json(modelConfig);
   } catch (error) {
-    console.error('Error fetching model configurations:', error);    
-    return new NextResponse(JSON.stringify({ error: error }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    console.error('Error fetching model configurations:', error);
+    return new NextResponse(JSON.stringify({ error: 'Internal Server Error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
 
@@ -44,7 +40,7 @@ export function OPTIONS() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
     },
   });
 }

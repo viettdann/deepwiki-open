@@ -1,25 +1,19 @@
 import logging
-import os
 from typing import List, Optional
 from urllib.parse import unquote
 
-import google.generativeai as genai
-from adalflow.components.model_client.ollama_client import OllamaClient
-from adalflow.core.types import ModelType
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from api.config import get_model_config, configs, OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY
+from api.chat_providers import (
+    build_provider_route,
+    prepare_prompt_for_provider,
+    stream_with_fallback,
+)
+from api.config import get_model_config, get_chat_defaults, configs
 from api.data_pipeline import count_tokens, get_file_content
-from api.openai_client import OpenAIClient
-from api.openrouter_client import OpenRouterClient
-from api.deepseek_client import DeepSeekClient
-from api.azureai_client import AzureAIClient
-from api.azure_anthropic_client import AzureAnthropicClient
-from api.zhipu_openai_client import ZhipuOpenAIClient
-from api.zhipu_anthropic_client import ZhipuAnthropicClient
 from api.rag import RAG
 from api.prompts import (
     DEEP_RESEARCH_FIRST_ITERATION_PROMPT,
@@ -80,7 +74,7 @@ class ChatCompletionRequest(BaseModel):
     type: Optional[str] = Field("github", description="Type of repository (e.g., 'github', 'gitlab', 'bitbucket')")
 
     # model parameters
-    provider: str = Field("google", description="Model provider (google, openai, openrouter, ollama, deepseek, azure)")
+    provider: Optional[str] = Field(None, description="Model provider (google, openai, openrouter, ollama, deepseek, azure)")
     model: Optional[str] = Field(None, description="Model name for the specified provider")
 
     language: Optional[str] = Field("en", description="Language for content generation (e.g., 'en', 'ja', 'zh', 'es', 'kr', 'vi')")
@@ -107,12 +101,17 @@ async def chat_completions_stream(
                         detail=f"Rate limit exceeded: {rpm_limit} requests per minute"
                     )
 
+        # Resolve provider/model defaults for chat (decoupled from wiki generator defaults)
+        chat_default_provider, chat_default_model = get_chat_defaults()
+        provider = request.provider or chat_default_provider or configs.get("default_provider", "google")
+        model = request.model or chat_default_model
+
         # Check if request contains very large input
         input_too_large = False
         if request.messages and len(request.messages) > 0:
             last_message = request.messages[-1]
             if hasattr(last_message, 'content') and last_message.content:
-                tokens = count_tokens(last_message.content, request.provider == "ollama")
+                tokens = count_tokens(last_message.content, provider == "ollama")
                 logger.info(f"Request size: {tokens} tokens")
                 if tokens > 8000:
                     logger.warning(f"Request exceeds recommended token limit ({tokens} > 7500)")
@@ -120,28 +119,28 @@ async def chat_completions_stream(
 
         # Resolve model configuration early so we can enforce allowlist before heavy work
         try:
-            model_config = get_model_config(request.provider, request.model)
+            model_config = get_model_config(provider, model)
         except ValueError as e:
             logger.error(f"Invalid model/provider combination: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
 
-        resolved_model = model_config["model_kwargs"].get("model") or request.model
+        resolved_model = model_config["model_kwargs"].get("model") or model
 
         # Check model restrictions for authenticated users before starting RAG
         if user:
-            if not is_model_allowed(user, request.provider, resolved_model):
+            if not is_model_allowed(user, provider, resolved_model):
                 logger.warning(
-                    f"User {user.username} attempted to use disallowed model {request.provider}/{resolved_model}"
+                    f"User {user.username} attempted to use disallowed model {provider}/{resolved_model}"
                 )
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Model {request.provider}/{resolved_model} not allowed for your role"
+                    detail=f"Model {provider}/{resolved_model} not allowed for your role"
                 )
-            logger.info(f"User {user.username} allowed to use {request.provider}/{resolved_model}")
+            logger.info(f"User {user.username} allowed to use {provider}/{resolved_model}")
 
         # Create a new RAG instance for this request
         try:
-            request_rag = RAG(provider=request.provider, model=request.model)
+            request_rag = RAG(provider=provider, model=resolved_model)
 
             # Extract custom file filter parameters if provided
             excluded_dirs = None
@@ -379,649 +378,44 @@ async def chat_completions_stream(
         prompt += f"<query>\n{query}\n</query>\n\nAssistant: "
 
         base_model_kwargs = model_config["model_kwargs"]
-        model_name = base_model_kwargs.get("model", request.model)
+        model_name = base_model_kwargs.get("model", model)
 
-        if request.provider == "ollama":
-            prompt += " /no_think"
+        # Build provider route + kwargs in dedicated module
+        prompt_prepared = prepare_prompt_for_provider(provider, prompt)
+        try:
+            route = build_provider_route(provider, model_name, base_model_kwargs)
+        except Exception as route_err:
+            logger.error(f"Unsupported provider: {route_err}")
+            raise HTTPException(status_code=400, detail=str(route_err))
 
-            model = OllamaClient()
-            model_kwargs = {
-                "model": model_name,
-                "stream": True,
-                "options": {
-                    "temperature": base_model_kwargs["temperature"],
-                    "top_p": base_model_kwargs["top_p"],
-                    "num_ctx": base_model_kwargs["num_ctx"]
-                }
-            }
-
-            api_kwargs = model.convert_inputs_to_api_kwargs(
-                input=prompt,
-                model_kwargs=model_kwargs,
-                model_type=ModelType.LLM
-            )
-        elif request.provider == "openrouter":
-            logger.info(f"Using OpenRouter with model: {model_name}")
-
-            # Check if OpenRouter API key is set
-            if not OPENROUTER_API_KEY:
-                logger.warning("OPENROUTER_API_KEY not configured, but continuing with request")
-                # We'll let the OpenRouterClient handle this and return a friendly error message
-
-            model = OpenRouterClient()
-            api_model_kwargs = {
-                "model": model_name,
-                "stream": True,
-                "temperature": base_model_kwargs["temperature"]
-            }
-            # Only add top_p if it exists in the model config
-            if "top_p" in base_model_kwargs:
-                api_model_kwargs["top_p"] = base_model_kwargs["top_p"]
-
-            api_kwargs = model.convert_inputs_to_api_kwargs(
-                input=prompt,
-                model_kwargs=api_model_kwargs,
-                model_type=ModelType.LLM
-            )
-        elif request.provider == "openai":
-            logger.info(f"Using Openai protocol with model: {model_name}")
-
-            # Check if an API key is set for Openai
-            if not OPENAI_API_KEY:
-                logger.warning("OPENAI_API_KEY not configured, but continuing with request")
-                # We'll let the OpenAIClient handle this and return an error message
-
-            # Initialize Openai client
-            model = OpenAIClient()
-            api_model_kwargs = {
-                "model": model_name,
-                "stream": True,
-                "temperature": base_model_kwargs["temperature"]
-            }
-            # Only add top_p if it exists in the model config
-            if "top_p" in base_model_kwargs:
-                api_model_kwargs["top_p"] = base_model_kwargs["top_p"]
-
-            api_kwargs = model.convert_inputs_to_api_kwargs(
-                input=prompt,
-                model_kwargs=api_model_kwargs,
-                model_type=ModelType.LLM
-            )
-        elif request.provider == "azure":
-            logger.info(f"Using Azure AI with model: {model_name}")
-
-            # Initialize Azure AI client
-            model = AzureAIClient()
-            api_model_kwargs = {
-                "model": model_name,
-                "stream": True,
-                "temperature": base_model_kwargs.get("temperature")
-            }
-            if "top_p" in base_model_kwargs:
-                api_model_kwargs["top_p"] = base_model_kwargs["top_p"]
-
-            api_kwargs = model.convert_inputs_to_api_kwargs(
-                input=prompt,
-                model_kwargs=api_model_kwargs,
-                model_type=ModelType.LLM
-            )
-        elif request.provider == "deepseek":
-            logger.info(f"Using DeepSeek with model: {model_name}")
-
-            # Check if DeepSeek API key is set
-            if not DEEPSEEK_API_KEY:
-                logger.warning("DEEPSEEK_API_KEY not configured, but continuing with request")
-
-            # Initialize DeepSeek client
-            model = DeepSeekClient()
-            api_model_kwargs = {
-                "model": model_name,
-                "stream": True,
-                "temperature": base_model_kwargs["temperature"]
-            }
-            # Only add top_p if it exists in the model config
-            if "top_p" in base_model_kwargs:
-                api_model_kwargs["top_p"] = base_model_kwargs["top_p"]
-
-            api_kwargs = model.convert_inputs_to_api_kwargs(
-                input=prompt,
-                model_kwargs=api_model_kwargs,
-                model_type=ModelType.LLM
-            )
-        elif request.provider == "azure_anthropic":
-            logger.info(f"Using Azure Anthropic with model: {model_name}")
-
-            model = AzureAnthropicClient()
-            api_model_kwargs = {
-                "model": model_name,
-                "stream": True,
-                "max_tokens": base_model_kwargs.get("max_tokens", 8096),
-            }
-            if "temperature" in base_model_kwargs:
-                api_model_kwargs["temperature"] = base_model_kwargs["temperature"]
-            if "top_p" in base_model_kwargs:
-                api_model_kwargs["top_p"] = base_model_kwargs["top_p"]
-
-            api_kwargs = model.convert_inputs_to_api_kwargs(
-                input=prompt,
-                model_kwargs=api_model_kwargs,
-                model_type=ModelType.LLM
-            )
-        elif request.provider == "zhipu":
-            logger.info(f"Using Zhipu Coding Plan (OpenAI-compatible) with model: {model_name}")
-
-            model = ZhipuOpenAIClient()
-            api_model_kwargs = {
-                "model": model_name,
-                "stream": True,
-                "temperature": base_model_kwargs.get("temperature"),
-            }
-            if "top_p" in base_model_kwargs:
-                api_model_kwargs["top_p"] = base_model_kwargs["top_p"]
-
-            api_kwargs = model.convert_inputs_to_api_kwargs(
-                input=prompt,
-                model_kwargs=api_model_kwargs,
-                model_type=ModelType.LLM
-            )
-        elif request.provider == "zhipu_anthropic":
-            logger.info(f"Using Zhipu Coding Plan (Anthropic-compatible) with model: {model_name}")
-
-            model = ZhipuAnthropicClient()
-            api_model_kwargs = {
-                "model": model_name,
-                "stream": True,
-                "max_tokens": base_model_kwargs.get("max_tokens", 4096),
-            }
-            if "temperature" in base_model_kwargs:
-                api_model_kwargs["temperature"] = base_model_kwargs["temperature"]
-            if "top_p" in base_model_kwargs:
-                api_model_kwargs["top_p"] = base_model_kwargs["top_p"]
-
-            api_kwargs = model.convert_inputs_to_api_kwargs(
-                input=prompt,
-                model_kwargs=api_model_kwargs,
-                model_type=ModelType.LLM
-            )
-        else:
-            # Initialize Google Generative AI model
-            model = genai.GenerativeModel(
-                model_name=model_name,
-                generation_config={
-                    "temperature": base_model_kwargs["temperature"],
-                    "top_p": base_model_kwargs["top_p"],
-                    "top_k": base_model_kwargs["top_k"]
-                }
-            )
+        # Precompute fallback prompt without RAG context to reuse on token limit errors
+        fallback_prompt = None
+        simplified_prompt = f"/no_think {system_prompt}\n\n"
+        if conversation_history:
+            simplified_prompt += f"<conversation_history>\n{conversation_history}</conversation_history>\n\n"
+        if request.filePath and file_content:
+            simplified_prompt += f"<currentFileContent path=\"{request.filePath}\">\n{file_content}\n</currentFileContent>\n\n"
+        simplified_prompt += "<note>Answering without retrieval augmentation due to input size constraints.</note>\n\n"
+        simplified_prompt += f"<query>\n{query}\n</query>\n\nAssistant: "
+        fallback_prompt = prepare_prompt_for_provider(provider, simplified_prompt)
 
         # Create a streaming response
         async def response_stream():
             try:
-                if request.provider == "ollama":
-                    # Get the response and handle it properly using the previously created api_kwargs
-                    logger.info(f"Making Ollama API call with model: {model_kwargs.get('model')}")
-                    logger.debug(f"Ollama API kwargs: {api_kwargs}")
-                    response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-                    # Handle streaming response from Ollama
-                    chunk_count = 0
-                    async for chunk in response:
-                        chunk_count += 1
-                        logger.debug(f"Ollama chunk #{chunk_count}: {chunk}")
-                        text = getattr(chunk, 'response', None) or getattr(chunk, 'text', None) or str(chunk)
-                        if text and not text.startswith('model=') and not text.startswith('created_at='):
-                            text = text.replace('<think>', '').replace('</think>', '')
-                            yield text
-                    logger.info(f"Ollama streaming completed with {chunk_count} chunks")
-                elif request.provider == "openrouter":
-                    try:
-                        # Get the response and handle it properly using the previously created api_kwargs
-                        logger.info(f"Making OpenRouter API call with model: {request.model}")
-                        logger.debug(f"OpenRouter API kwargs: {api_kwargs}")
-                        response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-                        # Handle streaming response from OpenRouter
-                        chunk_count = 0
-                        async for chunk in response:
-                            chunk_count += 1
-                            logger.debug(f"OpenRouter chunk #{chunk_count}: {chunk}")
-                            yield chunk
-                        logger.info(f"OpenRouter streaming completed with {chunk_count} chunks")
-                    except Exception as e_openrouter:
-                        logger.error(f"Error with OpenRouter API: {str(e_openrouter)}")
-                        yield f"\nError with OpenRouter API: {str(e_openrouter)}\n\nPlease check that you have set the OPENROUTER_API_KEY environment variable with a valid API key."
-                elif request.provider == "openai":
-                    try:
-                        # Get the response and handle it properly using the previously created api_kwargs
-                        logger.info(f"Making OpenAI API call with model: {request.model}")
-                        logger.debug(f"OpenAI API kwargs: {api_kwargs}")
-                        response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-                        # Handle streaming response from Openai
-                        chunk_count = 0
-                        async for chunk in response:
-                            chunk_count += 1
-                            logger.debug(f"OpenAI chunk #{chunk_count}: {chunk}")
-                            choices = getattr(chunk, "choices", [])
-                            if len(choices) > 0:
-                                delta = getattr(choices[0], "delta", None)
-                                if delta is not None:
-                                    text = getattr(delta, "content", None)
-                                    if text is not None:
-                                        yield text
-                        logger.info(f"OpenAI streaming completed with {chunk_count} chunks")
-                    except Exception as e_openai:
-                        logger.error(f"Error with Openai API: {str(e_openai)}")
-                        yield f"\nError with Openai API: {str(e_openai)}\n\nPlease check that you have set the OPENAI_API_KEY environment variable with a valid API key."
-                elif request.provider == "azure":
-                    try:
-                        logger.info(f"Making Azure AI API call with model: {request.model}")
-                        logger.debug(f"Azure AI API kwargs: {api_kwargs}")
-                        response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-                        chunk_count = 0
-                        async for chunk in response:
-                            chunk_count += 1
-                            logger.debug(f"Azure AI chunk #{chunk_count}: {chunk}")
-                            choices = getattr(chunk, "choices", [])
-                            if choices:
-                                delta = getattr(choices[0], "delta", None)
-                                if delta is not None:
-                                    text = getattr(delta, "content", None)
-                                    if text is not None:
-                                        yield text
-                        logger.info(f"Azure AI streaming completed with {chunk_count} chunks")
-                    except Exception as e_azure:
-                        logger.error(f"Error with Azure AI API: {str(e_azure)}")
-                        yield (
-                            "\nError with Azure AI API: "
-                            f"{str(e_azure)}\n\nPlease check that you have set the AZURE_OPENAI_API_KEY, "
-                            "AZURE_OPENAI_ENDPOINT, and AZURE_OPENAI_VERSION environment variables with valid values."
-                        )
-                elif request.provider == "deepseek":
-                    try:
-                        # Get the response and handle it properly using the previously created api_kwargs
-                        logger.info(f"Making DeepSeek API call with model: {request.model}")
-                        logger.debug(f"DeepSeek API kwargs: {api_kwargs}")
-                        response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-                        # Handle streaming response from DeepSeek (same format as OpenAI)
-                        chunk_count = 0
-                        async for chunk in response:
-                            chunk_count += 1
-                            logger.debug(f"DeepSeek chunk #{chunk_count}: {chunk}")
-                            choices = getattr(chunk, "choices", [])
-                            if len(choices) > 0:
-                                delta = getattr(choices[0], "delta", None)
-                                if delta is not None:
-                                    text = getattr(delta, "content", None)
-                                    if text is not None:
-                                        yield text
-                        logger.info(f"DeepSeek streaming completed with {chunk_count} chunks")
-                    except Exception as e_deepseek:
-                        logger.error(f"Error with DeepSeek API: {str(e_deepseek)}")
-                        yield f"\nError with DeepSeek API: {str(e_deepseek)}\n\nPlease check that you have set the DEEPSEEK_API_KEY environment variable with a valid API key."
-                elif request.provider == "azure_anthropic":
-                    try:
-                        logger.info(f"Making Azure Anthropic API call with model: {request.model}")
-                        logger.debug(f"Azure Anthropic API kwargs: {api_kwargs}")
-                        # Anthropic streaming uses async context manager with text_stream
-                        async with await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM) as stream:
-                            chunk_count = 0
-                            async for text in stream.text_stream:
-                                chunk_count += 1
-                                logger.debug(f"Azure Anthropic chunk #{chunk_count}: {text}")
-                                if text:
-                                    yield text
-                            logger.info(f"Azure Anthropic streaming completed with {chunk_count} chunks")
-                    except Exception as e_azure_anthropic:
-                        logger.error(f"Error with Azure Anthropic API: {str(e_azure_anthropic)}")
-                        yield f"\nError with Azure Anthropic API: {str(e_azure_anthropic)}\n\nPlease check AZURE_ANTHROPIC_API_KEY and AZURE_ANTHROPIC_ENDPOINT."
-                elif request.provider == "zhipu":
-                    try:
-                        logger.info(f"Making Zhipu OpenAI-compatible API call with model: {request.model}")
-                        logger.debug(f"Zhipu OpenAI-compatible API kwargs: {api_kwargs}")
-                        response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-                        # Handle streaming response (OpenAI format)
-                        chunk_count = 0
-                        async for chunk in response:
-                            chunk_count += 1
-                            logger.debug(f"Zhipu chunk #{chunk_count}: {chunk}")
-                            choices = getattr(chunk, "choices", [])
-                            if len(choices) > 0:
-                                delta = getattr(choices[0], "delta", None)
-                                if delta is not None:
-                                    text = getattr(delta, "content", None)
-                                    if text is not None:
-                                        yield text
-                        logger.info(f"Zhipu streaming completed with {chunk_count} chunks")
-                    except Exception as e_zhipu:
-                        logger.error(f"Error with Zhipu OpenAI-compatible API: {str(e_zhipu)}")
-                        yield f"\nError with Zhipu API: {str(e_zhipu)}\n\nPlease check ZHIPU_CODING_PLAN_API_KEY and base URLs."
-                elif request.provider == "zhipu_anthropic":
-                    try:
-                        logger.info(f"Making Zhipu Anthropic-compatible API call with model: {request.model}")
-                        logger.debug(f"Zhipu Anthropic-compatible API kwargs: {api_kwargs}")
-                        response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
-                        chunk_count = 0
-
-                        # Prefer text_stream if available (Anthropic SDK >= 0.34)
-                        stream_iter = getattr(response, "text_stream", None)
-                        if stream_iter is not None:
-                            async for text in stream_iter:
-                                chunk_count += 1
-                                logger.debug(f"Zhipu Anthropic chunk #{chunk_count}: {text}")
-                                if text:
-                                    yield text
-                        else:
-                            async for event in response:
-                                chunk_count += 1
-                                ev_type = getattr(event, "type", "")
-                                if ev_type in ("content_block_delta", "message_delta"):
-                                    delta = getattr(event, "delta", None)
-                                    text = getattr(delta, "text", None) if delta else None
-                                    if text:
-                                        logger.debug(f"Zhipu Anthropic delta #{chunk_count}: {text}")
-                                        yield text
-                                elif ev_type == "content_block_start":
-                                    # nothing to emit
-                                    continue
-                                elif ev_type == "message_stop":
-                                    break
-                                else:
-                                    # Ignore other event types to avoid raw objects leaking
-                                    logger.debug(f"Zhipu Anthropic event skipped: {event}")
-
-                        logger.info(f"Zhipu Anthropic streaming completed with {chunk_count} chunks")
-                    except Exception as e_zhipu_anthropic:
-                        logger.error(f"Error with Zhipu Anthropic-compatible API: {str(e_zhipu_anthropic)}")
-                        yield f"\nError with Zhipu Anthropic-compatible API: {str(e_zhipu_anthropic)}\n\nPlease check ZHIPU_CODING_PLAN_API_KEY and base URLs."
-                else:
-                    # Generate streaming response (Google)
-                    logger.info(f"Making Google API call with model: {model_config.get('model')}")
-                    logger.debug(f"Google model config: {model_config}")
-                    response = model.generate_content(prompt, stream=True)
-                    # Stream the response
-                    chunk_count = 0
-                    for chunk in response:
-                        chunk_count += 1
-                        logger.debug(f"Google chunk #{chunk_count}: {chunk}")
-                        if hasattr(chunk, 'text'):
-                            yield chunk.text
-                    logger.info(f"Google streaming completed with {chunk_count} chunks")
-
+                async for chunk in stream_with_fallback(route, prompt_prepared, fallback_prompt):
+                    yield chunk
             except Exception as e_outer:
                 logger.error(f"Error in streaming response: {str(e_outer)}")
-                error_message = str(e_outer)
-
-                # Check for token limit errors
-                if "maximum context length" in error_message or "token limit" in error_message or "too many tokens" in error_message:
-                    # If we hit a token limit error, try again without context
-                    logger.warning("Token limit exceeded, retrying without context")
-                    try:
-                        # Create a simplified prompt without context
-                        simplified_prompt = f"/no_think {system_prompt}\n\n"
-                        if conversation_history:
-                            simplified_prompt += f"<conversation_history>\n{conversation_history}</conversation_history>\n\n"
-
-                        # Include file content in the fallback prompt if it was retrieved
-                        if request.filePath and file_content:
-                            simplified_prompt += f"<currentFileContent path=\"{request.filePath}\">\n{file_content}\n</currentFileContent>\n\n"
-
-                        simplified_prompt += "<note>Answering without retrieval augmentation due to input size constraints.</note>\n\n"
-                        simplified_prompt += f"<query>\n{query}\n</query>\n\nAssistant: "
-
-                        if request.provider == "ollama":
-                            simplified_prompt += " /no_think"
-
-                            # Create new api_kwargs with the simplified prompt
-                            fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
-                                input=simplified_prompt,
-                                model_kwargs=model_kwargs,
-                                model_type=ModelType.LLM
-                            )
-
-                            # Get the response using the simplified prompt
-                            logger.info(f"Making fallback Ollama API call with model: {model_kwargs.get('model')}")
-                            logger.debug(f"Ollama fallback API kwargs: {fallback_api_kwargs}")
-                            fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
-
-                            # Handle streaming fallback_response from Ollama
-                            chunk_count = 0
-                            async for chunk in fallback_response:
-                                chunk_count += 1
-                                logger.debug(f"Ollama fallback chunk #{chunk_count}: {chunk}")
-                                text = getattr(chunk, 'response', None) or getattr(chunk, 'text', None) or str(chunk)
-                                if text and not text.startswith('model=') and not text.startswith('created_at='):
-                                    text = text.replace('<think>', '').replace('</think>', '')
-                                    yield text
-                            logger.info(f"Ollama fallback streaming completed with {chunk_count} chunks")
-                        elif request.provider == "openrouter":
-                            try:
-                                # Create new api_kwargs with the simplified prompt
-                                fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
-                                    input=simplified_prompt,
-                                    model_kwargs=model_kwargs,
-                                    model_type=ModelType.LLM
-                                )
-
-                                # Get the response using the simplified prompt
-                                logger.info(f"Making fallback OpenRouter API call with model: {request.model}")
-                                logger.debug(f"OpenRouter fallback API kwargs: {fallback_api_kwargs}")
-                                fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
-
-                                # Handle streaming fallback_response from OpenRouter
-                                chunk_count = 0
-                                async for chunk in fallback_response:
-                                    chunk_count += 1
-                                    logger.debug(f"OpenRouter fallback chunk #{chunk_count}: {chunk}")
-                                    yield chunk
-                                logger.info(f"OpenRouter fallback streaming completed with {chunk_count} chunks")
-                            except Exception as e_fallback:
-                                logger.error(f"Error with OpenRouter API fallback: {str(e_fallback)}")
-                                yield f"\nError with OpenRouter API fallback: {str(e_fallback)}\n\nPlease check that you have set the OPENROUTER_API_KEY environment variable with a valid API key."
-                        elif request.provider == "openai":
-                            try:
-                                # Create new api_kwargs with the simplified prompt
-                                fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
-                                    input=simplified_prompt,
-                                    model_kwargs=model_kwargs,
-                                    model_type=ModelType.LLM
-                                )
-
-                                # Get the response using the simplified prompt
-                                logger.info(f"Making fallback OpenAI API call with model: {request.model}")
-                                logger.debug(f"OpenAI fallback API kwargs: {fallback_api_kwargs}")
-                                fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
-
-                                # Handle streaming fallback_response from Openai
-                                chunk_count = 0
-                                async for chunk in fallback_response:
-                                    chunk_count += 1
-                                    logger.debug(f"OpenAI fallback chunk #{chunk_count}: {chunk}")
-                                    text = chunk if isinstance(chunk, str) else getattr(chunk, 'text', str(chunk))
-                                    yield text
-                                logger.info(f"OpenAI fallback streaming completed with {chunk_count} chunks")
-                            except Exception as e_fallback:
-                                logger.error(f"Error with Openai API fallback: {str(e_fallback)}")
-                                yield f"\nError with Openai API fallback: {str(e_fallback)}\n\nPlease check that you have set the OPENAI_API_KEY environment variable with a valid API key."
-                        elif request.provider == "azure":
-                            try:
-                                fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
-                                    input=simplified_prompt,
-                                    model_kwargs=model_kwargs,
-                                    model_type=ModelType.LLM
-                                )
-
-                                logger.info(f"Making fallback Azure AI API call with model: {request.model}")
-                                logger.debug(f"Azure AI fallback API kwargs: {fallback_api_kwargs}")
-                                fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
-
-                                chunk_count = 0
-                                async for chunk in fallback_response:
-                                    chunk_count += 1
-                                    logger.debug(f"Azure AI fallback chunk #{chunk_count}: {chunk}")
-                                    choices = getattr(chunk, "choices", [])
-                                    if choices:
-                                        delta = getattr(choices[0], "delta", None)
-                                        if delta is not None:
-                                            text = getattr(delta, "content", None)
-                                            if text is not None:
-                                                yield text
-                                logger.info(f"Azure AI fallback streaming completed with {chunk_count} chunks")
-                            except Exception as e_fallback:
-                                logger.error(f"Error with Azure AI API fallback: {str(e_fallback)}")
-                                yield (
-                                    "\nError with Azure AI API fallback: "
-                                    f"{str(e_fallback)}\n\nPlease check that you have set the AZURE_OPENAI_API_KEY, "
-                                    "AZURE_OPENAI_ENDPOINT, and AZURE_OPENAI_VERSION environment variables with valid values."
-                                )
-                        elif request.provider == "deepseek":
-                            try:
-                                # Create new api_kwargs with the simplified prompt
-                                fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
-                                    input=simplified_prompt,
-                                    model_kwargs=model_kwargs,
-                                    model_type=ModelType.LLM
-                                )
-
-                                # Get the response using the simplified prompt
-                                logger.info(f"Making fallback DeepSeek API call with model: {request.model}")
-                                logger.debug(f"DeepSeek fallback API kwargs: {fallback_api_kwargs}")
-                                fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
-
-                                # Handle streaming fallback_response from DeepSeek
-                                chunk_count = 0
-                                async for chunk in fallback_response:
-                                    chunk_count += 1
-                                    logger.debug(f"DeepSeek fallback chunk #{chunk_count}: {chunk}")
-                                    choices = getattr(chunk, "choices", [])
-                                    if len(choices) > 0:
-                                        delta = getattr(choices[0], "delta", None)
-                                        if delta is not None:
-                                            text = getattr(delta, "content", None)
-                                            if text is not None:
-                                                yield text
-                                logger.info(f"DeepSeek fallback streaming completed with {chunk_count} chunks")
-                            except Exception as e_fallback:
-                                logger.error(f"Error with DeepSeek API fallback: {str(e_fallback)}")
-                                yield f"\nError with DeepSeek API fallback: {str(e_fallback)}\n\nPlease check that you have set the DEEPSEEK_API_KEY environment variable with a valid API key."
-                        elif request.provider == "azure_anthropic":
-                            try:
-                                # Create new api_kwargs with the simplified prompt
-                                fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
-                                    input=simplified_prompt,
-                                    model_kwargs=model_kwargs,
-                                    model_type=ModelType.LLM
-                                )
-
-                                logger.info(f"Making fallback Azure Anthropic API call with model: {request.model}")
-                                logger.debug(f"Azure Anthropic fallback API kwargs: {fallback_api_kwargs}")
-                                # Anthropic streaming uses async context manager
-                                async with await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM) as stream:
-                                    chunk_count = 0
-                                    async for text in stream.text_stream:
-                                        chunk_count += 1
-                                        if text:
-                                            yield text
-                                    logger.info(f"Azure Anthropic fallback streaming completed with {chunk_count} chunks")
-                            except Exception as e_fallback:
-                                logger.error(f"Error with Azure Anthropic API fallback: {str(e_fallback)}")
-                                yield f"\nError with Azure Anthropic API fallback: {str(e_fallback)}"
-                        elif request.provider == "zhipu":
-                            try:
-                                fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
-                                    input=simplified_prompt,
-                                    model_kwargs=model_kwargs,
-                                    model_type=ModelType.LLM
-                                )
-
-                                logger.info(f"Making fallback Zhipu OpenAI-compatible API call with model: {request.model}")
-                                logger.debug(f"Zhipu OpenAI-compatible fallback API kwargs: {fallback_api_kwargs}")
-                                fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
-
-                                chunk_count = 0
-                                async for chunk in fallback_response:
-                                    chunk_count += 1
-                                    logger.debug(f"Zhipu fallback chunk #{chunk_count}: {chunk}")
-                                    choices = getattr(chunk, "choices", [])
-                                    if choices:
-                                        delta = getattr(choices[0], "delta", None)
-                                        if delta is not None:
-                                            text = getattr(delta, "content", None)
-                                            if text is not None:
-                                                yield text
-                                logger.info(f"Zhipu fallback streaming completed with {chunk_count} chunks")
-                            except Exception as e_fallback:
-                                logger.error(f"Error with Zhipu API fallback: {str(e_fallback)}")
-                                yield f"\nError with Zhipu API fallback: {str(e_fallback)}\n\nPlease check ZHIPU_CODING_PLAN_API_KEY and base URLs."
-                        elif request.provider == "zhipu_anthropic":
-                            try:
-                                fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
-                                    input=simplified_prompt,
-                                    model_kwargs=model_kwargs,
-                                    model_type=ModelType.LLM
-                                )
-
-                                logger.info(f"Making fallback Zhipu Anthropic-compatible API call with model: {request.model}")
-                                logger.debug(f"Zhipu Anthropic-compatible fallback API kwargs: {fallback_api_kwargs}")
-                                response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
-                                chunk_count = 0
-                                stream_iter = getattr(response, "text_stream", None)
-                                if stream_iter is not None:
-                                    async for text in stream_iter:
-                                        chunk_count += 1
-                                        if text:
-                                            yield text
-                                else:
-                                    async for event in response:
-                                        chunk_count += 1
-                                        ev_type = getattr(event, "type", "")
-                                        if ev_type in ("content_block_delta", "message_delta"):
-                                            delta = getattr(event, "delta", None)
-                                            text = getattr(delta, "text", None) if delta else None
-                                            if text:
-                                                yield text
-                                        elif ev_type == "message_stop":
-                                            break
-                                logger.info(f"Zhipu Anthropic fallback streaming completed with {chunk_count} chunks")
-                            except Exception as e_fallback:
-                                logger.error(f"Error with Zhipu Anthropic API fallback: {str(e_fallback)}")
-                                yield f"\nError with Zhipu Anthropic API fallback: {str(e_fallback)}\n\nPlease check ZHIPU_CODING_PLAN_API_KEY and base URLs."
-                        else:
-                            # Initialize Google Generative AI model
-                            model_config = get_model_config(request.provider, request.model)
-                            logger.info(f"Making fallback Google API call with model: {model_config.get('model')}")
-                            logger.debug(f"Google fallback model config: {model_config}")
-                            fallback_model = genai.GenerativeModel(
-                                model_name=model_config["model"],
-                                generation_config={
-                                    "temperature": model_config["model_kwargs"].get("temperature", 0.7),
-                                    "top_p": model_config["model_kwargs"].get("top_p", 0.8),
-                                    "top_k": model_config["model_kwargs"].get("top_k", 40)
-                                }
-                            )
-
-                            # Get streaming response using simplified prompt
-                            fallback_response = fallback_model.generate_content(simplified_prompt, stream=True)
-                            # Stream the fallback response
-                            chunk_count = 0
-                            for chunk in fallback_response:
-                                chunk_count += 1
-                                logger.debug(f"Google fallback chunk #{chunk_count}: {chunk}")
-                                if hasattr(chunk, 'text'):
-                                    yield chunk.text
-                            logger.info(f"Google fallback streaming completed with {chunk_count} chunks")
-                    except Exception as e2:
-                        logger.error(f"Error in fallback streaming response: {str(e2)}")
-                        yield f"\nI apologize, but your request is too large for me to process. Please try a shorter query or break it into smaller parts."
-                else:
-                    # For other errors, return the error message
-                    yield f"\nError: {error_message}"
+                yield f"\nError: {str(e_outer)}"
 
         # Check budget before streaming (estimate based on prompt tokens)
         budget_limit = get_user_budget_limit(user) if user else None
 
         if user and budget_limit is not None and budget_limit > 0:
-            prompt_tokens = count_tokens(prompt, request.provider == "ollama")
+            prompt_tokens = count_tokens(prompt_prepared, provider == "ollama")
             pricing_service = get_model_pricing()
             estimated_cost = pricing_service.estimate_cost(
-                request.provider, request.model, prompt_tokens
+                provider, model or resolved_model, prompt_tokens
             )
             budget_check = await check_user_budget(user, estimated_cost)
             if not budget_check.allowed:
@@ -1040,15 +434,15 @@ async def chat_completions_stream(
 
             # Log usage after streaming completes (if user is authenticated)
             if user:
-                request_tokens = count_tokens(prompt, request.provider == "ollama")
-                response_tokens = count_tokens(collected_response, request.provider == "ollama")
+                request_tokens = count_tokens(prompt_prepared, provider == "ollama")
+                response_tokens = count_tokens(collected_response, provider == "ollama")
                 pricing_service = get_model_pricing()
                 actual_cost = pricing_service.calculate_cost(
-                    request.provider, request.model, request_tokens, response_tokens
+                    provider, model or resolved_model, request_tokens, response_tokens
                 )
                 try:
                     await log_user_usage(
-                        user, request.model, request.provider,
+                        user, model or resolved_model, provider,
                         request_tokens, response_tokens, actual_cost
                     )
                     logger.info(

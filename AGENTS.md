@@ -50,6 +50,10 @@ docker-compose up     # Run full stack
 - `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_VERSION` - Azure OpenAI (chat + embeddings)
 - `OLLAMA_HOST` - Local Ollama (defaults to `http://localhost:11434`)
 
+### Chat Defaults (Simple Chat)
+- `DEEPWIKI_CHAT_PROVIDER` - override chat provider (falls back to generator default)
+- `DEEPWIKI_CHAT_MODEL` - override chat model for the simple chat UI
+
 ### Server Configuration
 - `PORT`: API server port (default: 8001)
 - `SERVER_BASE_URL`: API base URL for frontend (default: `http://localhost:8001`)

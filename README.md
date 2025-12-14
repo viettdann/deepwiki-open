@@ -257,6 +257,10 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 
 # For local models
 OLLAMA_HOST=http://localhost:11434
+
+# Chat defaults (simple chat UI only; wiki generation still uses generator.json)
+DEEPWIKI_CHAT_PROVIDER=google
+DEEPWIKI_CHAT_MODEL=gemini-2.5-flash
 ```
 
 ### Config Files
@@ -310,6 +314,8 @@ DeepWiki supports custom API endpoints through flexible base URL configuration:
 1. Provider-specific URL (e.g., `DEEPSEEK_BASE_URL`)
 2. Universal alias (`OPENAI_BASE_URL`)
 3. Default endpoint for the provider
+
+**Model visibility & roles:** `/models/config` now returns only the providers/models allowed for the signed-in user/role. Custom models are offered only when the role allowlist includes `*` or `<provider>/*`.
 
 ## 🧠 Using Google Embeddings
 

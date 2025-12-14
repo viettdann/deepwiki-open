@@ -1,5 +1,5 @@
 {
-  "default_provider": "deepseek",
+  "default_provider": "azure_anthropic",
   "providers": {
     "deepseek": {
       "client_class": "DeepSeekClient",
