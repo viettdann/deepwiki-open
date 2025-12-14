@@ -95,6 +95,12 @@
       "default_model": "google/gemini-2.5-flash",
       "supportsCustomModel": true,
       "models": {
+        "mistralai/devstral-2512:free": {
+          "temperature": 0.2,
+          "top_p": 0.8,
+          "max_tokens": 32768,
+          "include_reasoning": false
+        },
         "x-ai/grok-4.1-fast:free": {
           "temperature": 0.2,
           "top_p": 0.8,

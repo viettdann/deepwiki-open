@@ -505,9 +505,11 @@ app.add_api_route("/chat/completions/stream", chat_completions_stream, methods=[
 
 # --- Background Jobs System ---
 from api.routes.jobs import router as jobs_router
+from api.routes.statistics import router as statistics_router
 
-# Register jobs router
+# Register routers
 app.include_router(jobs_router)
+app.include_router(statistics_router)
 
 
 @app.on_event("startup")
