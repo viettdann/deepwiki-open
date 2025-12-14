@@ -621,6 +621,50 @@ export default function LoginPage() {
             display: none;
           }
         }
+
+        /* Light mode tweaks */
+        :global(.light) .terminal-window {
+          background: rgba(255, 255, 255, 0.9);
+          border: 1px solid rgba(124, 58, 237, 0.18);
+          box-shadow:
+            0 0 0 1px rgba(124, 58, 237, 0.08),
+            0 18px 50px rgba(0, 0, 0, 0.12),
+            0 0 80px rgba(124, 58, 237, 0.08);
+        }
+
+        :global(.light) .terminal-header {
+          background: rgba(240, 238, 234, 0.9);
+          border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+        }
+
+        :global(.light) .input-container {
+          background: rgba(255, 255, 255, 0.92);
+          border: 1px solid rgba(124, 58, 237, 0.18);
+        }
+
+        :global(.light) .input-prefix {
+          color: var(--accent-primary);
+          border-right: 1px solid rgba(124, 58, 237, 0.15);
+        }
+
+        :global(.light) .terminal-input {
+          color: var(--foreground);
+        }
+
+        :global(.light) .terminal-divider {
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(124, 58, 237, 0.35),
+            transparent
+          );
+        }
+
+        :global(.light) .terminal-submit {
+          background: rgba(8, 145, 178, 0.08);
+          border-color: var(--accent-cyan);
+          color: var(--accent-cyan);
+        }
       `}</style>
     </div>
   );
