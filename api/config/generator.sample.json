@@ -1,0 +1,160 @@
+{
+  "default_provider": "deepseek",
+  "providers": {
+    "deepseek": {
+      "client_class": "DeepSeekClient",
+      "default_model": "deepseek-chat",
+      "supportsCustomModel": true,
+      "models": {
+        "deepseek-chat": {
+          "temperature": 0.2,
+          "top_p": 0.8
+        },
+        "deepseek-reasoner": {
+          "temperature": 0.2,
+          "top_p": 0.8
+        }
+      }
+    },
+    "google": {
+      "default_model": "gemini-2.5-flash",
+      "supportsCustomModel": true,
+      "models": {
+        "gemini-2.5-flash": {
+          "temperature": 0.2,
+          "top_p": 0.8,
+          "top_k": 40
+        }
+      }
+    },
+    "openai": {
+      "default_model": "gpt-5-mini",
+      "supportsCustomModel": true,
+      "models": {
+        "gpt-5-mini": {
+          "temperature": 0.2,
+          "top_p": 0.9,
+          "frequency_penalty": 0.15,
+          "presence_penalty": 0.0
+        }
+      }
+    },
+    "openrouter": {
+      "default_model": "mistralai/devstral-2512",
+      "supportsCustomModel": true,
+      "models": {
+        "mistralai/devstral-2512:free": {
+          "temperature": 0.2,
+          "top_p": 0.8,
+          "max_tokens": 32768,
+          "include_reasoning": false
+        },
+        "qwen/qwen3-coder:free": {
+          "temperature": 0.2,
+          "top_p": 0.8,
+          "top_k": 40,
+          "max_tokens": 32768,
+          "frequency_penalty": 0.1,
+          "presence_penalty": 0.0,
+          "repetition_penalty": 1.05
+        },
+        "moonshotai/kimi-k2:free": {
+          "temperature": 0.2,
+          "max_tokens": 8192
+        },
+        "openai/gpt-oss-20b:free": {
+          "temperature": 0.2,
+          "top_p": 0.8,
+          "top_k": 40,
+          "max_tokens": 16384,
+          "frequency_penalty": 0.1,
+          "presence_penalty": 0.0,
+          "include_reasoning": false
+        }
+      }
+    },
+    "azure": {
+      "client_class": "AzureAIClient",
+      "default_model": "gpt-5-mini",
+      "supportsCustomModel": false,
+      "models": {
+        "gpt-5-mini": {
+          "temperature": 1,
+          "top_p": 1,
+          "deployment": "gpt-5-mini"
+        }
+      }
+    },
+    "azure_anthropic": {
+      "client_class": "AzureAnthropicClient",
+      "default_model": "claude-haiku-4-5",
+      "supportsCustomModel": false,
+      "models": {
+        "claude-haiku-4-5": {
+          "temperature": 0.3,
+          "max_tokens": 16384
+        },
+        "claude-sonnet-4-5": {
+          "temperature": 0.2,
+          "max_tokens": 16384
+        }        
+      }
+    },
+    "zhipu": {
+      "client_class": "ZhipuOpenAIClient",
+      "default_model": "glm-4.6",
+      "supportsCustomModel": false,
+      "models": {
+        "glm-4.6": {
+          "temperature": 0.2,
+          "top_p": 0.95,
+          "max_tokens": 8192
+        },
+        "glm-4.5": {
+          "temperature": 0.2,
+          "top_p": 0.95,
+          "max_tokens": 8192
+        },
+        "glm-4.5-air": {
+          "temperature": 0.3,
+          "top_p": 0.95,
+          "max_tokens": 8192
+        }
+      }
+    },
+    "zhipu_anthropic": {
+      "client_class": "ZhipuAnthropicClient",
+      "default_model": "glm-4.6",
+      "supportsCustomModel": false,
+      "models": {
+        "glm-4.6": {
+          "temperature": 0.2,
+          "max_tokens": 8192
+        },
+        "glm-4.5": {
+          "temperature": 0.2,
+          "max_tokens": 8192
+        },
+        "glm-4.5-air": {
+          "temperature": 0.3,
+          "max_tokens": 8192
+        }
+      }
+    },
+    "ollama": {
+      "default_model": "qwen3:1.7b",
+      "supportsCustomModel": true,
+      "models": {
+        "qwen3:1.7b": {
+          "options": {
+            "temperature": 0.3,
+            "top_p": 0.9,
+            "num_ctx": 32000,
+            "repeat_penalty": 1.15,
+            "num_predict": 1536
+          }
+        }
+      }
+    }
+  }
+}
