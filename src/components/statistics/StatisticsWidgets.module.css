@@ -1,0 +1,406 @@
+/* Shared widget styles for Statistics page (tables, charts, legends) */
+
+/* ModelUsage */
+.modelUsageContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modelControls {
+  display: flex;
+  gap: 8px;
+}
+
+.viewBtn {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.viewBtn:hover {
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+}
+
+.active {
+  border-color: var(--color-cyan);
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-cyan);
+}
+
+.modelList {
+  overflow-x: auto;
+}
+
+.providerTag {
+  display: inline-block;
+  padding: 4px 8px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid var(--color-cyan);
+  border-radius: 2px;
+  color: var(--color-cyan);
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.modelLegend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendSwatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.legendNote {
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.modelBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.modelBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.07);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.badgeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+}
+
+.badgeSub {
+  color: #94a3b8;
+}
+
+.modelLoading,
+.modelError,
+.modelEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.modelError {
+  color: #ff5f56;
+}
+
+.providerName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.costCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:global(.light) .modelBadge {
+  border-color: rgba(124, 58, 237, 0.15);
+  background: rgba(124, 58, 237, 0.05);
+  color: var(--color-text);
+}
+
+:global(.light) .legendNote {
+  color: #475569;
+}
+
+:global(.light) .modelLegend {
+  color: var(--color-text);
+}
+
+/* RoleTable */
+.roleTableContainer {
+  overflow-x: auto;
+}
+
+.roleTable {
+  width: 100%;
+}
+
+.roleRow {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.roleBadge {
+  display: inline-block;
+  padding: 4px 8px;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid var(--color-purple);
+  border-radius: 2px;
+  color: var(--color-purple);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.costBar {
+  flex: 1;
+  height: 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background:
+    linear-gradient(#0e1113, #0e1113) padding-box,
+    linear-gradient(90deg, #ff4500, #ffbf0b) border-box;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.costFill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff4500, #ffbf0b);
+  transition: width 0.3s ease;
+}
+
+.costValue {
+  color: var(--color-purple);
+  font-weight: 600;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+:global(.light) .roleBadge {
+  border-color: rgba(124, 58, 237, 0.25);
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--color-text);
+}
+
+:global(.light) .costBar {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* UserLeaderboard */
+.userLeaderboardContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.rank {
+  color: var(--color-cyan);
+  font-weight: 600;
+  width: 40px;
+}
+
+.roleTag {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.roleTagDev {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-cyan);
+  border: 1px solid var(--color-cyan);
+}
+
+.roleTagDevops {
+  background: rgba(139, 92, 246, 0.12);
+  color: var(--color-purple);
+  border: 1px solid var(--color-purple);
+}
+
+.roleTagPo,
+.roleTagPm {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--color-pink);
+  border: 1px solid var(--color-pink);
+}
+
+.roleTagQc {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-cyan);
+  border: 1px solid var(--color-cyan);
+}
+
+.accessTag {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 14px;
+}
+
+.budgetBar {
+  height: 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background:
+    linear-gradient(#0e1113, #0e1113) padding-box,
+    linear-gradient(90deg, #ff4500, #ffbf0b) border-box;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.budgetFill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff4500, #ffbf0b);
+  transition: width 0.3s ease;
+}
+
+.budgetText {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+:global(.light) .budgetBar {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* TokenBreakdown */
+.tokenBreakdown {
+  position: relative;
+}
+
+.breakdownLegend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.legendIcon {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legendIconEmbedding {
+  background: var(--color-cyan);
+}
+
+.legendIconPrompt {
+  background: #3b82f6;
+}
+
+.legendIconCompletion {
+  background: #8b5cf6;
+}
+
+.legendText {
+  color: var(--color-text-muted);
+}
+
+.chunkInfo {
+  display: flex;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  margin-top: 16px;
+  background:
+    linear-gradient(135deg,
+      rgba(59, 130, 246, 0.1) 0%,
+      rgba(139, 92, 246, 0.1) 100%
+    ),
+    rgba(19, 19, 43, 0.5);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 8px;
+  font-size: 12px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow:
+    0 0 20px rgba(59, 130, 246, 0.12),
+    inset 0 1px 0 rgba(59, 130, 246, 0.15);
+}
+
+.chunkItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.chunkLabel {
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.chunkValue {
+  color: var(--color-cyan);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+:global(.light) .chunkInfo {
+  background:
+    linear-gradient(135deg,
+      rgba(124, 58, 237, 0.06) 0%,
+      rgba(14, 165, 233, 0.06) 100%
+    ),
+    rgba(248, 246, 242, 0.7);
+  border-color: rgba(124, 58, 237, 0.18);
+  box-shadow:
+    0 0 15px rgba(124, 58, 237, 0.05),
+    inset 0 1px 0 rgba(124, 58, 237, 0.1);
+}
+
+/* UsageTrend */
+.usageTrend {
+  position: relative;
+}
+
+.trendLoading,
+.trendEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}

@@ -15,7 +15,7 @@ DeepWiki started as a fork but became much more. What began as small fixes turne
 - **Modern UI**: Next.js 15 with React 19, Tailwind CSS 4, and glassmorphism design.
 - **Works great on phones and tablets**
 - **Cleaner design throughout**
-- **Support for many AI providers**: Google Gemini, OpenAI, DeepSeek, OpenRouter, Azure OpenAI, Ollama.
+- **Support for many AI providers**: Google Gemini, OpenAI, DeepSeek, OpenRouter, Azure OpenAI, Zhipu Coding Plan (OpenAI/Anthropic compatible), Ollama.
 
 **More Stuff You Can Do**
 - **Use different embedding models**: OpenAI, Google, Azure OpenAI, OpenRouter, or local Ollama.
@@ -74,6 +74,7 @@ Disclaimer: I don't use Ollama, do it by yourself
 > - OpenRouter API key: [OpenRouter](https://openrouter.ai/)
 > - DeepSeek API key: [DeepSeek Platform](https://platform.deepseek.com/api_keys)
 > - Azure OpenAI key + endpoint: [Azure AI Foundry](https://ai.azure.com/)
+> - Zhipu Coding Plan key: https://api.z.ai/ (Coding Plan, OpenAI/Anthropic compatible)
 
 ### Option 2: Manual Setup
 

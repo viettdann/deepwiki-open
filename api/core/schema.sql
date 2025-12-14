@@ -122,3 +122,36 @@ CREATE INDEX IF NOT EXISTS idx_job_pages_job_id ON job_pages(job_id);
 CREATE INDEX IF NOT EXISTS idx_job_pages_status ON job_pages(status);
 CREATE INDEX IF NOT EXISTS idx_job_pages_job_status ON job_pages(job_id, status);
 CREATE INDEX IF NOT EXISTS idx_job_tokens_updated ON job_token_stats(updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS chat_usage_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    cost_usd DECIMAL(10, 4) NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS user_monthly_budget (
+    user_id TEXT NOT NULL,
+    month_year TEXT NOT NULL,  -- format: '2025-01'
+    budget_usd DECIMAL(10, 2) NOT NULL,
+    used_usd DECIMAL(10, 2) DEFAULT 0,
+    request_count INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, month_year)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_usage_logs_user_id ON chat_usage_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_usage_logs_created_at ON chat_usage_logs(created_at);
+
+-- Rate limiting tracker: per-user request timestamps (Unix ms)
+CREATE TABLE IF NOT EXISTS rate_limit_tracker (
+    user_id TEXT NOT NULL,
+    request_timestamp INTEGER NOT NULL,
+    PRIMARY KEY (user_id, request_timestamp)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limit_tracker_user ON rate_limit_tracker(user_id);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_tracker_timestamp ON rate_limit_tracker(request_timestamp);

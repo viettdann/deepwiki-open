@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
 
 interface HeaderProps {
-  currentPage?: 'home' | 'jobs' | 'projects' | 'wiki';
+  currentPage?: 'home' | 'jobs' | 'projects' | 'wiki' | 'statistics';
   title?: string;
   subtitle?: string;
   statusLabel?: string;
@@ -82,10 +82,10 @@ export default function Header({
             ) : loginRequired && isAuthenticated && user ? (
               <>
                 <span className="hidden sm:block text-[#10b981]">
-                  user:{user.username}[{user.role.toUpperCase()}]
+                  user:{user.username}[{user.role}:{user.access.toUpperCase()}]
                 </span>
                 <span className="sm:hidden text-[#10b981]">
-                  {user.role === 'admin' ? 'ADM' : 'RD'}
+                  {user.access === 'admin' ? 'ADM' : 'RD'}
                 </span>
                 <span className="text-[#94a3b8]">|</span>
                 <button
@@ -163,6 +163,18 @@ export default function Header({
               <span className="text-[#8b5cf6]">03</span> Jobs
               <span className="w-1.5 h-1.5 bg-[#10b981] rounded-full pulse-glow"></span>
             </Link>
+            {isAuthenticated && (
+              <Link
+                href="/statistics"
+                className={`transition-colors flex items-center gap-1 ${
+                  currentPage === 'statistics'
+                    ? 'text-[#06b6d4]'
+                    : 'text-[#94a3b8] hover:text-[#06b6d4]'
+                }`}
+              >
+                <span className="text-[#8b5cf6]">04</span> Statistics
+              </Link>
+            )}
           </nav>
 
           {/* Actions */}
