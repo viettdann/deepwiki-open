@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 # Database path
 # Use a project-specific directory to avoid conflicts
 DB_DIR = os.path.join(get_adalflow_default_root_path(), "deepwiki")
-DB_PATH = os.path.join(DB_DIR, "deepwiki.db")
+# Preferred file name; keep old name as a migration fallback
+DB_PATH = os.path.join(DB_DIR, "deepwiki-jobs.db")
+LEGACY_DB_PATH = os.path.join(DB_DIR, "jobs.db")
 
 
 class DatabaseManager:
@@ -51,6 +53,14 @@ class DatabaseManager:
 
         # Ensure directory exists
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+
+        # Backward compatibility: if legacy jobs.db exists, migrate it to the new name
+        if os.path.exists(LEGACY_DB_PATH) and not os.path.exists(self.db_path):
+            try:
+                os.rename(LEGACY_DB_PATH, self.db_path)
+                logger.info(f"Renamed legacy database {LEGACY_DB_PATH} -> {self.db_path}")
+            except OSError as e:
+                logger.warning(f"Failed to rename legacy DB {LEGACY_DB_PATH}: {e}")
 
         # Read schema and create tables
         schema_path = Path(__file__).parent / "schema.sql"
