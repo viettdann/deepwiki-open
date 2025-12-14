@@ -108,7 +108,14 @@ export default function StatisticsPage() {
           <>
             {/* Overview Cards */}
             <section className="stats-section overview-cards">
-              <h2 className="section-title">▸ SYSTEM OVERVIEW</h2>
+              <h2 className="section-title section-title-with-lights">
+                <span className="traffic-lights">
+                  <span className="traffic-light-dot red" />
+                  <span className="traffic-light-dot yellow" />
+                  <span className="traffic-light-dot green" />
+                </span>
+                <span>▸ SYSTEM OVERVIEW</span>
+              </h2>
               <div className="cards-grid">
                 <StatCard
                   label="Repositories"

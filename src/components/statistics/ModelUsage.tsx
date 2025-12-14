@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import styles from './StatisticsWidgets.module.css';
 import {
   BarChart,
   Bar,
@@ -11,6 +12,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import common from './StatisticsCommon.module.css';
 
 interface ModelData {
   model: string;
@@ -28,7 +30,7 @@ export default function ModelUsage() {
 
   const COLORS = {
     cost: '#a855f7',
-    tokens: '#22d3ee',
+    tokens: '#00a8cc',
   };
 
   useEffect(() => {
@@ -51,26 +53,28 @@ export default function ModelUsage() {
   }, []);
 
   if (loading) {
-    return <div className="model-loading">LOADING MODEL DATA...</div>;
+    return <div className={styles.modelLoading}>LOADING MODEL DATA...</div>;
   }
 
   if (error) {
-    return <div className="model-error">ERROR: {error}</div>;
+    return <div className={styles.modelError}>ERROR: {error}</div>;
   }
 
   if (models.length === 0) {
-    return <div className="model-empty">NO MODEL DATA AVAILABLE</div>;
+    return <div className={styles.modelEmpty}>NO MODEL DATA AVAILABLE</div>;
   }
 
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: ModelData }> }) => {
     if (active && payload && payload.length) {
       const data = payload[0];
       return (
-        <div className="terminal-tooltip">
-          <p className="tooltip-label">{data.payload.model}</p>
-          <p className="tooltip-item">Requests: {data.payload.request_count}</p>
-          <p className="tooltip-item">Tokens: {data.payload.total_tokens.toLocaleString()}</p>
-          <p className="tooltip-item">Cost: ${data.payload.total_cost.toFixed(2)}</p>
+        <div className={common.terminalTooltip}>
+          <p className={common.tooltipLabel}>{data.payload.model}</p>
+          <p className={common.tooltipItem}>Requests: {data.payload.request_count}</p>
+          <p className={common.tooltipItem}>
+            Tokens: {data.payload.total_tokens.toLocaleString()}
+          </p>
+          <p className={common.tooltipItem}>Cost: ${data.payload.total_cost.toFixed(2)}</p>
         </div>
       );
     }
@@ -78,16 +82,16 @@ export default function ModelUsage() {
   };
 
   return (
-    <div className="model-usage-container">
-      <div className="model-controls">
+    <div className={styles.modelUsageContainer}>
+      <div className={styles.modelControls}>
         <button
-          className={`view-btn ${view === 'chart' ? 'active' : ''}`}
+          className={`${styles.viewBtn} ${view === 'chart' ? styles.active : ''}`}
           onClick={() => setView('chart')}
         >
           📊 CHART
         </button>
         <button
-          className={`view-btn ${view === 'list' ? 'active' : ''}`}
+          className={`${styles.viewBtn} ${view === 'list' ? styles.active : ''}`}
           onClick={() => setView('list')}
         >
           📋 LIST
@@ -102,7 +106,7 @@ export default function ModelUsage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.5} />
             <XAxis
               dataKey="model"
-              stroke="#22d3ee"
+              stroke="#00a8cc"
               style={{ fontSize: '12px', fontFamily: "'JetBrains Mono', monospace" }}
             />
             {/* Tokens axis (left) */}
@@ -139,7 +143,7 @@ export default function ModelUsage() {
           </BarChart>
         </ResponsiveContainer>
       ) : (
-        <div className="model-list">
+        <div className={styles.modelList}>
           <table className="terminal-table">
             <thead>
               <tr>
@@ -153,15 +157,18 @@ export default function ModelUsage() {
             </thead>
             <tbody>
               {models.map((model, idx) => (
-                <tr key={`${model.model}-${model.provider}`} className={idx % 2 === 0 ? 'even' : 'odd'}>
+                <tr
+                  key={`${model.model}-${model.provider}`}
+                  className={idx % 2 === 0 ? 'even' : 'odd'}
+                >
                   <td>{idx + 1}</td>
                   <td className="model-name">{model.model}</td>
-                  <td className="provider-name">
-                    <span className="provider-tag">{model.provider}</span>
+                  <td className={styles.providerName}>
+                    <span className={styles.providerTag}>{model.provider}</span>
                   </td>
                   <td>{model.request_count}</td>
                   <td>{model.total_tokens.toLocaleString()}</td>
-                  <td className="cost-cell">${model.total_cost.toFixed(2)}</td>
+                  <td className={styles.costCell}>${model.total_cost.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -170,26 +177,26 @@ export default function ModelUsage() {
       )}
 
       {view === 'chart' && (
-        <div className="model-legend">
-          <div className="legend-item">
-            <span className="legend-swatch" style={{ backgroundColor: COLORS.tokens }}></span>
+        <div className={styles.modelLegend}>
+          <div className={styles.legendItem}>
+            <span className={styles.legendSwatch} style={{ backgroundColor: COLORS.tokens }}></span>
             <span>Tokens</span>
           </div>
-          <div className="legend-item">
-            <span className="legend-swatch" style={{ backgroundColor: COLORS.cost }}></span>
+          <div className={styles.legendItem}>
+            <span className={styles.legendSwatch} style={{ backgroundColor: COLORS.cost }}></span>
             <span>Cost (USD)</span>
           </div>
-          <span className="legend-note">* Cost bars always show (min height)</span>
+          <span className={styles.legendNote}>* Cost bars always show (min height)</span>
         </div>
       )}
 
       {view === 'chart' && (
-        <div className="model-badges">
+        <div className={styles.modelBadges}>
           {models.map((model) => (
-            <span key={`${model.model}-${model.provider}`} className="model-badge">
-              <span className="badge-dot" />
+            <span key={`${model.model}-${model.provider}`} className={styles.modelBadge}>
+              <span className={styles.badgeDot} />
               {model.model}
-              <span className="badge-sub">[{model.provider}]</span>
+              <span className={styles.badgeSub}>[{model.provider}]</span>
             </span>
           ))}
         </div>

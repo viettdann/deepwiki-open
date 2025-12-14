@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import common from './StatisticsCommon.module.css';
+import styles from './StatisticsWidgets.module.css';
 
 interface UserData {
   user_id: string;
@@ -84,23 +86,23 @@ export default function UserLeaderboard() {
   };
 
   if (loading) {
-    return <div className="table-loading">LOADING USER DATA...</div>;
+    return <div className={common.tableLoading}>LOADING USER DATA...</div>;
   }
 
   if (error) {
-    return <div className="table-error">ERROR: {error}</div>;
+    return <div className={common.tableError}>ERROR: {error}</div>;
   }
 
   if (users.length === 0) {
-    return <div className="table-empty">NO USER DATA AVAILABLE</div>;
+    return <div className={common.tableEmpty}>NO USER DATA AVAILABLE</div>;
   }
 
   const paginatedUsers = users.slice(page * pageSize, (page + 1) * pageSize);
   const totalPages = Math.ceil(users.length / pageSize);
 
   return (
-    <div className="user-leaderboard-container">
-      <div className="table-wrapper">
+    <div className={styles.userLeaderboardContainer}>
+      <div className={styles.tableWrapper}>
         <table className="terminal-table user-table">
           <thead>
             <tr>
@@ -126,22 +128,34 @@ export default function UserLeaderboard() {
           <tbody>
             {paginatedUsers.map((user, idx) => (
               <tr key={user.user_id} className={idx % 2 === 0 ? 'even' : 'odd'}>
-                <td className="rank">{page * pageSize + idx + 1}</td>
+                <td className={styles.rank}>{page * pageSize + idx + 1}</td>
                 <td className="username">{user.username}</td>
                 <td className="role">
-                  <span className={`role-tag ${user.role}`}>{user.role.toUpperCase()}</span>
+                  <span
+                    className={`${styles.roleTag} ${
+                      user.role === 'dev'
+                        ? styles.roleTagDev
+                        : user.role === 'devops'
+                          ? styles.roleTagDevops
+                          : user.role === 'pm' || user.role === 'po'
+                            ? styles.roleTagPo
+                            : styles.roleTagQc
+                    }`}
+                  >
+                    {user.role.toUpperCase()}
+                  </span>
                 </td>
                 <td className="access">
-                  <span className={`access-tag ${user.access}`}>
+                  <span className={`${styles.accessTag} ${user.access}`}>
                     {user.access === 'admin' ? '👤' : '🔒'}
                   </span>
                 </td>
                 <td className="tokens">{user.total_tokens.toLocaleString()}</td>
                 <td className="cost">${user.total_cost.toFixed(2)}</td>
                 <td className="budget">
-                  <div className="budget-bar">
+                  <div className={styles.budgetBar}>
                     <div
-                      className="budget-fill"
+                      className={styles.budgetFill}
                       style={{
                         width: user.budget_limit && user.budget_limit > 0
                           ? `${Math.min((user.budget_used / user.budget_limit) * 100, 100)}%`
@@ -149,7 +163,7 @@ export default function UserLeaderboard() {
                       }}
                     ></div>
                   </div>
-                  <span className="budget-text">
+                  <span className={styles.budgetText}>
                     {formatBudget(user.budget_used, user.budget_limit)}
                   </span>
                 </td>
@@ -162,19 +176,19 @@ export default function UserLeaderboard() {
       </div>
 
       {totalPages > 1 && (
-        <div className="pagination">
+        <div className={common.pagination}>
           <button
-            className="page-btn"
+            className={common.pageBtn}
             onClick={() => setPage(Math.max(0, page - 1))}
             disabled={page === 0}
           >
             ◀ PREV
           </button>
-          <span className="page-info">
+          <span className={common.pageInfo}>
             PAGE {page + 1} / {totalPages}
           </span>
           <button
-            className="page-btn"
+            className={common.pageBtn}
             onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
             disabled={page === totalPages - 1}
           >
