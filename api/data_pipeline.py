@@ -16,6 +16,7 @@ from api.ollama_patch import OllamaDocumentProcessor
 from urllib.parse import urlparse, urlunparse, quote
 import requests
 from requests.exceptions import RequestException
+from urllib.parse import unquote
 
 from api.tools.embedder import get_embedder
 
@@ -119,6 +120,9 @@ def download_repo(repo_url: str, local_path: str, repo_type: str = None, access_
         str: The output message from the `git` command.
     """
     try:
+        # Decode any URL-encoded branch name (e.g., feature%2Ffoo -> feature/foo)
+        branch = unquote(branch or "main").strip() or "main"
+
         # Check if Git is installed
         logger.info(f"Preparing to clone repository to {local_path}")
         subprocess.run(
@@ -1054,7 +1058,12 @@ class DatabaseManager:
         """
         logger.info(f"Preparing repo storage for {repo_url_or_path}...")
 
+        from urllib.parse import unquote
+
         try:
+            # Normalize branch early to avoid encoded names when cloning/checking out
+            branch = unquote(branch or "main").strip() or "main"
+
             # Strip whitespace to handle URLs with leading/trailing spaces
             repo_url_or_path = repo_url_or_path.strip()
             

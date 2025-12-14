@@ -367,7 +367,9 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
   const isCustomModelParam = searchParams?.get('is_custom_model') === 'true';
   const customModelParam = searchParams?.get('custom_model') || '';
   const language = searchParams?.get('language') || 'en';
-  const branchParam = searchParams?.get('branch') || 'main';
+  // Preserve custom branch from query string (do not override with repo default)
+  const branchParamRaw = searchParams?.get('branch');
+  const branchParam = branchParamRaw ? decodeURIComponent(branchParamRaw) : undefined;
   const repoHost = (() => {
     if (!repoUrl) return '';
     try {
@@ -1030,15 +1032,17 @@ Return your analysis in the specified XML format.`
           }
         };
         const githubApiBaseUrl = getGithubApiUrl(effectiveRepoInfo.repoUrl);
-        let defaultBranchLocal: string | null = null;
+        let defaultBranchLocal: string | null = branchParam || null;
         try {
           const repoInfoResponse = await fetch(`${githubApiBaseUrl}/repos/${owner}/${repo}`, {
             headers: createGithubHeaders(currentToken)
           });
-          if (repoInfoResponse.ok) {
+          if (repoInfoResponse.ok && !branchParam) {
             const repoData = await repoInfoResponse.json();
             defaultBranchLocal = repoData.default_branch;
-            setDefaultBranch(defaultBranchLocal || 'main');
+            if (!branchParam) {
+              setDefaultBranch(defaultBranchLocal || 'main');
+            }
           }
         } catch { }
         const branchesToTry = defaultBranchLocal ? [defaultBranchLocal, 'main', 'master'].filter((branch, index, arr) => arr.indexOf(branch) === index) : ['main', 'master'];
@@ -1083,7 +1087,7 @@ Return your analysis in the specified XML format.`
         const filesData: { type: string; path: string }[] = [];
         try {
           let projectInfoUrl: string;
-          let defaultBranchLocal = 'main';
+          let defaultBranchLocal = branchParam || 'main';
           try {
             const validatedUrl = new URL(projectDomain ?? '');
             projectInfoUrl = `${validatedUrl.origin}/api/v4/projects/${encodedProjectPath}`;
@@ -1096,8 +1100,10 @@ Return your analysis in the specified XML format.`
             throw new Error(`GitLab project info error: Status ${projectInfoRes.status}, Response: ${errorData}`);
           }
           const projectInfo = await projectInfoRes.json();
-          defaultBranchLocal = projectInfo.default_branch || 'main';
-          setDefaultBranch(defaultBranchLocal);
+          defaultBranchLocal = branchParam || projectInfo.default_branch || 'main';
+          if (!branchParam) {
+            setDefaultBranch(defaultBranchLocal);
+          }
           let page = 1;
           let morePages = true;
           while (morePages) {
@@ -1135,7 +1141,7 @@ Return your analysis in the specified XML format.`
         const encodedRepoPath = encodeURIComponent(repoPath);
         let filesData: { values: Array<{ type: string; path: string }> } | null = null;
         let apiErrorDetails = '';
-        let defaultBranchLocal = '';
+        let defaultBranchLocal = branchParam || '';
         const headers = createBitbucketHeaders(currentToken);
         const projectInfoUrl = `https://api.bitbucket.org/2.0/repositories/${encodedRepoPath}`;
         try {
@@ -1143,8 +1149,10 @@ Return your analysis in the specified XML format.`
           const responseText = await response.text();
           if (response.ok) {
             const projectData = JSON.parse(responseText);
-            defaultBranchLocal = projectData.mainbranch.name;
-            setDefaultBranch(defaultBranchLocal);
+            defaultBranchLocal = branchParam || projectData.mainbranch.name;
+            if (!branchParam) {
+              setDefaultBranch(defaultBranchLocal);
+            }
             const apiUrl = `https://api.bitbucket.org/2.0/repositories/${encodedRepoPath}/src/${defaultBranchLocal}/?recursive=true&per_page=100`;
             try {
               const response = await fetch(apiUrl, { headers });
@@ -1186,7 +1194,7 @@ Return your analysis in the specified XML format.`
         }
         const headers = createAzureHeaders(currentToken);
         const repoInfoUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}?api-version=7.1-preview.1`;
-        let defaultBranchLocal = 'main';
+        let defaultBranchLocal = branchParam || 'main';
         try {
           const repoInfoRes = await fetch(repoInfoUrl, { headers });
           const repoInfoText = await repoInfoRes.text();
@@ -1194,12 +1202,14 @@ Return your analysis in the specified XML format.`
             throw new Error(`Azure repo info error: Status ${repoInfoRes.status}, Response: ${repoInfoText}`);
           }
           const repoInfoData = JSON.parse(repoInfoText);
-          if (repoInfoData.defaultBranch) {
+          if (!branchParam && repoInfoData.defaultBranch) {
             defaultBranchLocal = repoInfoData.defaultBranch.replace('refs/heads/', '') || 'main';
+            setDefaultBranch(defaultBranchLocal);
           }
-          setDefaultBranch(defaultBranchLocal);
         } catch {
-          setDefaultBranch(defaultBranchLocal);
+          if (!branchParam) {
+            setDefaultBranch(defaultBranchLocal);
+          }
         }
         const itemsUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}/items?recursionLevel=Full&includeContentMetadata=false&versionDescriptor.version=${encodeURIComponent(defaultBranchLocal)}&api-version=7.1-preview.1`;
         const itemsRes = await fetch(itemsUrl, { headers });
@@ -1217,7 +1227,7 @@ Return your analysis in the specified XML format.`
           .map((item: { path: string }) => item.path.replace(/^\//, ''))
           .join('\n');
         try {
-          const readmeUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}/items?path=${encodeURIComponent('/README.md')}&includeContent=true&versionDescriptor.version=${encodeURIComponent(defaultBranchLocal)}&api-version=7.1-preview.1`;
+        const readmeUrl = `${azureInfo.baseUrl}/${azureInfo.project}/_apis/git/repositories/${encodeURIComponent(azureInfo.repository)}/items?path=${encodeURIComponent('/README.md')}&includeContent=true&versionDescriptor.version=${encodeURIComponent(defaultBranchLocal)}&api-version=7.1-preview.1`;
           const readmeRes = await fetch(readmeUrl, { headers });
           const readmeText = await readmeRes.text();
           if (readmeRes.ok) {

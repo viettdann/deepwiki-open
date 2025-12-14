@@ -163,10 +163,14 @@ function wikiReducer(state: WikiState, action: WikiAction): WikiState {
 }
 
 export function useWikiState(initialToken: string, initialRepoInfo: RepoInfo) {
+  // Derive an initial branch immediately so first render/useEffect has it
+  const initialDefaultBranch = initialRepoInfo.branch || 'main';
+
   const [state, dispatch] = useReducer(wikiReducer, {
     ...initialState,
     currentToken: initialToken,
     effectiveRepoInfo: initialRepoInfo,
+    defaultBranch: initialDefaultBranch,
   });
 
   // Action creators
