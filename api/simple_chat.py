@@ -12,7 +12,7 @@ from api.chat_providers import (
     prepare_prompt_for_provider,
     stream_with_fallback,
 )
-from api.config import get_model_config, configs
+from api.config import get_model_config, get_chat_defaults, configs
 from api.data_pipeline import count_tokens, get_file_content
 from api.rag import RAG
 from api.prompts import (
@@ -74,7 +74,7 @@ class ChatCompletionRequest(BaseModel):
     type: Optional[str] = Field("github", description="Type of repository (e.g., 'github', 'gitlab', 'bitbucket')")
 
     # model parameters
-    provider: str = Field("google", description="Model provider (google, openai, openrouter, ollama, deepseek, azure)")
+    provider: Optional[str] = Field(None, description="Model provider (google, openai, openrouter, ollama, deepseek, azure)")
     model: Optional[str] = Field(None, description="Model name for the specified provider")
 
     language: Optional[str] = Field("en", description="Language for content generation (e.g., 'en', 'ja', 'zh', 'es', 'kr', 'vi')")
@@ -101,12 +101,17 @@ async def chat_completions_stream(
                         detail=f"Rate limit exceeded: {rpm_limit} requests per minute"
                     )
 
+        # Resolve provider/model defaults for chat (decoupled from wiki generator defaults)
+        chat_default_provider, chat_default_model = get_chat_defaults()
+        provider = request.provider or chat_default_provider or configs.get("default_provider", "google")
+        model = request.model or chat_default_model
+
         # Check if request contains very large input
         input_too_large = False
         if request.messages and len(request.messages) > 0:
             last_message = request.messages[-1]
             if hasattr(last_message, 'content') and last_message.content:
-                tokens = count_tokens(last_message.content, request.provider == "ollama")
+                tokens = count_tokens(last_message.content, provider == "ollama")
                 logger.info(f"Request size: {tokens} tokens")
                 if tokens > 8000:
                     logger.warning(f"Request exceeds recommended token limit ({tokens} > 7500)")
@@ -114,28 +119,28 @@ async def chat_completions_stream(
 
         # Resolve model configuration early so we can enforce allowlist before heavy work
         try:
-            model_config = get_model_config(request.provider, request.model)
+            model_config = get_model_config(provider, model)
         except ValueError as e:
             logger.error(f"Invalid model/provider combination: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
 
-        resolved_model = model_config["model_kwargs"].get("model") or request.model
+        resolved_model = model_config["model_kwargs"].get("model") or model
 
         # Check model restrictions for authenticated users before starting RAG
         if user:
-            if not is_model_allowed(user, request.provider, resolved_model):
+            if not is_model_allowed(user, provider, resolved_model):
                 logger.warning(
-                    f"User {user.username} attempted to use disallowed model {request.provider}/{resolved_model}"
+                    f"User {user.username} attempted to use disallowed model {provider}/{resolved_model}"
                 )
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Model {request.provider}/{resolved_model} not allowed for your role"
+                    detail=f"Model {provider}/{resolved_model} not allowed for your role"
                 )
-            logger.info(f"User {user.username} allowed to use {request.provider}/{resolved_model}")
+            logger.info(f"User {user.username} allowed to use {provider}/{resolved_model}")
 
         # Create a new RAG instance for this request
         try:
-            request_rag = RAG(provider=request.provider, model=request.model)
+            request_rag = RAG(provider=provider, model=resolved_model)
 
             # Extract custom file filter parameters if provided
             excluded_dirs = None
@@ -373,12 +378,12 @@ async def chat_completions_stream(
         prompt += f"<query>\n{query}\n</query>\n\nAssistant: "
 
         base_model_kwargs = model_config["model_kwargs"]
-        model_name = base_model_kwargs.get("model", request.model)
+        model_name = base_model_kwargs.get("model", model)
 
         # Build provider route + kwargs in dedicated module
-        prompt_prepared = prepare_prompt_for_provider(request.provider, prompt)
+        prompt_prepared = prepare_prompt_for_provider(provider, prompt)
         try:
-            route = build_provider_route(request.provider, model_name, base_model_kwargs)
+            route = build_provider_route(provider, model_name, base_model_kwargs)
         except Exception as route_err:
             logger.error(f"Unsupported provider: {route_err}")
             raise HTTPException(status_code=400, detail=str(route_err))
@@ -392,7 +397,7 @@ async def chat_completions_stream(
             simplified_prompt += f"<currentFileContent path=\"{request.filePath}\">\n{file_content}\n</currentFileContent>\n\n"
         simplified_prompt += "<note>Answering without retrieval augmentation due to input size constraints.</note>\n\n"
         simplified_prompt += f"<query>\n{query}\n</query>\n\nAssistant: "
-        fallback_prompt = prepare_prompt_for_provider(request.provider, simplified_prompt)
+        fallback_prompt = prepare_prompt_for_provider(provider, simplified_prompt)
 
         # Create a streaming response
         async def response_stream():
@@ -407,10 +412,10 @@ async def chat_completions_stream(
         budget_limit = get_user_budget_limit(user) if user else None
 
         if user and budget_limit is not None and budget_limit > 0:
-            prompt_tokens = count_tokens(prompt_prepared, request.provider == "ollama")
+            prompt_tokens = count_tokens(prompt_prepared, provider == "ollama")
             pricing_service = get_model_pricing()
             estimated_cost = pricing_service.estimate_cost(
-                request.provider, request.model, prompt_tokens
+                provider, model or resolved_model, prompt_tokens
             )
             budget_check = await check_user_budget(user, estimated_cost)
             if not budget_check.allowed:
@@ -429,15 +434,15 @@ async def chat_completions_stream(
 
             # Log usage after streaming completes (if user is authenticated)
             if user:
-                request_tokens = count_tokens(prompt_prepared, request.provider == "ollama")
-                response_tokens = count_tokens(collected_response, request.provider == "ollama")
+                request_tokens = count_tokens(prompt_prepared, provider == "ollama")
+                response_tokens = count_tokens(collected_response, provider == "ollama")
                 pricing_service = get_model_pricing()
                 actual_cost = pricing_service.calculate_cost(
-                    request.provider, request.model, request_tokens, response_tokens
+                    provider, model or resolved_model, request_tokens, response_tokens
                 )
                 try:
                     await log_user_usage(
-                        user, request.model, request.provider,
+                        user, model or resolved_model, provider,
                         request_tokens, response_tokens, actual_cost
                     )
                     logger.info(

@@ -24,6 +24,10 @@ GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY')
 DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 
+# Chat defaults (independent from wiki generation defaults)
+CHAT_DEFAULT_PROVIDER = os.environ.get('DEEPWIKI_CHAT_PROVIDER') or os.environ.get('DEEPWIKI_CHAT_DEFAULT_PROVIDER')
+CHAT_DEFAULT_MODEL = os.environ.get('DEEPWIKI_CHAT_MODEL') or os.environ.get('DEEPWIKI_CHAT_DEFAULT_MODEL')
+
 # Ollama configuration (host only, no API key needed)
 OLLAMA_HOST = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')
 
@@ -449,3 +453,24 @@ def get_model_config(provider="google", model=None):
         result["model_kwargs"] = {"model": result_model, **model_params}
 
     return result
+
+
+def get_chat_defaults():
+    """
+    Resolve chat defaults from environment variables, falling back to generator defaults.
+
+    Returns:
+        tuple[str, Optional[str]]: (provider, model) where model may be None to use provider default
+    """
+    provider = CHAT_DEFAULT_PROVIDER or configs.get("default_provider", "google")
+
+    # Ensure provider exists in configuration; otherwise fall back to generator default
+    if "providers" in configs and provider not in configs["providers"]:
+        logger.warning(
+            f"DEEPWIKI_CHAT_PROVIDER '{provider}' not found in provider config. "
+            f"Falling back to generator default '{configs.get('default_provider', 'google')}'."
+        )
+        provider = configs.get("default_provider", "google")
+
+    model = CHAT_DEFAULT_MODEL
+    return provider, model

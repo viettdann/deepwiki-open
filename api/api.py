@@ -170,12 +170,12 @@ class LoginResponse(BaseModel):
     expires_in: int = 2592000  # 30 days
     user: 'UserInfo'
 
-from api.config import configs, WIKI_AUTH_MODE, WIKI_AUTH_CODE
+from api.config import configs, WIKI_AUTH_MODE, WIKI_AUTH_CODE, get_chat_defaults
 from api.auth import (
     get_user_store, create_access_token, UserInfo,
     get_current_user, require_auth, require_admin, optional_auth,
     LOGIN_REQUIRED, JWT_EXPIRES_SECONDS, get_user_allowed_models,
-    get_user_budget_limit
+    get_user_budget_limit, is_model_allowed
 )
 
 @app.get("/lang/config")
@@ -272,7 +272,7 @@ async def check_login_required():
     return {"required": LOGIN_REQUIRED}
 
 @app.get("/models/config", response_model=ModelConfig)
-async def get_model_config():
+async def get_model_config(user: Optional['User'] = Depends(optional_auth)):
     """
     Get available model providers and their models.
 
@@ -287,25 +287,60 @@ async def get_model_config():
 
         # Create providers from the config file
         providers = []
-        default_provider = configs.get("default_provider", "google")
+        default_provider, chat_default_model = get_chat_defaults()
+
+        # Helper to decide if custom models are allowed for this provider
+        def custom_models_allowed(provider_id: str) -> bool:
+            if not user:
+                return True
+            allowed_patterns = get_user_allowed_models(user)
+            if allowed_patterns is None:
+                return True
+            # Allow custom models only when wildcard covers the provider
+            return any(
+                pattern == "*"
+                or pattern == f"{provider_id}/*"
+                for pattern in allowed_patterns
+            )
 
         # Add provider configuration based on config.py
         for provider_id, provider_config in configs["providers"].items():
             models = []
+            preferred_default_model = (
+                chat_default_model
+                if provider_id == default_provider and chat_default_model
+                else provider_config.get("default_model")
+            )
             # Add models from config
             for model_id in provider_config["models"].keys():
-                # Get a more user-friendly display name if possible
-                models.append(Model(id=model_id, name=model_id))
+                if user and not is_model_allowed(user, provider_id, model_id):
+                    continue
+                model_entry = Model(id=model_id, name=model_id)
+                if preferred_default_model and model_id == preferred_default_model:
+                    # Keep preferred default at the top for quick selection on the frontend
+                    models.insert(0, model_entry)
+                else:
+                    models.append(model_entry)
 
             # Add provider with its models
-            providers.append(
-                Provider(
-                    id=provider_id,
-                    name=f"{provider_id.capitalize()}",
-                    supportsCustomModel=provider_config.get("supportsCustomModel", False),
-                    models=models
+            supports_custom = provider_config.get("supportsCustomModel", False)
+            if user and supports_custom and not custom_models_allowed(provider_id):
+                supports_custom = False
+
+            if models or supports_custom:
+                providers.append(
+                    Provider(
+                        id=provider_id,
+                        name=f"{provider_id.capitalize()}",
+                        supportsCustomModel=supports_custom,
+                        models=models
+                    )
                 )
-            )
+
+        # Ensure default provider is present after filtering; otherwise pick first available
+        provider_ids = [p.id for p in providers]
+        if default_provider not in provider_ids and providers:
+            default_provider = providers[0].id
 
         # Create and return the full configuration
         config = ModelConfig(
