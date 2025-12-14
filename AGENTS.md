@@ -19,6 +19,7 @@ DeepWiki is an AI-powered wiki generator for GitHub/GitLab/Bitbucket/Azure DevOp
 - Frontend: Next.js 15 with React 19 and Tailwind CSS 4
 - Backend: FastAPI with async processing and HTTP streaming (no WebSocket)
 - Storage: SQLite + FAISS vector search + local filesystem cache
+- Providers: OpenAI, Google Gemini, OpenRouter, DeepSeek, Azure OpenAI, Anthropic on Azure, Zhipu Coding Plan, Ollama
 
 ## Development Commands
 

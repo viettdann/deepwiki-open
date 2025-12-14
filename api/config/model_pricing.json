@@ -90,6 +90,32 @@
       "output_per_1m_tokens": 5.00
     },
 
+    "zhipu/glm-4.6": {
+      "input_per_1m_tokens": 0.0,
+      "output_per_1m_tokens": 0.0
+    },
+    "zhipu/glm-4.5": {
+      "input_per_1m_tokens": 0.0,
+      "output_per_1m_tokens": 0.0
+    },
+    "zhipu/glm-4.5-air": {
+      "input_per_1m_tokens": 0.0,
+      "output_per_1m_tokens": 0.0
+    },
+
+    "zhipu_anthropic/glm-4.6": {
+      "input_per_1m_tokens": 0.0,
+      "output_per_1m_tokens": 0.0
+    },
+    "zhipu_anthropic/glm-4.5": {
+      "input_per_1m_tokens": 0.0,
+      "output_per_1m_tokens": 0.0
+    },
+    "zhipu_anthropic/glm-4.5-air": {
+      "input_per_1m_tokens": 0.0,
+      "output_per_1m_tokens": 0.0
+    },
+
     "openrouter/openai/gpt-4o": {
       "input_per_1m_tokens": 5.26,
       "output_per_1m_tokens": 15.79

@@ -18,6 +18,8 @@ from api.openrouter_client import OpenRouterClient
 from api.deepseek_client import DeepSeekClient
 from api.azureai_client import AzureAIClient
 from api.azure_anthropic_client import AzureAnthropicClient
+from api.zhipu_openai_client import ZhipuOpenAIClient
+from api.zhipu_anthropic_client import ZhipuAnthropicClient
 from api.rag import RAG
 from api.prompts import (
     DEEP_RESEARCH_FIRST_ITERATION_PROMPT,
@@ -505,6 +507,42 @@ async def chat_completions_stream(
                 model_kwargs=api_model_kwargs,
                 model_type=ModelType.LLM
             )
+        elif request.provider == "zhipu":
+            logger.info(f"Using Zhipu Coding Plan (OpenAI-compatible) with model: {model_name}")
+
+            model = ZhipuOpenAIClient()
+            api_model_kwargs = {
+                "model": model_name,
+                "stream": True,
+                "temperature": base_model_kwargs.get("temperature"),
+            }
+            if "top_p" in base_model_kwargs:
+                api_model_kwargs["top_p"] = base_model_kwargs["top_p"]
+
+            api_kwargs = model.convert_inputs_to_api_kwargs(
+                input=prompt,
+                model_kwargs=api_model_kwargs,
+                model_type=ModelType.LLM
+            )
+        elif request.provider == "zhipu_anthropic":
+            logger.info(f"Using Zhipu Coding Plan (Anthropic-compatible) with model: {model_name}")
+
+            model = ZhipuAnthropicClient()
+            api_model_kwargs = {
+                "model": model_name,
+                "stream": True,
+                "max_tokens": base_model_kwargs.get("max_tokens", 4096),
+            }
+            if "temperature" in base_model_kwargs:
+                api_model_kwargs["temperature"] = base_model_kwargs["temperature"]
+            if "top_p" in base_model_kwargs:
+                api_model_kwargs["top_p"] = base_model_kwargs["top_p"]
+
+            api_kwargs = model.convert_inputs_to_api_kwargs(
+                input=prompt,
+                model_kwargs=api_model_kwargs,
+                model_type=ModelType.LLM
+            )
         else:
             # Initialize Google Generative AI model
             model = genai.GenerativeModel(
@@ -634,6 +672,65 @@ async def chat_completions_stream(
                     except Exception as e_azure_anthropic:
                         logger.error(f"Error with Azure Anthropic API: {str(e_azure_anthropic)}")
                         yield f"\nError with Azure Anthropic API: {str(e_azure_anthropic)}\n\nPlease check AZURE_ANTHROPIC_API_KEY and AZURE_ANTHROPIC_ENDPOINT."
+                elif request.provider == "zhipu":
+                    try:
+                        logger.info(f"Making Zhipu OpenAI-compatible API call with model: {request.model}")
+                        logger.debug(f"Zhipu OpenAI-compatible API kwargs: {api_kwargs}")
+                        response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
+                        # Handle streaming response (OpenAI format)
+                        chunk_count = 0
+                        async for chunk in response:
+                            chunk_count += 1
+                            logger.debug(f"Zhipu chunk #{chunk_count}: {chunk}")
+                            choices = getattr(chunk, "choices", [])
+                            if len(choices) > 0:
+                                delta = getattr(choices[0], "delta", None)
+                                if delta is not None:
+                                    text = getattr(delta, "content", None)
+                                    if text is not None:
+                                        yield text
+                        logger.info(f"Zhipu streaming completed with {chunk_count} chunks")
+                    except Exception as e_zhipu:
+                        logger.error(f"Error with Zhipu OpenAI-compatible API: {str(e_zhipu)}")
+                        yield f"\nError with Zhipu API: {str(e_zhipu)}\n\nPlease check ZHIPU_CODING_PLAN_API_KEY and base URLs."
+                elif request.provider == "zhipu_anthropic":
+                    try:
+                        logger.info(f"Making Zhipu Anthropic-compatible API call with model: {request.model}")
+                        logger.debug(f"Zhipu Anthropic-compatible API kwargs: {api_kwargs}")
+                        response = await model.acall(api_kwargs=api_kwargs, model_type=ModelType.LLM)
+                        chunk_count = 0
+
+                        # Prefer text_stream if available (Anthropic SDK >= 0.34)
+                        stream_iter = getattr(response, "text_stream", None)
+                        if stream_iter is not None:
+                            async for text in stream_iter:
+                                chunk_count += 1
+                                logger.debug(f"Zhipu Anthropic chunk #{chunk_count}: {text}")
+                                if text:
+                                    yield text
+                        else:
+                            async for event in response:
+                                chunk_count += 1
+                                ev_type = getattr(event, "type", "")
+                                if ev_type in ("content_block_delta", "message_delta"):
+                                    delta = getattr(event, "delta", None)
+                                    text = getattr(delta, "text", None) if delta else None
+                                    if text:
+                                        logger.debug(f"Zhipu Anthropic delta #{chunk_count}: {text}")
+                                        yield text
+                                elif ev_type == "content_block_start":
+                                    # nothing to emit
+                                    continue
+                                elif ev_type == "message_stop":
+                                    break
+                                else:
+                                    # Ignore other event types to avoid raw objects leaking
+                                    logger.debug(f"Zhipu Anthropic event skipped: {event}")
+
+                        logger.info(f"Zhipu Anthropic streaming completed with {chunk_count} chunks")
+                    except Exception as e_zhipu_anthropic:
+                        logger.error(f"Error with Zhipu Anthropic-compatible API: {str(e_zhipu_anthropic)}")
+                        yield f"\nError with Zhipu Anthropic-compatible API: {str(e_zhipu_anthropic)}\n\nPlease check ZHIPU_CODING_PLAN_API_KEY and base URLs."
                 else:
                     # Generate streaming response (Google)
                     logger.info(f"Making Google API call with model: {model_config.get('model')}")
@@ -826,6 +923,66 @@ async def chat_completions_stream(
                             except Exception as e_fallback:
                                 logger.error(f"Error with Azure Anthropic API fallback: {str(e_fallback)}")
                                 yield f"\nError with Azure Anthropic API fallback: {str(e_fallback)}"
+                        elif request.provider == "zhipu":
+                            try:
+                                fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
+                                    input=simplified_prompt,
+                                    model_kwargs=model_kwargs,
+                                    model_type=ModelType.LLM
+                                )
+
+                                logger.info(f"Making fallback Zhipu OpenAI-compatible API call with model: {request.model}")
+                                logger.debug(f"Zhipu OpenAI-compatible fallback API kwargs: {fallback_api_kwargs}")
+                                fallback_response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
+
+                                chunk_count = 0
+                                async for chunk in fallback_response:
+                                    chunk_count += 1
+                                    logger.debug(f"Zhipu fallback chunk #{chunk_count}: {chunk}")
+                                    choices = getattr(chunk, "choices", [])
+                                    if choices:
+                                        delta = getattr(choices[0], "delta", None)
+                                        if delta is not None:
+                                            text = getattr(delta, "content", None)
+                                            if text is not None:
+                                                yield text
+                                logger.info(f"Zhipu fallback streaming completed with {chunk_count} chunks")
+                            except Exception as e_fallback:
+                                logger.error(f"Error with Zhipu API fallback: {str(e_fallback)}")
+                                yield f"\nError with Zhipu API fallback: {str(e_fallback)}\n\nPlease check ZHIPU_CODING_PLAN_API_KEY and base URLs."
+                        elif request.provider == "zhipu_anthropic":
+                            try:
+                                fallback_api_kwargs = model.convert_inputs_to_api_kwargs(
+                                    input=simplified_prompt,
+                                    model_kwargs=model_kwargs,
+                                    model_type=ModelType.LLM
+                                )
+
+                                logger.info(f"Making fallback Zhipu Anthropic-compatible API call with model: {request.model}")
+                                logger.debug(f"Zhipu Anthropic-compatible fallback API kwargs: {fallback_api_kwargs}")
+                                response = await model.acall(api_kwargs=fallback_api_kwargs, model_type=ModelType.LLM)
+                                chunk_count = 0
+                                stream_iter = getattr(response, "text_stream", None)
+                                if stream_iter is not None:
+                                    async for text in stream_iter:
+                                        chunk_count += 1
+                                        if text:
+                                            yield text
+                                else:
+                                    async for event in response:
+                                        chunk_count += 1
+                                        ev_type = getattr(event, "type", "")
+                                        if ev_type in ("content_block_delta", "message_delta"):
+                                            delta = getattr(event, "delta", None)
+                                            text = getattr(delta, "text", None) if delta else None
+                                            if text:
+                                                yield text
+                                        elif ev_type == "message_stop":
+                                            break
+                                logger.info(f"Zhipu Anthropic fallback streaming completed with {chunk_count} chunks")
+                            except Exception as e_fallback:
+                                logger.error(f"Error with Zhipu Anthropic API fallback: {str(e_fallback)}")
+                                yield f"\nError with Zhipu Anthropic API fallback: {str(e_fallback)}\n\nPlease check ZHIPU_CODING_PLAN_API_KEY and base URLs."
                         else:
                             # Initialize Google Generative AI model
                             model_config = get_model_config(request.provider, request.model)
