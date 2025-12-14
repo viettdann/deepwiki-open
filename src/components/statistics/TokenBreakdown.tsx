@@ -33,7 +33,7 @@ export default function TokenBreakdown({
     });
   }
 
-  const COLORS = ['#a855f7', '#ec4899'];
+  const COLORS = ['#3b82f6', '#8b5cf6'];
 
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { percentage: number } }> }) => {
     if (active && payload && payload.length) {
@@ -71,7 +71,7 @@ export default function TokenBreakdown({
           <Tooltip content={<CustomTooltip />} />
           <Legend
             wrapperStyle={{
-              color: '#00a8cc',
+              color: '#3b82f6',
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '12px',
             }}

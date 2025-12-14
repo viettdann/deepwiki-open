@@ -41,7 +41,7 @@
 .pageBtn:hover:not(:disabled) {
   border-color: var(--color-cyan);
   color: var(--color-cyan);
-  box-shadow: 0 0 8px rgba(0, 168, 204, 0.3);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
 }
 
 .pageBtn:disabled {
@@ -64,7 +64,7 @@
   padding: 8px 12px;
   font-size: 11px;
   color: var(--color-text);
-  box-shadow: 0 0 16px rgba(0, 168, 204, 0.3);
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.3);
 }
 
 .tooltipLabel {

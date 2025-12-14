@@ -29,8 +29,8 @@ export default function ModelUsage() {
   const [view, setView] = useState<'chart' | 'list'>('chart');
 
   const COLORS = {
-    cost: '#a855f7',
-    tokens: '#00a8cc',
+    cost: '#8b5cf6',
+    tokens: '#3b82f6',
   };
 
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function ModelUsage() {
             <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.5} />
             <XAxis
               dataKey="model"
-              stroke="#00a8cc"
+              stroke="#3b82f6"
               style={{ fontSize: '12px', fontFamily: "'JetBrains Mono', monospace" }}
             />
             {/* Tokens axis (left) */}

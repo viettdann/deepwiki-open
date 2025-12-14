@@ -13,11 +13,11 @@
     rgba(19, 19, 43, 0.95) 50%,
     rgba(15, 15, 30, 0.95) 100%
   );
-  border: 1px solid rgba(0, 168, 204, .25);
+  border: 1px solid rgba(59, 130, 246, .25);
   border-radius: 12px;
   margin-bottom: 25px;
   box-shadow:
-    0 0 30px rgba(168, 85, 247, 0.15),
+    0 0 30px rgba(139, 92, 246, 0.15),
     0 8px 32px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -59,7 +59,7 @@
   border-radius: 4px;
   font-size: 11px;
   color: var(--color-primary);
-  background: rgba(168, 85, 247, 0.1);
+  background: rgba(139, 92, 246, 0.1);
   font-weight: 600;
   letter-spacing: 0.5px;
   transition: all 0.3s ease;
@@ -71,7 +71,7 @@
   height: 8px;
   border-radius: 50%;
   background: var(--color-primary);
-  box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
 }
 
 .online {
@@ -93,7 +93,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  background: rgba(0, 168, 204, 0.02);
+  background: rgba(59, 130, 246, 0.02);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -117,7 +117,7 @@
 
 .periodBtn {
   padding: 6px 12px;
-  border: 1px solid rgba(0, 168, 204, 0.24);
+  border: 1px solid rgba(59, 130, 246, 0.24);
   background: rgba(19, 19, 43, 0.44);
   color: var(--color-text-muted);
   font-family: var(--font-mono);
@@ -131,32 +131,32 @@
 }
 
 .periodBtn:hover {
-  border-color: rgba(0, 168, 204, 0.5);
+  border-color: rgba(59, 130, 246, 0.5);
   color: var(--color-secondary);
   background:
     linear-gradient(135deg,
-      rgba(168, 85, 247, 0.1) 0%,
-      rgba(0, 168, 204, 0.12) 100%
+      rgba(139, 92, 246, 0.1) 0%,
+      rgba(59, 130, 246, 0.12) 100%
     ),
     rgba(19, 19, 43, 0.64);
   box-shadow:
-    0 0 15px rgba(0, 168, 204, 0.32),
-    inset 0 1px 0 rgba(0, 168, 204, 0.25);
+    0 0 15px rgba(59, 130, 246, 0.32),
+    inset 0 1px 0 rgba(59, 130, 246, 0.25);
 }
 
 .active {
-  border-color: rgba(0, 168, 204, 0.7);
+  border-color: rgba(59, 130, 246, 0.7);
   background:
     linear-gradient(135deg,
-      rgba(168, 85, 247, 0.22) 0%,
-      rgba(0, 168, 204, 0.2) 100%
+      rgba(139, 92, 246, 0.22) 0%,
+      rgba(59, 130, 246, 0.2) 100%
     ),
     rgba(19, 19, 43, 0.86);
   color: var(--color-secondary);
   box-shadow:
-    0 0 22px rgba(0, 168, 204, 0.34),
-    inset 0 0 12px rgba(0, 168, 204, 0.18),
-    inset 0 1px 0 rgba(0, 168, 204, 0.32);
+    0 0 22px rgba(59, 130, 246, 0.34),
+    inset 0 0 12px rgba(59, 130, 246, 0.18),
+    inset 0 1px 0 rgba(59, 130, 246, 0.32);
 }
 
 .refreshBtn {
@@ -164,11 +164,11 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  border: 1px solid rgba(168, 85, 247, 0.46);
+  border: 1px solid rgba(139, 92, 246, 0.46);
   background:
     linear-gradient(135deg,
-      rgba(168, 85, 247, 0.15) 0%,
-      rgba(236, 72, 153, 0.16) 100%
+      rgba(139, 92, 246, 0.15) 0%,
+      rgba(245, 158, 11, 0.16) 100%
     ),
     rgba(19, 19, 43, 0.6);
   color: var(--color-purple);
@@ -181,8 +181,8 @@
   letter-spacing: 1px;
   border-radius: 6px;
   box-shadow:
-    0 0 20px rgba(168, 85, 247, 0.2),
-    inset 0 1px 0 rgba(168, 85, 247, 0.2);
+    0 0 20px rgba(139, 92, 246, 0.2),
+    inset 0 1px 0 rgba(139, 92, 246, 0.2);
   position: relative;
   overflow: hidden;
 }
@@ -192,8 +192,8 @@
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg,
-    rgba(168, 85, 247, 0.3) 0%,
-    rgba(236, 72, 153, 0.3) 100%
+    rgba(139, 92, 246, 0.3) 0%,
+    rgba(245, 158, 11, 0.3) 100%
   );
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -202,16 +202,16 @@
 .refreshBtn:hover:not(:disabled) {
   background:
     linear-gradient(135deg,
-      rgba(168, 85, 247, 0.26) 0%,
-      rgba(236, 72, 153, 0.26) 100%
+      rgba(139, 92, 246, 0.26) 0%,
+      rgba(245, 158, 11, 0.26) 100%
     ),
     rgba(19, 19, 43, 0.8);
   box-shadow:
-    0 0 30px rgba(168, 85, 247, 0.44),
-    0 0 60px rgba(236, 72, 153, 0.2),
-    inset 0 1px 0 rgba(168, 85, 247, 0.3);
+    0 0 30px rgba(139, 92, 246, 0.44),
+    0 0 60px rgba(245, 158, 11, 0.2),
+    inset 0 1px 0 rgba(139, 92, 246, 0.3);
   transform: translateY(-2px);
-  border-color: rgba(168, 85, 247, 0.6);
+  border-color: rgba(139, 92, 246, 0.6);
 }
 
 .refreshBtn:hover:not(:disabled)::before {
