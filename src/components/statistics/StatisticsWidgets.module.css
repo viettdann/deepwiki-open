@@ -32,7 +32,7 @@
 
 .active {
   border-color: var(--color-cyan);
-  background: rgba(0, 168, 204, 0.12);
+  background: rgba(59, 130, 246, 0.12);
   color: var(--color-cyan);
 }
 
@@ -43,7 +43,7 @@
 .providerTag {
   display: inline-block;
   padding: 4px 8px;
-  background: rgba(0, 168, 204, 0.12);
+  background: rgba(59, 130, 246, 0.12);
   border: 1px solid var(--color-cyan);
   border-radius: 2px;
   color: var(--color-cyan);
@@ -92,9 +92,9 @@
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  border: 1px solid rgba(0, 168, 204, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.18);
   border-radius: 10px;
-  background: rgba(0, 168, 204, 0.07);
+  background: rgba(59, 130, 246, 0.07);
   color: var(--color-text);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -104,8 +104,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #00a8cc, #a855f7);
-  box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
 }
 
 .badgeSub {
@@ -171,7 +171,7 @@
 .roleBadge {
   display: inline-block;
   padding: 4px 8px;
-  background: rgba(168, 85, 247, 0.1);
+  background: rgba(139, 92, 246, 0.12);
   border: 1px solid var(--color-purple);
   border-radius: 2px;
   color: var(--color-purple);
@@ -182,16 +182,19 @@
 
 .costBar {
   flex: 1;
-  height: 4px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 2px;
+  height: 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background:
+    linear-gradient(#0e1113, #0e1113) padding-box,
+    linear-gradient(90deg, #ff4500, #ffbf0b) border-box;
   overflow: hidden;
   min-width: 60px;
 }
 
 .costFill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-purple), var(--color-pink));
+  background: linear-gradient(90deg, #ff4500, #ffbf0b);
   transition: width 0.3s ease;
 }
 
@@ -239,26 +242,26 @@
 }
 
 .roleTagDev {
-  background: rgba(0, 168, 204, 0.12);
+  background: rgba(59, 130, 246, 0.12);
   color: var(--color-cyan);
   border: 1px solid var(--color-cyan);
 }
 
 .roleTagDevops {
-  background: rgba(168, 85, 247, 0.1);
+  background: rgba(139, 92, 246, 0.12);
   color: var(--color-purple);
   border: 1px solid var(--color-purple);
 }
 
 .roleTagPo,
 .roleTagPm {
-  background: rgba(236, 72, 153, 0.1);
+  background: rgba(245, 158, 11, 0.12);
   color: var(--color-pink);
   border: 1px solid var(--color-pink);
 }
 
 .roleTagQc {
-  background: rgba(0, 168, 204, 0.12);
+  background: rgba(59, 130, 246, 0.12);
   color: var(--color-cyan);
   border: 1px solid var(--color-cyan);
 }
@@ -270,16 +273,19 @@
 }
 
 .budgetBar {
-  height: 6px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 2px;
+  height: 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background:
+    linear-gradient(#0e1113, #0e1113) padding-box,
+    linear-gradient(90deg, #ff4500, #ffbf0b) border-box;
   overflow: hidden;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .budgetFill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-cyan), var(--color-purple));
+  background: linear-gradient(90deg, #ff4500, #ffbf0b);
   transition: width 0.3s ease;
 }
 
@@ -317,11 +323,11 @@
 }
 
 .legendIconPrompt {
-  background: var(--color-purple);
+  background: #3b82f6;
 }
 
 .legendIconCompletion {
-  background: var(--color-pink);
+  background: #8b5cf6;
 }
 
 .legendText {
@@ -338,18 +344,18 @@
   margin-top: 16px;
   background:
     linear-gradient(135deg,
-      rgba(0, 168, 204, 0.1) 0%,
-      rgba(168, 85, 247, 0.1) 100%
+      rgba(59, 130, 246, 0.1) 0%,
+      rgba(139, 92, 246, 0.1) 100%
     ),
     rgba(19, 19, 43, 0.5);
-  border: 1px solid rgba(0, 168, 204, 0.25);
+  border: 1px solid rgba(59, 130, 246, 0.25);
   border-radius: 8px;
   font-size: 12px;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   box-shadow:
-    0 0 20px rgba(0, 168, 204, 0.12),
-    inset 0 1px 0 rgba(0, 168, 204, 0.15);
+    0 0 20px rgba(59, 130, 246, 0.12),
+    inset 0 1px 0 rgba(59, 130, 246, 0.15);
 }
 
 .chunkItem {

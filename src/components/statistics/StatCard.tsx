@@ -43,10 +43,14 @@ export default function StatCard({ label, value, icon, delay }: StatCardProps) {
       animate();
     }
   }, [value, label]);
+  const hasAccentBorder = label === 'Total Tokens' || label === 'Total Cost';
 
   return (
-    <div className={styles.statCard} style={{ animationDelay: `${delay}s` }}>
-      <div className={styles.cardContent}>
+      <div
+        className={`${styles.statCard} ${hasAccentBorder ? styles.accentBorder : ''}`}
+        style={{ animationDelay: `${delay}s` }}
+      >
+        <div className={styles.cardContent}>
         <div className={styles.cardIcon}>{icon}</div>
         <div className={styles.cardBody}>
           <div className={styles.cardLabel}>{label}</div>

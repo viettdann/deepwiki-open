@@ -4,17 +4,17 @@
 
 :root {
   --color-dark: #0a0a1f;
-  --color-purple: #a855f7;
-  --color-cyan: #00a8cc;
+  --color-purple: #8b5cf6;
+  --color-cyan: #3b82f6;
   --color-teal: #14b8a6;
-  --color-pink: #ec4899;
+  --color-pink: #f59e0b;
   --color-border: #1a1d2a;
   --color-text: #e4e6eb;
   --color-text-muted: #8b92a8;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Primary/Secondary color mapping */
-  --color-primary: #a855f7;
+  --color-primary: #8b5cf6;
   --color-secondary: #14b8a6;
 }
 
@@ -54,9 +54,9 @@
   width: 200%;
   height: 200%;
   background:
-    radial-gradient(circle at 25% 25%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(0, 168, 204, 0.07) 0%, transparent 50%),
-    radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.05) 0%, transparent 60%);
+    radial-gradient(circle at 25% 25%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(59, 130, 246, 0.07) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.05) 0%, transparent 60%);
   animation: atmosphere-drift 25s ease-in-out infinite;
   pointer-events: none;
   z-index: 0;
@@ -137,7 +137,7 @@
 .loading-spinner {
   width: 32px;
   height: 32px;
-  border: 2px solid rgba(168, 85, 247, 0.2);
+  border: 2px solid rgba(139, 92, 246, 0.2);
   border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -149,30 +149,30 @@
   padding: 24px;
   background:
     linear-gradient(135deg,
-      rgba(0, 168, 204, 0.03) 0%,
-      rgba(168, 85, 247, 0.03) 100%
+      rgba(59, 130, 246, 0.03) 0%,
+      rgba(139, 92, 246, 0.03) 100%
     ),
     linear-gradient(to bottom,
       rgba(19, 19, 43, 0.4) 0%,
       rgba(26, 26, 46, 0.3) 100%
     );
-  border: 1px solid rgba(0, 168, 204, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.2);
   border-radius: 12px;
   box-shadow:
-    0 0 40px rgba(0, 168, 204, 0.08),
+    0 0 40px rgba(59, 130, 246, 0.08),
     0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(0, 168, 204, 0.1);
+    inset 0 1px 0 rgba(59, 130, 246, 0.1);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   transition: all 0.3s ease;
 }
 
 .stats-section:hover {
-  border-color: rgba(0, 168, 204, 0.35);
+  border-color: rgba(59, 130, 246, 0.35);
   box-shadow:
-    0 0 50px rgba(0, 168, 204, 0.12),
+    0 0 50px rgba(59, 130, 246, 0.12),
     0 12px 40px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(0, 168, 204, 0.15);
+    inset 0 1px 0 rgba(59, 130, 246, 0.15);
   transform: translateY(-2px);
 }
 
@@ -189,7 +189,7 @@
   margin-bottom: 20px;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  text-shadow: 0 0 30px rgba(168, 85, 247, 0.3);
+  text-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
   position: relative;
   display: inline-block;
 }
@@ -217,7 +217,7 @@
     var(--color-primary) 0%,
     var(--color-secondary) 100%
   );
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
 }
 
 /* Overview Cards */
@@ -245,30 +245,30 @@
   padding: 24px;
   background:
     linear-gradient(135deg,
-      rgba(0, 168, 204, 0.05) 0%,
-      rgba(168, 85, 247, 0.05) 100%
+      rgba(59, 130, 246, 0.05) 0%,
+      rgba(139, 92, 246, 0.05) 100%
     ),
     linear-gradient(to bottom,
       rgba(19, 19, 43, 0.5) 0%,
       rgba(26, 26, 46, 0.4) 100%
     );
-  border: 1px solid rgba(0, 168, 204, 0.25);
+  border: 1px solid rgba(59, 130, 246, 0.25);
   border-radius: 12px;
   box-shadow:
-    0 0 40px rgba(0, 168, 204, 0.1),
+    0 0 40px rgba(59, 130, 246, 0.1),
     0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(0, 168, 204, 0.15);
+    inset 0 1px 0 rgba(59, 130, 246, 0.15);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   transition: all 0.3s ease;
 }
 
 .chart-container:hover {
-  border-color: rgba(0, 168, 204, 0.35);
+  border-color: rgba(59, 130, 246, 0.35);
   box-shadow:
-    0 0 50px rgba(0, 168, 204, 0.15),
+    0 0 50px rgba(59, 130, 246, 0.15),
     0 12px 40px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(0, 168, 204, 0.2);
+    inset 0 1px 0 rgba(59, 130, 246, 0.2);
   transform: translateY(-2px);
 }
 
@@ -304,7 +304,7 @@
 }
 
 .terminal-table thead {
-  background: rgba(0, 168, 204, 0.05);
+  background: rgba(59, 130, 246, 0.05);
   border-bottom: 2px solid var(--color-cyan);
 }
 
@@ -330,7 +330,7 @@
 }
 
 .terminal-table th.sortable:hover {
-  background: rgba(0, 168, 204, 0.1);
+  background: rgba(59, 130, 246, 0.1);
   color: var(--color-cyan);
 }
 
@@ -340,7 +340,7 @@
 }
 
 .terminal-table tbody tr.even {
-  background: rgba(0, 168, 204, 0.02);
+  background: rgba(59, 130, 246, 0.02);
 }
 
 .terminal-table tbody tr.odd {
@@ -348,7 +348,7 @@
 }
 
 .terminal-table tbody tr:hover {
-  background: rgba(0, 168, 204, 0.08);
+  background: rgba(59, 130, 246, 0.08);
   border-left: 2px solid var(--color-cyan);
   padding-left: 2px;
 }

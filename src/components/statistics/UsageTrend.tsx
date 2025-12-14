@@ -96,28 +96,28 @@ export default function UsageTrend({ period }: UsageTrendProps) {
         <LineChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
           <defs>
             <linearGradient id="colorTokens" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#00a8cc" stopOpacity={0.8} />
-              <stop offset="95%" stopColor="#00a8cc" stopOpacity={0} />
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#a855f7" stopOpacity={0.8} />
-              <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+              <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
+              <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.5} />
           <XAxis
             dataKey="date"
-            stroke="#00a8cc"
+            stroke="#3b82f6"
             style={{ fontSize: '12px', fontFamily: "'JetBrains Mono', monospace" }}
           />
           <YAxis
-            stroke="#a855f7"
+            stroke="#8b5cf6"
             style={{ fontSize: '12px', fontFamily: "'JetBrains Mono', monospace" }}
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend
             wrapperStyle={{
-              color: '#00a8cc',
+              color: '#3b82f6',
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: '12px',
             }}
@@ -125,7 +125,7 @@ export default function UsageTrend({ period }: UsageTrendProps) {
           <Line
             type="monotone"
             dataKey="tokens"
-            stroke="#00a8cc"
+            stroke="#3b82f6"
             strokeWidth={2}
             dot={false}
             fillOpacity={1}
@@ -135,7 +135,7 @@ export default function UsageTrend({ period }: UsageTrendProps) {
           <Line
             type="monotone"
             dataKey="cost"
-            stroke="#a855f7"
+            stroke="#8b5cf6"
             strokeWidth={2}
             dot={false}
             fillOpacity={1}
