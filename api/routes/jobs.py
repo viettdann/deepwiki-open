@@ -413,5 +413,3 @@ async def job_progress_stream(job_id: str, request: Request):
             "X-Accel-Buffering": "no"  # Disable buffering in nginx
         }
     )
-
-

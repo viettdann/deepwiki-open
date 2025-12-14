@@ -12,6 +12,7 @@ from api.background.models import (
     JobStatus, PageStatus, CreateJobRequest,
     JobResponse, JobPageResponse, JobDetailResponse
 )
+from urllib.parse import unquote
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,9 @@ class JobManager:
         """Create a new job and return its ID."""
         db = await get_db()
         job_id = str(uuid.uuid4())
+
+        # Normalize branch (decode URL-encoded names like feature%2Ffoo)
+        branch = unquote(request.branch or "main").strip() or "main"
 
         # Check for existing active job with same parameters
         existing = await db.fetch_one(
@@ -51,7 +55,7 @@ class JobManager:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     job_id, request.repo_url, request.repo_type, request.owner, request.repo,
-                    request.access_token, request.branch, request.provider, request.model, request.language,
+                    request.access_token, branch, request.provider, request.model, request.language,
                     1 if request.is_comprehensive else 0,
                     json.dumps(request.excluded_dirs) if request.excluded_dirs else None,
                     json.dumps(request.excluded_files) if request.excluded_files else None,
