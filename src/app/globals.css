@@ -23,6 +23,7 @@
   --accent-success: #10b981; /* Success green (alias) */
   --accent-danger: #ef4444; /* Error red */
   --accent-warning: #f59e0b; /* Warning orange */
+  --accent-fire: #ff4500; /* Vivid fire orange */
 
   --border-color: rgba(139, 92, 246, 0.2);
   --border-subtle: rgba(148, 163, 184, 0.1);
@@ -66,6 +67,7 @@
   --accent-success: #059669;
   --accent-danger: #dc2626; /* Deeper red */
   --accent-warning: #d97706; /* Deeper amber */
+  --accent-fire: #ff4500; /* Vivid fire orange */
 
   /* Borders - purple tint maintained */
   --border-color: rgba(139, 92, 246, 0.15);

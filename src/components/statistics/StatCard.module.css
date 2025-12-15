@@ -102,7 +102,7 @@
   border: 1px solid transparent;
   background:
     linear-gradient(#0e1113, #0e1113) padding-box,
-    linear-gradient(90deg, #ff4500, #ffbf0b) border-box;
+    linear-gradient(90deg, var(--accent-fire), #ffbf0b) border-box;
   background-clip: padding-box, border-box;
 }
 

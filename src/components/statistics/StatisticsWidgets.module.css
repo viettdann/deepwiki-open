@@ -187,14 +187,14 @@
   border-radius: 4px;
   background:
     linear-gradient(#0e1113, #0e1113) padding-box,
-    linear-gradient(90deg, #ff4500, #ffbf0b) border-box;
+    linear-gradient(90deg, var(--accent-fire), #ffbf0b) border-box;
   overflow: hidden;
   min-width: 60px;
 }
 
 .costFill {
   height: 100%;
-  background: linear-gradient(90deg, #ff4500, #ffbf0b);
+  background: linear-gradient(90deg, var(--accent-fire), #ffbf0b);
   transition: width 0.3s ease;
 }
 
@@ -278,14 +278,14 @@
   border-radius: 5px;
   background:
     linear-gradient(#0e1113, #0e1113) padding-box,
-    linear-gradient(90deg, #ff4500, #ffbf0b) border-box;
+    linear-gradient(90deg, var(--accent-fire), #ffbf0b) border-box;
   overflow: hidden;
   margin-bottom: 6px;
 }
 
 .budgetFill {
   height: 100%;
-  background: linear-gradient(90deg, #ff4500, #ffbf0b);
+  background: linear-gradient(90deg, var(--accent-fire), #ffbf0b);
   transition: width 0.3s ease;
 }
 
