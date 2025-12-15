@@ -268,19 +268,65 @@ def _should_retry_without_context(error_message: str) -> bool:
     )
 
 
+def _extract_text_from_content(content: Any) -> list[str]:
+    """Normalize OpenAI/Azure content payloads (string or list of text blocks)."""
+    if not content:
+        return []
+
+    # Plain string content
+    if isinstance(content, str):
+        return [content]
+
+    texts: list[str] = []
+    if isinstance(content, list):
+        for part in content:
+            if not part:
+                continue
+            if isinstance(part, str):
+                texts.append(part)
+                continue
+            if isinstance(part, dict):
+                text_val = part.get("text") or part.get("content")
+                if text_val:
+                    texts.append(text_val)
+                continue
+            text_val = getattr(part, "text", None)
+            if text_val:
+                texts.append(text_val)
+    return texts
+
+
 async def _stream_openai_style(response: Any) -> AsyncIterator[str]:
     async for chunk in response:
+        if not chunk:
+            continue
+
         choices = getattr(chunk, "choices", []) or []
         if choices:
-            delta = getattr(choices[0], "delta", None)
+            choice = choices[0]
+            delta = getattr(choice, "delta", None)
             if delta is not None:
-                text = getattr(delta, "content", None)
-                if text is not None:
-                    yield text
-        else:
-            # fall back to string conversion (covers OpenRouter plain text streaming)
-            if chunk:
-                yield str(chunk)
+                for text in _extract_text_from_content(getattr(delta, "content", None)):
+                    if text:
+                        yield text
+                # Skip prompt_filter or role-only chunks when no text content
+                continue
+
+            # Some providers place the text on the message for the final chunk
+            message = getattr(choice, "message", None)
+            if message is not None:
+                for text in _extract_text_from_content(getattr(message, "content", None)):
+                    if text:
+                        yield text
+                continue
+
+        # Fallback: handle plain text streaming responses without choices
+        if isinstance(chunk, str):
+            yield chunk
+            continue
+        fallback_text = getattr(chunk, "text", None) or getattr(chunk, "data", None)
+        if isinstance(fallback_text, str) and fallback_text:
+            yield fallback_text
 
 
 def _clean_ollama_text(text: str) -> Optional[str]:
