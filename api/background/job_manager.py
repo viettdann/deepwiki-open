@@ -283,17 +283,18 @@ class JobManager:
         """Get all pending/active jobs that can be processed.
 
         Excludes: PAUSED, CANCELLED, COMPLETED, FAILED
-        Includes: PENDING, PREPARING_EMBEDDINGS, GENERATING_STRUCTURE, GENERATING_PAGES
+        Includes: PENDING, PREPARING_EMBEDDINGS, GENERATING_STRUCTURE, GENERATING_PAGES, PARTIALLY_COMPLETED
         """
         db = await get_db()
         return await db.fetch_all(
             """SELECT * FROM jobs
-               WHERE status IN (?, ?, ?, ?)
+               WHERE status IN (?, ?, ?, ?, ?)
                ORDER BY created_at ASC""",
             (JobStatus.PENDING.value,
              JobStatus.PREPARING_EMBEDDINGS.value,
              JobStatus.GENERATING_STRUCTURE.value,
-             JobStatus.GENERATING_PAGES.value)
+             JobStatus.GENERATING_PAGES.value,
+             JobStatus.PARTIALLY_COMPLETED.value)
         )
 
     @staticmethod
@@ -489,23 +490,33 @@ class JobManager:
 
         # Update the job's failed_pages count and status
         if result > 0:
-            # If job is COMPLETED or FAILED, restart it to GENERATING_PAGES
-            # so the worker will pick up the retried page
-            if job['status'] in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
+            # If job is COMPLETED, PARTIALLY_COMPLETED or FAILED, restart it so the worker will pick up the retried page
+            if job['status'] in [
+                JobStatus.COMPLETED.value,
+                JobStatus.PARTIALLY_COMPLETED.value,
+                JobStatus.FAILED.value,
+            ]:
                 await db.execute(
                     """UPDATE jobs
-                       SET failed_pages = failed_pages - 1,
+                       SET failed_pages = MAX(failed_pages - 1, 0),
                            status = ?,
                            current_phase = 2,
                            error_message = NULL,
+                           completed_at = NULL,
+                           progress_percent = CASE 
+                               WHEN total_pages > 0 THEN 
+                                   (CAST(completed_pages AS FLOAT) / total_pages) * 50 + 50
+                               ELSE progress_percent
+                           END,
                            updated_at = datetime('now')
                        WHERE id = ?""",
                     (JobStatus.GENERATING_PAGES.value, page['job_id'])
                 )
             else:
-                # Job is still active, just decrement failed_pages count
+                # Job is still active, just decrement failed_pages count safely
                 await db.execute(
-                    """UPDATE jobs SET failed_pages = failed_pages - 1, updated_at = datetime('now')
+                    """UPDATE jobs 
+                       SET failed_pages = MAX(failed_pages - 1, 0), updated_at = datetime('now')
                        WHERE id = ?""",
                     (page['job_id'],)
                 )

@@ -71,6 +71,11 @@ if PAGE_CONCURRENCY < 1:
     logger.warning(f"Invalid DEEPWIKI_PAGE_CONCURRENCY={PAGE_CONCURRENCY}, using default value 1")
     PAGE_CONCURRENCY = 1
 
+# Allow marking jobs as partially completed when threshold met
+ALLOW_PARTIALLY_COMPLETED_PAGE = os.environ.get(
+    'DEEPWIKI_ALLOW_PARTIALLY_COMPLETED_PAGE', 'true'
+).lower() in ['true', '1', 't', 'yes', 'y']
+
 # Client class mapping
 CLIENT_CLASSES = {
     "GoogleGenAIClient": GoogleGenAIClient,

@@ -18,6 +18,12 @@ mermaid.initialize({
     padding: 20,
   },
   themeCSS: `
+    /* Canvas background aligns with theme */
+    .mermaid, .mermaid svg {
+      background: var(--surface);
+      color: var(--foreground);
+    }
+
     /* Theme-aware Mermaid styling using CSS variables */
     .node rect, .node circle, .node ellipse, .node polygon, .node path {
       fill: var(--surface);
@@ -29,11 +35,7 @@ mermaid.initialize({
       stroke-width: 2px;
     }
     .edgeLabel {
-      background-color: var(--surface);
       color: var(--foreground);
-      padding: 4px 8px;
-      border-radius: 4px;
-      border: 1px solid var(--border-color);
       p {
         background-color: transparent !important;
         margin: 0 !important;
@@ -105,8 +107,16 @@ mermaid.initialize({
     .edgeLabel,
     .label,
     text {
-      fill: var(--foreground) !important;
+      fill: var(--accent-fire);
+      color: var(--accent-fire);
       font-family: var(--font-syne), var(--font-dm-sans), sans-serif;
+    }
+    /* HTML labels (foreignObject) */
+    .mermaid span,
+    .mermaid p,
+    .mermaid div {
+      color: var(--foreground);
+      background: transparent;
     }
 
     /* Gantt chart styles */

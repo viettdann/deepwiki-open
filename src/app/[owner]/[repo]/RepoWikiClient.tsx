@@ -143,12 +143,15 @@ const wikiStyles = `
   }
 
   .prose code {
-    @apply bg-[var(--accent-primary)]/10 px-2 py-1 rounded-md font-mono text-sm border border-[var(--accent-primary)]/20;
+    @apply px-2 py-1 rounded-md font-mono text-sm;
+    background: rgba(255, 247, 245, 0.92);
+    border: 1px solid rgba(252, 165, 165, 0.5);
     word-break: break-all;
-    white-space: pre-wrap;
+    white-space: nowrap;
     max-width: 100%;
-    color: var(--accent-cyan);
+    color: var(--accent-fire);
     font-weight: 500;
+    line-height: 1.8;
   }
 
   .prose pre {
@@ -251,6 +254,7 @@ const wikiStyles = `
     position: relative;
     border-bottom: 1px solid var(--accent-cyan)/30;
     padding-bottom: 1px;
+    color: #3b82f6;
   }
 
   .prose a:hover {
@@ -301,7 +305,6 @@ const wikiStyles = `
   .prose table {
     @apply border-collapse border-2 border-[var(--accent-primary)]/20 rounded-lg overflow-hidden;
     word-wrap: break-word;
-    margin: 2rem 0;
     width: 100%;
   }
 
@@ -321,18 +324,17 @@ const wikiStyles = `
   }
 
   .prose tbody tr:hover {
-    background-color: var(--accent-primary)/5;
+    background-color: rgba(139, 92, 246, 0.18);
   }
 
-  .prose tbody tr:hover th,
-  .prose tbody tr:hover td {
-    border-color: var(--accent-primary)/30;
+  .light .prose tbody tr:hover {
+    background-color: rgba(139, 92, 246, 0.10);
   }
 
   /* Handle very long text strings like source citations */
   .prose :not(pre) > code {
     word-break: break-all;
-    white-space: normal;
+    white-space: nowrap;
   }
 
   /* Details/Summary enhancement */

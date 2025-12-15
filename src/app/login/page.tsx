@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -85,6 +86,7 @@ export default function LoginPage() {
             <div className="terminal-title font-mono">
               <span className="text-[var(--accent-cyan)]">$</span> deepwiki.auth
             </div>
+            <ThemeToggle />
             <div className="terminal-badge">
               <span className="badge-dot" />
               <span className="font-mono text-xs">SECURE</span>
