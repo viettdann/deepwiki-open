@@ -6,18 +6,19 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 
-// Protected routes that require authentication
-const PROTECTED_ROUTES = [
-  '/',
-  '/jobs'
-];
-
-// Public routes that don't require authentication
+// Whitelisted routes that stay public (everything else requires auth when enabled)
 const PUBLIC_ROUTES = [
   '/login',
   '/api',
   '/_next',
-  '/favicon.ico'
+  '/favicon.ico',
+  '/assets',
+  '/public',
+  '/static',
+  '/robots.txt',
+  '/sitemap.xml',
+  '/auth/callback',
+  '/auth/complete',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -54,19 +55,32 @@ export async function middleware(request: NextRequest) {
     // Login is required - check if user has token
     const token = request.cookies.get('dw_token');
 
-    // Check if route is protected
-    const isProtectedRoute = PROTECTED_ROUTES.some(route => {
-      if (route === '/') {
-        return pathname === '/';
-      }
-      return pathname.startsWith(route);
-    });
-
-    if (isProtectedRoute && !token) {
-      // Redirect to login with return URL
+    // If no token and not whitelisted, force login
+    if (!token) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('returnUrl', pathname);
       return NextResponse.redirect(loginUrl);
+    }
+
+    // Token exists but might be expired/invalid: validate against backend
+    try {
+      const authCheck = await fetch(`${baseUrl}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token.value}`,
+          'X-API-Key': process.env.DEEPWIKI_FRONTEND_API_KEY || ''
+        },
+        cache: 'no-store',
+        next: { revalidate: 0 }
+      });
+
+      if (authCheck.status === 401 || authCheck.status === 403) {
+        const loginUrl = new URL('/login', request.url);
+        loginUrl.searchParams.set('returnUrl', pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+    } catch (error) {
+      // On validation failure (network/backend), keep existing fail-open behavior
+      console.error('Auth validation error:', error);
     }
 
     return NextResponse.next();

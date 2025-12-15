@@ -634,7 +634,8 @@ async def get_cached_wiki(
     owner: str = Query(..., description="Repository owner"),
     repo: str = Query(..., description="Repository name"),
     repo_type: str = Query(..., description="Repository type (e.g., github, gitlab)"),
-    language: str = Query(..., description="Language of the wiki content")
+    language: str = Query(..., description="Language of the wiki content"),
+    user = Depends(require_auth)
 ):
     """
     Retrieves cached wiki data (structure and generated pages) for a repository.
@@ -818,7 +819,7 @@ async def root():
 
 # --- Processed Projects Endpoint --- (New Endpoint)
 @app.get("/api/processed_projects", response_model=List[ProcessedProjectEntry])
-async def get_processed_projects():
+async def get_processed_projects(user = Depends(require_auth)):
     """
     Lists all processed projects found in the wiki cache directory.
     Projects are identified by files named like: deepwiki_cache_{repo_type}_{owner}_{repo}_{language}.json

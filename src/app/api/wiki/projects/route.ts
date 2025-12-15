@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { proxyToBackend } from '@/lib/api-proxy';
 
@@ -34,6 +35,12 @@ function isDeleteProjectCachePayload(obj: unknown): obj is DeleteProjectCachePay
 
 export async function GET() {
   try {
+    // Basic guard: block unauthenticated access before proxying to backend
+    const token = (await cookies()).get('dw_token');
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const response = await proxyToBackend('/api/processed_projects', {
       method: 'GET'
     });
@@ -66,6 +73,11 @@ export async function GET() {
 
 export async function DELETE(request: Request) {
   try {
+    const token = (await cookies()).get('dw_token');
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body: unknown = await request.json();
     if (!isDeleteProjectCachePayload(body)) {
       return NextResponse.json(
