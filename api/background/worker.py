@@ -21,7 +21,15 @@ from api.background.models import JobStatus, PageStatus, JobProgressUpdate
 from api.background.job_manager import JobManager
 import aiohttp
 
-from api.config import get_model_config, configs, OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY, PAGE_CONCURRENCY
+from api.config import (
+    get_model_config,
+    configs,
+    OPENROUTER_API_KEY,
+    OPENAI_API_KEY,
+    DEEPSEEK_API_KEY,
+    PAGE_CONCURRENCY,
+    ALLOW_PARTIALLY_COMPLETED_PAGE,
+)
 from api.openai_client import OpenAIClient
 from api.azureai_client import AzureAIClient
 from api.azure_anthropic_client import AzureAnthropicClient
@@ -207,7 +215,7 @@ class WikiGenerationWorker:
             if job and job['current_phase'] <= 2 and job['status'] != JobStatus.PAUSED.value:
                 await self._phase_generate_pages(job)
 
-            # Determine final status based on failed pages
+            # Determine final status based on failed pages and completion ratio
             job_detail = await JobManager.get_job_detail(job_id)
             if not job_detail:
                 logger.error(f"Failed to get job details for {job_id} after completion")
@@ -217,11 +225,28 @@ class WikiGenerationWorker:
             failed_count = job_detail.job.failed_pages
             total_count = job_detail.job.total_pages
 
-            if failed_count > 0:
-                # Some pages failed - mark as partially completed
+            completion_ratio = (job_detail.job.completed_pages / total_count) if total_count else 0
+
+            allow_partial = ALLOW_PARTIALLY_COMPLETED_PAGE
+            partial_condition = failed_count > 0
+            if allow_partial:
+                partial_condition = partial_condition or (
+                    total_count > 0
+                    and completion_ratio >= 0.8
+                    and job_detail.job.completed_pages < total_count
+                )
+
+            if partial_condition:
+                # Some pages failed or (if allowed) at least 80% pages are done but not all
                 final_status = JobStatus.PARTIALLY_COMPLETED
-                final_message = f"Wiki generation partially completed ({job_detail.job.completed_pages}/{total_count} pages successful, {failed_count} failed)"
-                logger.info(f"Job {job_id} completed with {failed_count} failed pages out of {total_count}")
+                final_message = (
+                    f"Wiki generation partially completed "
+                    f"({job_detail.job.completed_pages}/{total_count} pages successful, {failed_count} failed)"
+                )
+                logger.info(
+                    f"Job {job_id} marked partially completed: "
+                    f"{job_detail.job.completed_pages}/{total_count} done, {failed_count} failed"
+                )
             else:
                 # All pages succeeded - mark as completed
                 final_status = JobStatus.COMPLETED
