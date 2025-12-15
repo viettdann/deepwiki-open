@@ -156,6 +156,10 @@ class ModelConfig(BaseModel):
     """
     providers: List[Provider] = Field(..., description="List of available model providers")
     defaultProvider: str = Field(..., description="ID of the default provider")
+    defaultModel: Optional[str] = Field(
+        None,
+        description="Preferred default model for the default provider (after applying allowlist and chat overrides)"
+    )
 
 class AuthorizationConfig(BaseModel):
     code: str = Field(..., description="Authorization code")
@@ -285,9 +289,15 @@ async def get_model_config(user: Optional['User'] = Depends(optional_auth)):
     try:
         logger.info("Fetching model configurations")
 
+        # Enforce authentication when login is required so that allowlists apply
+        if LOGIN_REQUIRED and user is None:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
         # Create providers from the config file
         providers = []
         default_provider, chat_default_model = get_chat_defaults()
+        chat_default_provider = default_provider
+        default_model = None
 
         # Helper to decide if custom models are allowed for this provider
         def custom_models_allowed(provider_id: str) -> bool:
@@ -342,13 +352,27 @@ async def get_model_config(user: Optional['User'] = Depends(optional_auth)):
         if default_provider not in provider_ids and providers:
             default_provider = providers[0].id
 
+        # Determine default model after filtering
+        default_provider_entry = next((p for p in providers if p.id == default_provider), None)
+        if default_provider_entry and default_provider_entry.models:
+            preferred_default = chat_default_model if chat_default_model and default_provider_entry.id == chat_default_provider else None
+
+            if preferred_default and any(m.id == preferred_default for m in default_provider_entry.models):
+                default_model = preferred_default
+            else:
+                default_model = default_provider_entry.models[0].id
+
         # Create and return the full configuration
         config = ModelConfig(
             providers=providers,
-            defaultProvider=default_provider
+            defaultProvider=default_provider,
+            defaultModel=default_model
         )
         return config
 
+    except HTTPException as e:
+        # Propagate HTTP errors (e.g., 401 when auth is required)
+        raise
     except Exception as e:
         logger.error(f"Error creating model configuration: {str(e)}")
         # Return some default configuration in case of error
@@ -363,7 +387,8 @@ async def get_model_config(user: Optional['User'] = Depends(optional_auth)):
                     ]
                 )
             ],
-            defaultProvider="google"
+            defaultProvider="google",
+            defaultModel="gemini-2.5-flash"
         )
 
 @app.post("/export/wiki")

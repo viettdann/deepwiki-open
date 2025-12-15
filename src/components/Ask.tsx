@@ -123,16 +123,29 @@ const Ask: React.FC<AskProps> = ({
           throw new Error(`Error fetching model configurations: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data: { providers: Provider[]; defaultProvider: string; defaultModel?: string | null } = await response.json();
 
         // use latest provider/model ref to check
         if(providerRef.current == '' || modelRef.current== '') {
-          setSelectedProvider(data.defaultProvider);
+          const fallbackProvider = data.defaultProvider || data.providers[0]?.id || '';
+          setSelectedProvider(fallbackProvider);
 
-          // Find the default provider and set its default model
-          const selectedProvider = data.providers.find((p:Provider) => p.id === data.defaultProvider);
-          if (selectedProvider && selectedProvider.models.length > 0) {
-            setSelectedModel(selectedProvider.models[0].id);
+          // Find the default provider and set its default model (respect backend chat default if returned)
+          const providerEntry = data.providers.find((p:Provider) => p.id === fallbackProvider);
+          if (providerEntry) {
+            let nextModel = '';
+            if (data.defaultModel && providerEntry.id === data.defaultProvider) {
+              const match = providerEntry.models.find((m) => m.id === data.defaultModel);
+              if (match) {
+                nextModel = match.id;
+              }
+            }
+            if (!nextModel && providerEntry.models.length > 0) {
+              nextModel = providerEntry.models[0].id;
+            }
+            setSelectedModel(nextModel);
+          } else {
+            setSelectedModel('');
           }
         } else {
           setSelectedProvider(providerRef.current);
