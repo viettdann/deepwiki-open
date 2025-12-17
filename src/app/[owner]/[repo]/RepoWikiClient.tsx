@@ -596,7 +596,7 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
     return () => {
       window.removeEventListener('keydown', handleEsc);
     };
-  }, [isAskModalOpen, isModelDropdownOpen]);
+  }, [isAskModalOpen, isModelDropdownOpen, setIsAskModalOpen, setIsModelDropdownOpen]);
 
   // Fetch model config
   useEffect(() => {
@@ -614,7 +614,7 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
     if (!modelConfig) {
       fetchModelConfig();
     }
-  }, [modelConfig]);
+  }, [modelConfig, setModelConfig]);
 
   // Auto-expand current provider when dropdown opens
   useEffect(() => {
@@ -650,7 +650,7 @@ export default function RepoWikiClient({ authRequiredInitial }: { authRequiredIn
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isModelDropdownOpen]);
+  }, [isModelDropdownOpen, setIsModelDropdownOpen]);
 
   const generatePageContent = useCallback(async (page: WikiPage, ownerLocal: string, repoLocal: string) => {
     return new Promise<void>(async (resolve) => {
@@ -811,7 +811,7 @@ IMPORTANT: Generate the content in ${language === 'vi' ? 'Vietnamese (Tiếng Vi
         setLoading(false, undefined);
       }
     });
-  }, [generatedPages, currentToken, effectiveRepoInfo, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, language, activeContentRequests, generateFileUrl]);
+  }, [generatedPages, currentToken, effectiveRepoInfo, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, language, activeContentRequests, generateFileUrl, addPageInProgress, removePageInProgress, setError, setLoading, updatePage]);
 
   const determineWikiStructure = useCallback(async (fileTree: string, readme: string, ownerLocal: string, repoLocal: string) => {
     if (!ownerLocal || !repoLocal) {
@@ -990,7 +990,7 @@ Return your analysis in the specified XML format.`
     } finally {
       setStructureRequestInProgress(false);
     }
-  }, [generatePageContent, currentToken, effectiveRepoInfo, pagesInProgress.size, structureRequestInProgress, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, language, messages.loading?.determiningStructure, isComprehensiveView]);
+  }, [generatePageContent, currentToken, effectiveRepoInfo, pagesInProgress.size, structureRequestInProgress, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, language, messages.loading?.determiningStructure, isComprehensiveView, setError, setLoading, setEmbeddingError, setStructureRequestInProgress, setPagesInProgress, setWikiStructure, setCurrentPage]);
 
   const fetchRepositoryStructure = useCallback(async () => {
     if (requestInProgress) {
@@ -1246,7 +1246,7 @@ Return your analysis in the specified XML format.`
     } finally {
       setRequestInProgress(false);
     }
-  }, [owner, repo, determineWikiStructure, currentToken, effectiveRepoInfo, requestInProgress, messages.loading?.fetchingStructure]);
+  }, [owner, repo, determineWikiStructure, currentToken, effectiveRepoInfo, requestInProgress, messages.loading?.fetchingStructure, resetWikiState, setError, setEmbeddingError, setLoading, setRequestInProgress, setDefaultBranch, branchParam]);
 
   const exportWiki = useCallback(async (format: 'markdown' | 'json') => {
     if (!wikiStructure || Object.keys(generatedPages).length === 0) {
@@ -1300,7 +1300,7 @@ Return your analysis in the specified XML format.`
       setIsExporting(false);
       setLoading(false, undefined);
     }
-  }, [wikiStructure, generatedPages, effectiveRepoInfo, language]);
+  }, [wikiStructure, generatedPages, effectiveRepoInfo, language, setExportError, setIsExporting, setLoading]);
 
   const confirmRefresh = useCallback(async (newToken?: string, config?: { provider: string, model: string, isCustomModel: boolean, customModel: string, isComprehensiveView: boolean }) => {
     setLoading(true, cleanRegenerateMode ?
@@ -1391,7 +1391,7 @@ Return your analysis in the specified XML format.`
       setLoading(false);
       setLoading(false, undefined);
     }
-  }, [effectiveRepoInfo, language, messages.loading?.initializing, messages.loading?.clearingCache, messages.loading?.clearingAllData, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, isComprehensiveView, authCode, authRequired, currentToken, router, defaultBranch, cleanRegenerateMode]);
+  }, [effectiveRepoInfo, language, messages.loading?.initializing, messages.loading?.clearingCache, messages.loading?.clearingAllData, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, isComprehensiveView, authCode, authRequired, currentToken, router, defaultBranch, cleanRegenerateMode, resetWikiState, setCurrentToken, setEmbeddingError, setError, setLoading, setRequestInProgress, setStructureRequestInProgress]);
 
   useEffect(() => {
     if (effectRan.current === false) {
@@ -1536,7 +1536,7 @@ Return your analysis in the specified XML format.`
       };
       loadData();
     }
-  }, [effectiveRepoInfo, language, messages.loading?.fetchingCache, isComprehensiveView, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, currentToken, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, defaultBranch, messages.loading?.checkingJobs, messages.loading?.creatingJob, router]);
+  }, [effectiveRepoInfo, language, messages.loading?.fetchingCache, isComprehensiveView, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, currentToken, modelExcludedDirs, modelExcludedFiles, modelIncludedDirs, modelIncludedFiles, defaultBranch, messages.loading?.checkingJobs, messages.loading?.creatingJob, router, setCurrentPage, setEmbeddingError, setError, setGeneratedPages, setLoading, setSelectedModelState, setSelectedProviderState, setWikiStructure, setEffectiveRepoInfo, setIsComprehensiveView]);
 
   useEffect(() => {
     const saveCache = async () => {

@@ -308,11 +308,12 @@ export function useModelConfig(
 
       // Prefer chat default model returned by backend when it belongs to the active provider
       if (
+        state.modelConfig &&
         state.modelConfig.defaultModel &&
         state.modelConfig.defaultProvider &&
         state.modelConfig.defaultProvider === providerEntry.id
       ) {
-        const match = providerEntry.models.find(m => m.id === state.modelConfig.defaultModel);
+        const match = providerEntry.models.find(m => m.id === state.modelConfig?.defaultModel);
         if (match) {
           nextModel = match.id;
         }

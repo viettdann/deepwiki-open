@@ -1,10 +1,10 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
 const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const targetUrl = `${TARGET_SERVER_BASE_URL}/models/config`;
 

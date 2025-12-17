@@ -30,7 +30,7 @@ interface OverviewData {
 
 export default function StatisticsPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [overview, setOverview] = useState<OverviewData | null>(null);
