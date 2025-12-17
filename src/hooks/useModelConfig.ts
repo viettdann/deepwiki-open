@@ -1,4 +1,12 @@
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useEffect } from 'react';
+
+type ModelEntry = { id: string; name: string };
+type ProviderEntry = { id: string; name: string; models: ModelEntry[]; supportsCustomModel?: boolean };
+type ModelConfigResponse = {
+  providers: ProviderEntry[];
+  defaultProvider?: string;
+  defaultModel?: string | null;
+};
 
 export interface ModelConfigState {
   selectedProvider: string;
@@ -11,7 +19,7 @@ export interface ModelConfigState {
   includedFiles: string;
   showModelOptions: boolean;
   isModelDropdownOpen: boolean;
-  modelConfig: {providers: Array<{id: string; name: string; models: Array<{id: string; name: string}>; supportsCustomModel?: boolean}>} | null;
+  modelConfig: ModelConfigResponse | null;
   expandedProviders: Set<string>;
   customModelInput: {providerId: string; value: string} | null;
 }
@@ -27,7 +35,7 @@ export type ModelConfigAction =
   | { type: 'SET_INCLUDED_FILES'; payload: string }
   | { type: 'SET_SHOW_MODEL_OPTIONS'; payload: boolean }
   | { type: 'SET_MODEL_DROPDOWN_OPEN'; payload: boolean }
-  | { type: 'SET_MODEL_CONFIG'; payload: {providers: Array<{id: string; name: string; models: Array<{id: string; name: string}>; supportsCustomModel?: boolean}>} | null }
+  | { type: 'SET_MODEL_CONFIG'; payload: ModelConfigResponse | null }
   | { type: 'TOGGLE_PROVIDER_EXPANDED'; payload: string }
   | { type: 'SET_CUSTOM_MODEL_INPUT'; payload: {providerId: string; value: string} | null }
   | { type: 'RESET_MODEL_CONFIG' }
@@ -261,6 +269,66 @@ export function useModelConfig(
       });
     }, []),
   };
+
+  // Auto-apply backend defaults (chat overrides + allowlist) once config is available
+  useEffect(() => {
+    if (!state.modelConfig || state.modelConfig.providers.length === 0) {
+      return;
+    }
+
+    const availableProviders = state.modelConfig.providers.map(p => p.id);
+    const configDefaultProvider =
+      state.modelConfig.defaultProvider ||
+      (availableProviders.length > 0 ? availableProviders[0] : '');
+
+    // If current selection is no longer available (e.g., allowlist filtered), reset to config default
+    if (state.selectedProvider && !availableProviders.includes(state.selectedProvider)) {
+      dispatch({ type: 'SET_SELECTED_PROVIDER', payload: configDefaultProvider });
+      dispatch({ type: 'SET_SELECTED_MODEL', payload: '' });
+    }
+
+    const activeProvider = state.selectedProvider || configDefaultProvider;
+    const providerEntry = state.modelConfig.providers.find(p => p.id === activeProvider);
+
+    if (!state.selectedProvider && configDefaultProvider) {
+      dispatch({ type: 'SET_SELECTED_PROVIDER', payload: configDefaultProvider });
+    }
+
+    // If the currently selected model is no longer allowed for the active provider, reset it
+    if (
+      state.selectedModel &&
+      providerEntry &&
+      !providerEntry.models.find(m => m.id === state.selectedModel)
+    ) {
+      dispatch({ type: 'SET_SELECTED_MODEL', payload: '' });
+    }
+
+    if (!state.selectedModel && providerEntry) {
+      let nextModel = '';
+
+      // Prefer chat default model returned by backend when it belongs to the active provider
+      if (
+        state.modelConfig &&
+        state.modelConfig.defaultModel &&
+        state.modelConfig.defaultProvider &&
+        state.modelConfig.defaultProvider === providerEntry.id
+      ) {
+        const match = providerEntry.models.find(m => m.id === state.modelConfig?.defaultModel);
+        if (match) {
+          nextModel = match.id;
+        }
+      }
+
+      // Fallback to first allowed model
+      if (!nextModel && providerEntry.models.length > 0) {
+        nextModel = providerEntry.models[0].id;
+      }
+
+      if (nextModel) {
+        dispatch({ type: 'SET_SELECTED_MODEL', payload: nextModel });
+      }
+    }
+  }, [state.modelConfig, state.selectedModel, state.selectedProvider]);
 
   return {
     ...state,

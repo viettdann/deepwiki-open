@@ -28,7 +28,8 @@ from api.auth import (
     log_user_usage,
     get_model_pricing,
     get_user_budget_limit,
-    get_user_requests_per_minute
+    get_user_requests_per_minute,
+    LOGIN_REQUIRED
 )
 from api.auth.user_store import User
 from api.services.rate_limiter import RateLimiter
@@ -101,6 +102,10 @@ async def chat_completions_stream(
                         detail=f"Rate limit exceeded: {rpm_limit} requests per minute"
                     )
 
+        # Enforce authentication when login is required so allowlists actually apply
+        if LOGIN_REQUIRED and user is None:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
         # Resolve provider/model defaults for chat (decoupled from wiki generator defaults)
         chat_default_provider, chat_default_model = get_chat_defaults()
         provider = request.provider or chat_default_provider or configs.get("default_provider", "google")
@@ -117,26 +122,51 @@ async def chat_completions_stream(
                     logger.warning(f"Request exceeds recommended token limit ({tokens} > 7500)")
                     input_too_large = True
 
+        def build_model_config(target_provider: str, target_model: Optional[str]):
+            cfg = get_model_config(target_provider, target_model)
+            resolved = cfg["model_kwargs"].get("model") or target_model or cfg.get("model")
+            return cfg, resolved
+
         # Resolve model configuration early so we can enforce allowlist before heavy work
         try:
-            model_config = get_model_config(provider, model)
+            model_config, resolved_model = build_model_config(provider, model)
         except ValueError as e:
-            logger.error(f"Invalid model/provider combination: {str(e)}")
-            raise HTTPException(status_code=400, detail=str(e))
-
-        resolved_model = model_config["model_kwargs"].get("model") or model
+            logger.warning(f"Invalid model/provider combination '{provider}/{model}' - trying chat defaults. {str(e)}")
+            if chat_default_provider:
+                provider = chat_default_provider
+                model = chat_default_model
+                model_config, resolved_model = build_model_config(provider, model)
+            else:
+                raise HTTPException(status_code=400, detail=str(e))
 
         # Check model restrictions for authenticated users before starting RAG
         if user:
             if not is_model_allowed(user, provider, resolved_model):
-                logger.warning(
-                    f"User {user.username} attempted to use disallowed model {provider}/{resolved_model}"
-                )
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Model {provider}/{resolved_model} not allowed for your role"
-                )
+                logger.warning(f"User {user.username} attempted disallowed model {provider}/{resolved_model}")
+
+                # Try to fall back to chat defaults automatically if different
+                if chat_default_provider and (provider != chat_default_provider or resolved_model != (chat_default_model or resolved_model)):
+                    try:
+                        fallback_config, fallback_model = build_model_config(chat_default_provider, chat_default_model)
+                        if is_model_allowed(user, chat_default_provider, fallback_model):
+                            logger.info(f"Falling back to chat default model {chat_default_provider}/{fallback_model} for user {user.username}")
+                            provider = chat_default_provider
+                            resolved_model = fallback_model
+                            model_config = fallback_config
+                        else:
+                            raise HTTPException(
+                                status_code=403,
+                                detail=f"Model {provider}/{resolved_model} not allowed for your role"
+                            )
+                    except ValueError as e:
+                        raise HTTPException(status_code=400, detail=str(e))
+                else:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Model {provider}/{resolved_model} not allowed for your role"
+                    )
             logger.info(f"User {user.username} allowed to use {provider}/{resolved_model}")
+        logger.info(f"Using provider/model for chat: {provider}/{resolved_model}")
 
         # Create a new RAG instance for this request
         try:

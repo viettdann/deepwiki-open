@@ -2,10 +2,10 @@
  * Statistics API Route - Overview
  * Proxies to Python backend /api/statistics/overview
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { proxyToBackend } from '@/lib/api-proxy';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const response = await proxyToBackend('/api/statistics/overview', {
       method: 'GET'

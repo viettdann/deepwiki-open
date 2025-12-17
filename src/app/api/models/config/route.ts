@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 const TARGET_SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'http://localhost:8001';
 const API_KEY = process.env.DEEPWIKI_FRONTEND_API_KEY || '';
@@ -7,11 +8,16 @@ export async function GET() {
   try {
     const targetUrl = `${TARGET_SERVER_BASE_URL}/models/config`;
 
+    // Forward user JWT (if present) so backend can enforce allowlist
+    const cookieStore = await cookies();
+    const token = cookieStore.get('dw_token');
+
     const backendResponse = await fetch(targetUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        ...(API_KEY ? { 'X-API-Key': API_KEY } : {})
+        ...(API_KEY ? { 'X-API-Key': API_KEY } : {}),
+        ...(token ? { 'Authorization': `Bearer ${token.value}` } : {}),
       }
     });
 
