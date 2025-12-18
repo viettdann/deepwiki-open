@@ -81,7 +81,7 @@ const Ask: React.FC<AskProps> = ({
   const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
   const [researchIteration, setResearchIteration] = useState(0);
   const [researchComplete, setResearchComplete] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
   const providerRef = useRef(provider);
   const modelRef = useRef(model);
@@ -487,6 +487,14 @@ const Ask: React.FC<AskProps> = ({
     handleConfirmAsk();
   };
 
+  const handleQuestionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault();
+      if (!question.trim() || isLoading) return;
+      handleConfirmAsk();
+    }
+  };
+
   // Handle confirm and send request
   const handleConfirmAsk = async () => {
     setIsLoading(true);
@@ -603,14 +611,15 @@ const Ask: React.FC<AskProps> = ({
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.inputGroup}>
             <div className={styles.inputPrefix}>▸</div>
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={handleQuestionKeyDown}
               placeholder={messages.ask?.placeholder || 'What would you like to know about this codebase?'}
               className={styles.input}
               disabled={isLoading}
+              rows={3}
             />
             <button
               type="submit"
@@ -627,6 +636,9 @@ const Ask: React.FC<AskProps> = ({
                 </>
               )}
             </button>
+          </div>
+          <div className={styles.inputHint}>
+            {messages.ask?.inputHint || 'Enter/Shift+Enter for new line · Ctrl+Enter to send'}
           </div>
 
           {/* Deep Research toggle */}

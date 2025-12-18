@@ -100,6 +100,7 @@
   "ask": {
     "placeholder": "Ask a question about this repository...",
     "askButton": "Ask",
+    "inputHint": "Enter/Shift+Enter for new line · Ctrl+Enter to send",
     "deepResearch": "Deep Research",
     "researchInProgress": "Research in progress...",
     "continueResearch": "Continue Research",

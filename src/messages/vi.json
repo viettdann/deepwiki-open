@@ -89,6 +89,7 @@
   "ask": {
     "placeholder": "Đặt một câu hỏi về repository này...",
     "askButton": "Hỏi",
+    "inputHint": "Enter/Shift+Enter để xuống dòng · Ctrl+Enter để gửi",
     "deepResearch": "Nghiên cứu sâu",
     "researchInProgress": "Đang tiến hành nghiên cứu...",
     "continueResearch": "Tiếp tục nghiên cứu",
