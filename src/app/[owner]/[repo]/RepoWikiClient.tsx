@@ -147,7 +147,7 @@ const wikiStyles = `
     background: rgba(255, 247, 245, 0.92);
     border: 1px solid rgba(252, 165, 165, 0.5);
     word-break: break-all;
-    white-space: nowrap;
+    white-space: pre-wrap;
     max-width: 100%;
     color: var(--accent-fire);
     font-weight: 500;
