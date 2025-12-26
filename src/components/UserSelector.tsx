@@ -157,10 +157,6 @@ export default function UserSelector({
 ./target/
 ./bin/
 ./obj/
-./docs/
-./_docs/
-./site-docs/
-./_site/
 ./.idea/
 ./.vscode/
 ./.vs/

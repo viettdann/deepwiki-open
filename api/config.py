@@ -331,8 +331,6 @@ DEFAULT_EXCLUDED_DIRS: List[str] = [
     "./__pycache__/", "./.pytest_cache/", "./.mypy_cache/", "./.ruff_cache/", "./.coverage/",
     # Build and distribution
     "./dist/", "./build/", "./out/", "./target/", "./bin/", "./obj/",
-    # Documentation
-    "./docs/", "./_docs/", "./site-docs/", "./_site/",
     # IDE specific
     "./.idea/", "./.vscode/", "./.vs/", "./.eclipse/", "./.settings/",
     # Logs and temporary files
